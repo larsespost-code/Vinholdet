@@ -2425,6 +2425,7 @@ function renderSettings(){
     </div>`).join('');
   return `
   <div class="fade-in">
+    <h2>Regler</h2>
     <div class="card">
       <div class="eyebrow">Pointregler</div>
       <div class="rules-panel">${RULES_HTML}</div>
@@ -2482,7 +2483,6 @@ function renderIdentityGate(){
       <h2>Hvem er du?</h2>
       <p class="sub">Vælg dit navn, så ved appen, hvornår det er dig, der skal indtaste eller gætte.</p>
       <div class="chips" style="justify-content:center;">${CONFIG.participants.map(p=>`<div class="chip-pick" onclick="pickGateName('${esc(p)}')">${esc(p)}</div>`).join('')}</div>
-      <p class="hint" style="margin-top:16px;">Mangler en deltager? Tilføj under <span style="color:var(--accent-2);cursor:pointer;text-decoration:underline;" onclick="switchView('settings')">deltager-ikonet</span> foroven.</p>
       ${startLinksHtml()}
     </div>`;
   }
