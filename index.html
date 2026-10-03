@@ -404,6 +404,8 @@ select.year-select,select.sel{border:1.5px solid #1F2A37;border-radius:8px;paddi
 .toast{background:#1F2A37;color:#EEF2F6}
 .identity-pill b{color:var(--accent);font-weight:700}
 html,body{overscroll-behavior-y:none}
+.confirm-box.soft{background:rgba(248,250,252,.92);border:1px solid rgba(31,42,55,.18);padding:10px 12px}
+.confirm-box.soft span{color:var(--text-dim);font-size:14px}
 
 .hbar-row.clickable:hover,.top10 li:hover,.tbl tbody tr:hover{background:rgba(31,42,55,.05)}
 
@@ -618,7 +620,8 @@ function makeSheetsDb(url, key){
   const docSubs = new Set();   // {path, cb, seen}
   const histSubs = new Set();  // {cb, seen}
   let histHash = '', histList = null, busy = false, again = false;
-  let histAt = 0, histForce = true, fails = 0;
+  let histAt = 0, histForce = true, fails = 0, lastOk = Date.now();
+  let syncCtl = null, syncStart = 0, hiddenAt = 0; // the live-update request under way
   const HIST_EVERY = 12000; // the history is heavy for the sheet to build — fetch it less often than the live round
 
   // Every failure carries a short, human-readable cause (.detail), shown in the warning bar.
@@ -626,7 +629,9 @@ function makeSheetsDb(url, key){
     let res, text;
     try{
       const ctl = window.AbortController ? new AbortController() : null;
-      const timer = ctl && setTimeout(()=>ctl.abort(), body.op==='sync' ? 12000 : 25000);
+      if(body.op==='sync'){ syncCtl = ctl; syncStart = Date.now(); }
+      // Apps Script can take many seconds to wake up after a quiet spell — be patient.
+      const timer = ctl && setTimeout(()=>ctl.abort(), body.op==='sync' ? 20000 : 30000);
       try{
         res = await fetch(url, { method:'POST', redirect:'follow', signal: ctl ? ctl.signal : undefined,
           headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({k:key}, body)) });
@@ -664,7 +669,7 @@ function makeSheetsDb(url, key){
       const wantHist = histSubs.size && (histForce || Date.now() - histAt > HIST_EVERY);
       const r = await call({ op:'sync', paths, hist: wantHist ? histHash : null });
       if(wantHist){ histAt = Date.now(); histForce = false; }
-      fails = 0; sheetsHealth(null);
+      fails = 0; lastOk = Date.now(); sheetsHealth(null);
       docSubs.forEach(s=>{
         if(!Object.prototype.hasOwnProperty.call(r.docs, s.path)) return; // subscribed while this request was under way — next tick
         const d = r.docs[s.path]; const key = JSON.stringify(d==null ? null : d);
@@ -680,13 +685,23 @@ function makeSheetsDb(url, key){
       }
     }catch(e){
       // one hiccup is normal — three in a row means the sheet can't be reached: say so
-      if(++fails >= 3) sheetsHealth(e);
+      // A request that lived through the phone being in the background (e.g. while
+      // sending the link from another app) died with it — that's not the sheet's fault.
+      if(hiddenAt >= syncStart){ /* ignore */ }
+      // Only warn after a real outage: several failures AND half a minute without contact.
+      else if(++fails >= 3 && Date.now() - lastOk > 30000) sheetsHealth(e);
     }
     busy = false;
     if(again){ again = false; setTimeout(tick, 50); }
   }
   setInterval(()=>{ if(document.visibilityState==='visible') tick(); }, 2000);
-  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible'){ histForce = true; tick(); } });
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState!=='visible'){ hiddenAt = Date.now(); return; }
+    // Back from another app: a request started before is usually frozen — drop it and ask again.
+    hiddenAt = Date.now(); fails = 0; lastOk = Math.max(lastOk, Date.now() - 20000);
+    if(busy && syncCtl) try{ syncCtl.abort(); }catch(e){}
+    histForce = true; setTimeout(tick, 60);
+  });
   const soon = ()=> setTimeout(tick, 30);
   const soonAll = ()=>{ histForce = true; soon(); };
 
@@ -1074,11 +1089,12 @@ function setSyncState(err, e){
     || (READ_ERROR && READ_ERROR.code==='not_granted');
   if(!err && !READ_ERROR && CAN_WRITE !== false){ bar.style.display='none'; bar.innerHTML=''; return; }
   bar.style.display='flex';
+  bar.classList.toggle('soft', !denied && !err); // lost contact while just looking: a calm note, not an alarm
   bar.innerHTML = denied
     ? `<span>⚠ <b>${esc(MY_IDENTITY||'Du')}</b>: regnearket afviser forbindelsen — dine svar kan ikke gemmes. Bed Lars om et nyt link til Vinholdet.</span>`
     : err
     ? `<span>⚠ Kunne ikke gemme i regnearket — de andre ser muligvis ikke dine seneste ændringer.${errDetail(e)}</span><button class="btn btn-danger btn-sm" onclick="retrySync()">Prøv igen</button>`
-    : `<span>⚠ Ingen forbindelse til regnearket lige nu — du ser ikke de andres ændringer. Prøver igen af sig selv.${errDetail(READ_ERROR)}</span><button class="btn btn-danger btn-sm" onclick="retryConnection()">Prøv nu</button>`;
+    : `<span>Forbindelsen til regnearket er langsom — prøver igen af sig selv.${errDetail(READ_ERROR)}</span><button class="btn btn-secondary btn-sm" onclick="retryConnection()">Prøv nu</button>`;
 }
 function retrySync(){
   const redo = RETRY_LAST; RETRY_LAST = null;
