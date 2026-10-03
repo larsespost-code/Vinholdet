@@ -403,6 +403,7 @@ select.year-select,select.sel{border:1.5px solid #1F2A37;border-radius:8px;paddi
 .stand .lead .big{color:var(--good)}
 .toast{background:#1F2A37;color:#EEF2F6}
 .identity-pill b{color:var(--accent);font-weight:700}
+html,body{overscroll-behavior-y:none}
 
 .hbar-row.clickable:hover,.top10 li:hover,.tbl tbody tr:hover{background:rgba(31,42,55,.05)}
 
@@ -463,6 +464,14 @@ select.year-select,select.sel{border:1.5px solid #1F2A37;border-radius:8px;paddi
 .res-g{color:var(--text-dim);word-break:break-word;font-size:15px}
 .res-g.none{font-style:italic;color:var(--text-faint);font-size:14px}
 .res-p{font-family:var(--fnum),sans-serif;font-size:13px;color:var(--text-dim)}
+.reveal{margin:0 0 20px;text-align:center}
+.reveal-kicker{font-family:var(--fm);font-size:12px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);margin-bottom:10px}
+.reveal-label{position:relative;background:#F8FAFC;border:1.5px solid #1F2A37;border-radius:14px;padding:26px 20px 22px;box-shadow:0 0 0 5px #F8FAFC,0 0 0 6.5px #9DB4CC,0 14px 30px rgba(31,42,55,.12)}
+.reveal-type{display:inline-block;font-family:var(--fm);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--text-dim);border-bottom:1px solid #9DB4CC;padding-bottom:4px;margin-bottom:12px}
+.reveal-name{font-family:var(--fd);font-weight:800;font-stretch:112%;font-size:clamp(28px,8vw,40px);line-height:1.02;letter-spacing:-.03em;color:var(--text);text-wrap:balance;word-break:break-word}
+.reveal-year{font-family:var(--fnum);font-weight:900;font-stretch:112%;font-size:clamp(40px,13vw,60px);line-height:1;letter-spacing:-.04em;color:var(--accent);margin-top:10px;font-variant-numeric:tabular-nums}
+.reveal-facts{margin-top:12px;font-size:15px;color:var(--text-dim);line-height:1.45}
+.reveal-facts span{margin:0 7px;color:#9DB4CC}
 .hist-item .score small{display:block;font-family:var(--fb);font-size:11px;font-weight:600;color:var(--text-faint);text-align:right;margin-top:3px}
 </style>
 <div class="app">
@@ -616,10 +625,15 @@ function makeSheetsDb(url, key){
   async function call1(body){
     let res, text;
     try{
-      res = await fetch(url, { method:'POST', redirect:'follow',
-        headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({k:key}, body)) });
-      text = await res.text();
-    }catch(e){ const er = new Error('unavailable'); er.code='unavailable'; er.detail = 'ingen netværksforbindelse til Google'; throw er; }
+      const ctl = window.AbortController ? new AbortController() : null;
+      const timer = ctl && setTimeout(()=>ctl.abort(), body.op==='sync' ? 12000 : 25000);
+      try{
+        res = await fetch(url, { method:'POST', redirect:'follow', signal: ctl ? ctl.signal : undefined,
+          headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({k:key}, body)) });
+        text = await res.text();
+      }finally{ clearTimeout(timer); }
+    }catch(e){ const er = new Error('unavailable'); er.code='unavailable';
+      er.detail = e && e.name==='AbortError' ? 'Google svarede ikke i tide' : 'ingen netværksforbindelse til Google'; throw er; }
     let j; try{ j = JSON.parse(text); }catch(e){
       const er = new Error('unavailable'); er.code='unavailable';
       const t = /<title>([^<]*)/i.exec(text);
@@ -801,7 +815,7 @@ let INITIAL_LOADED = false; // until the shared state has been read once, don't 
 function markLoaded(){ if(!INITIAL_LOADED){ INITIAL_LOADED = true; render(); } }
 setTimeout(()=>{ if(!READ_ERROR) markLoaded(); }, 10000); // never hang on the loading screen — unless the sheet really can't be reached
 const IGNORED_ROUNDS = new Set();  // rounds this device closed (result dismissed) or cancelled
-let PENDING_NEW_ROUND = null;      // {id, at}: a round created here whose pointer hasn't come back yet
+let PENDING_NEW_ROUND = null;      // {id, at, saved}: a round created here whose pointer hasn't come back yet
 
 // Order-independent comparison: the server returns keys sorted, the app
 // builds them in its own order — a plain JSON.stringify compare said
@@ -904,9 +918,11 @@ function applyPointer(roundId, pdata){
   }
   // A round was just created on this phone: until the shared pointer shows
   // it, ignore older pointer values (a read that was already under way).
+  // Until the new wine is actually saved, an older pointer must never close it:
+  // a slow sheet used to throw the person typing back to the front page after 15 s.
   if(PENDING_NEW_ROUND){
     if(roundId === PENDING_NEW_ROUND.id) PENDING_NEW_ROUND = null;
-    else if(Date.now() - PENDING_NEW_ROUND.at < 15000) return;
+    else if(!PENDING_NEW_ROUND.saved || Date.now() - PENDING_NEW_ROUND.at < 20000) return;
     else PENDING_NEW_ROUND = null;
   }
   if(roundId && IGNORED_ROUNDS.has(roundId)) roundId = null;
@@ -1113,6 +1129,7 @@ async function pushActiveNow(){
         const payload = Object.assign({}, ACTIVE, {_writer:SESSION_ID, updatedAt:now, createdAt: ACTIVE.createdAt||now});
         await DB.doc('rounds/'+ACTIVE.id).set(payload);
         await DB.doc('state/active').set({roundId:ACTIVE.id,_writer:SESSION_ID,updatedAt:now});
+        if(PENDING_NEW_ROUND && ACTIVE && PENDING_NEW_ROUND.id === ACTIVE.id){ PENDING_NEW_ROUND.saved = true; PENDING_NEW_ROUND.at = Date.now(); }
       } else {
         await DB.doc('state/active').set({roundId:null,_writer:SESSION_ID,updatedAt:Date.now()});
       }
@@ -1201,7 +1218,7 @@ function createRoundLocal(){
     guessers: otherParticipants(MY_IDENTITY), wineNote:'', wineType:'',
     truth: emptyAnswers(), guesses:{}, sent:{}, judged:{}, scores:{} };
   VIEW='game'; RULES_OPEN=false;
-  PENDING_NEW_ROUND = { id: ACTIVE.id, at: Date.now() };
+  PENDING_NEW_ROUND = { id: ACTIVE.id, at: Date.now(), saved: false };
   render();
 }
 // Who guesses this wine: everyone else by default; tap to leave someone out.
@@ -1786,7 +1803,11 @@ function renderReviewWaiting(){
 const BOTTLE = { bottom: 292, neckBase: 104 };
 function bottleLevelY(score){ return BOTTLE.bottom - (BOTTLE.bottom - BOTTLE.neckBase) * Math.max(0, Math.min(1, score/MAX_SCORE)); }
 
+// The liquid takes the colour of the wine (blue-grey when no type was chosen).
+const LIQUID = { 'Hvid':['#F3E7B3','#D9C276'], 'Bobler':['#F2E9C0','#D6C784'], 'Orange':['#F0B877','#C9792F'],
+  'Rosé':['#F5C2C5','#DE8C95'], 'Rød':['#A8384C','#6B1A2B'], 'Restsød/Sød':['#E9BE6A','#B07A26'] };
 function bottleSvg(k, count){
+  const liq = LIQUID[(ACTIVE && ACTIVE.wineType) || ''] || ['#BFD0E2','#6F8FB0'];
   const body = 'M50 12 H78 V92 C78 108 108 118 108 150 V282 Q108 296 94 296 H34 Q20 296 20 282 V150 C20 118 50 108 50 92 Z';
   const solo = count<=1;
   const ticks = solo ? [6,12,18,24].map(p=>{ const y=bottleLevelY(p).toFixed(1);
@@ -1797,7 +1818,7 @@ function bottleSvg(k, count){
     <defs>
       <clipPath id="bottle-clip-${k}"><path d="${body}"/></clipPath>
       <linearGradient id="wine-g-${k}" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#BFD0E2"/><stop offset="100%" stop-color="#6F8FB0"/>
+        <stop offset="0%" stop-color="${liq[0]}"/><stop offset="100%" stop-color="${liq[1]}"/>
       </linearGradient>
     </defs>
     <g clip-path="url(#bottle-clip-${k})">
@@ -1814,7 +1835,7 @@ function resultScore(r, n){ return (r.scores && r.scores[n]!=null) ? r.scores[n]
 
 // One animation per round per phone. If the screen is redrawn mid-way it
 // carries on from where it was.
-let BOTTLE_ANIM = null; // {id, t0, dur}
+let BOTTLE_ANIM = null; // {id, t0, k}
 function animateBottle(round){
   const G = guessersOf(round);
   const els = G.map((n,k)=>({ fill:document.getElementById('wine-fill-'+k), surf:document.getElementById('wine-surface-'+k),
@@ -1822,16 +1843,16 @@ function animateBottle(round){
   if(!els.length) return;
   const set = (e, y, n)=>{ e.fill.setAttribute('y', y.toFixed(1)); e.fill.setAttribute('height', (BOTTLE.bottom - y + 10).toFixed(1));
     e.surf.setAttribute('y', (y-1).toFixed(1)); e.surf.style.opacity = (y < BOTTLE.bottom-1 ? 0.7 : 0); e.num.textContent = n; };
+  // A rising fill level is not the kind of motion "reduce motion" guards against — keep it, just shorter.
   const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if(reduce){ els.forEach(e=>set(e, bottleLevelY(e.target), e.target)); return; }
   const top = Math.max(...els.map(e=>e.target));
-  if(!BOTTLE_ANIM || BOTTLE_ANIM.id !== round.id) BOTTLE_ANIM = { id: round.id, t0: performance.now(), dur: 900 + 1500*(top/MAX_SCORE) };
+  if(!BOTTLE_ANIM || BOTTLE_ANIM.id !== round.id) BOTTLE_ANIM = { id: round.id, t0: performance.now() + 250, k: reduce ? 0.45 : 1 };
   const a = BOTTLE_ANIM;
   (function step(now){
     if(!els[0].fill.isConnected) return; // this copy of the screen was replaced; the new one animates itself
     let more = false;
     els.forEach(e=>{
-      const dur = 900 + 1500*(e.target/MAX_SCORE), t = Math.min(1, (now-a.t0)/dur), ease = 1-Math.pow(1-t,3);
+      const dur = (900 + 1500*(e.target/MAX_SCORE)) * a.k, t = Math.max(0, Math.min(1, (now-a.t0)/dur)), ease = 1-Math.pow(1-t,3);
       set(e, BOTTLE.bottom - (BOTTLE.bottom-bottleLevelY(e.target))*ease, Math.round(e.target*ease));
       if(t<1) more = true;
     });
@@ -1855,6 +1876,24 @@ function resultRowsHtml(r){
     </div>`).join('') + (skipped.length ? `<div class="hint" style="padding:10px 14px;">Ikke besvaret af nogen: ${skipped.map(c=>c.label).join(', ')}</div>` : '');
 }
 
+// "Lars' 1. vin var …" — the answer presented as a wine label.
+function revealBoxHtml(r){
+  const t = r.truth || {};
+  const name = (r.wineNote||'').trim() || [t.drue1, t.appellation || t.region].filter(x=>String(x||'').trim()).join(' · ') || 'Ukendt vin';
+  const year = String(t.aargang||'').trim();
+  const place = [t.appellation, t.region, t.land].map(x=>String(x||'').trim()).filter((x,i,a)=>x && a.findIndex(y=>y.toLowerCase()===x.toLowerCase())===i).join(', ');
+  const grapes = [t.drue1, t.drue2].map(x=>String(x||'').trim()).filter(Boolean).join(' & ');
+  const facts = [grapes, place, String(t.type||'').trim()].filter(Boolean);
+  return `<div class="reveal">
+    <div class="reveal-kicker">${wineTag()} var …</div>
+    <div class="reveal-label">
+      ${r.wineType ? `<div class="reveal-type">${esc(r.wineType)}</div>` : ''}
+      <div class="reveal-name">${esc(name)}</div>
+      ${year ? `<div class="reveal-year">${esc(year)}</div>` : ''}
+      ${facts.length ? `<div class="reveal-facts">${facts.map(esc).join('<span>·</span>')}</div>` : ''}
+    </div>
+  </div>`;
+}
 function renderResult(){
   const r = ACTIVE, G = guessersOf(r);
   const top = G.length ? Math.max(...G.map(n=>resultScore(r,n))) : 0;
@@ -1869,9 +1908,7 @@ function renderResult(){
   return `
   <div class="fade-in">
     ${renderPhaseTrack('result')}
-    <div class="eyebrow center-text" style="display:block;">Resultat</div>
-    <h2 class="center-text">${wineTag()}${r.wineNote?` — ${esc(r.wineNote)}`:''}</h2>
-    <div class="center-text">${wineTypeTag(r)}</div>
+    ${revealBoxHtml(r)}
     <p class="sub center-text">${esc(namesList(G))} gættede blindt.</p>
     <div class="res-grid">${cols}</div>
     <div class="card" style="padding:4px 6px;">${resultRowsHtml(r)}</div>
