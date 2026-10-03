@@ -3,7 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#EEF2F6">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#4A6A8C">
 <title>Vinholdet · Stats</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -461,7 +463,7 @@ function cfg(){
     }
   }catch(e){}
   try{ const c = JSON.parse(localStorage.getItem('vinholdet_backend')||'null'); if(c && c.url && c.key) return c; }catch(e){}
-  return null;
+  return { url: 'https://script.google.com/macros/s/AKfycbx8Zt1w2rcZPoNZAFzqF94cP89utfsimLoL9AsirY48427rSGffOko5H-ggxYb-mRW3mA/exec', key: 'beea88ef3890404e87e66bf8' }; // indbygget forbindelse
 }
 
 async function fetchWines(){
