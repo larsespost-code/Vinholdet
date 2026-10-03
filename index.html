@@ -467,6 +467,8 @@ html,body{overscroll-behavior-y:none}
 .res-g.none{font-style:italic;color:var(--text-faint);font-size:14px}
 .res-p{font-family:var(--fnum),sans-serif;font-size:13px;color:var(--text-dim)}
 .reveal{margin:0 0 20px;text-align:center}
+.res-cup{font-size:.6em;margin-right:4px;vertical-align:.25em}
+.res-grid{margin:4px 0 22px!important}
 .reveal-kicker{font-family:var(--fm);font-size:12px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);margin-bottom:10px}
 .reveal-label{position:relative;background:#F8FAFC;border:1.5px solid #1F2A37;border-radius:14px;padding:26px 20px 22px;box-shadow:0 0 0 5px #F8FAFC,0 0 0 6.5px #9DB4CC,0 14px 30px rgba(31,42,55,.12)}
 .reveal-type{display:inline-block;font-family:var(--fm);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--text-dim);border-bottom:1px solid #9DB4CC;padding-bottom:4px;margin-bottom:12px}
@@ -1822,13 +1824,17 @@ function bottleLevelY(score){ return BOTTLE.bottom - (BOTTLE.bottom - BOTTLE.nec
 // The liquid takes the colour of the wine (blue-grey when no type was chosen).
 const LIQUID = { 'Hvid':['#F3E7B3','#D9C276'], 'Bobler':['#F2E9C0','#D6C784'], 'Orange':['#F0B877','#C9792F'],
   'Rosé':['#F5C2C5','#DE8C95'], 'Rød':['#A8384C','#6B1A2B'], 'Restsød/Sød':['#E9BE6A','#B07A26'] };
-function bottleSvg(k, count){
+function bottleSvg(k, count, name, me){
   const liq = LIQUID[(ACTIVE && ACTIVE.wineType) || ''] || ['#BFD0E2','#6F8FB0'];
   const body = 'M50 12 H78 V92 C78 108 108 118 108 150 V282 Q108 296 94 296 H34 Q20 296 20 282 V150 C20 118 50 108 50 92 Z';
   const solo = count<=1;
   const ticks = solo ? [6,12,18,24].map(p=>{ const y=bottleLevelY(p).toFixed(1);
     return `<line x1="112" y1="${y}" x2="120" y2="${y}" stroke="rgba(31,42,55,0.35)" stroke-width="1"/><text x="124" y="${(+y+4).toFixed(1)}" fill="#6F7C8B" font-family="Figtree,sans-serif" font-size="12">${p}</text>`; }).join('') : '';
-  const w = solo ? 170 : count===2 ? 118 : 92;
+  const w = solo ? 150 : count===2 ? 106 : 86;
+  // The guesser's name on a see-through label across the body — the fill stays visible behind it.
+  const nm = String(name||''), fs = Math.min(17, 128/Math.max(4, nm.length));
+  const label = nm ? `<rect x="25" y="190" width="78" height="38" rx="5" fill="#F8FAFC" fill-opacity="0.62" stroke="${me?'#4A6A8C':'#1F2A37'}" stroke-opacity="${me?1:0.35}" stroke-width="${me?2:1}"/>
+    <text x="64" y="${(209 + fs*0.36).toFixed(1)}" text-anchor="middle" font-family="Figtree,sans-serif" font-weight="800" font-size="${fs.toFixed(1)}" fill="#1F2A37">${esc(nm)}</text>` : '';
   return `
   <svg viewBox="${solo ? '0 0 150 304' : '14 0 100 304'}" style="width:${w}px;height:auto;display:block;margin:0 auto;overflow:visible;" aria-label="Flaske fyldt til pointtallet">
     <defs>
@@ -1845,6 +1851,7 @@ function bottleSvg(k, count){
     <rect x="47" y="6" width="34" height="10" rx="2" fill="#9DB4CC" opacity="0.9"/>
     <line x1="30" y1="160" x2="30" y2="270" stroke="rgba(255,255,255,0.18)" stroke-width="4" stroke-linecap="round"/>
     ${ticks}
+    ${label}
   </svg>`;
 }
 function resultScore(r, n){ return (r.scores && r.scores[n]!=null) ? r.scores[n] : effectiveScore(r, n); }
@@ -1916,17 +1923,15 @@ function renderResult(){
   const winners = G.filter(n=>resultScore(r,n)===top);
   const cols = G.map((n,k)=>`
       <div class="res-col ${n===MY_IDENTITY?'me':''}">
-        ${bottleSvg(k, G.length)}
-        <div class="res-name">${G.length>1 && winners.length===1 && winners[0]===n ? '🏆 ' : ''}${esc(n)}${n===MY_IDENTITY?' <small>(dig)</small>':''}</div>
-        <div class="res-score" id="score-count-${k}">0</div>
+        ${bottleSvg(k, G.length, n, n===MY_IDENTITY)}
+        <div class="res-score">${G.length>1 && winners.length===1 && winners[0]===n ? '<span class="res-cup">🏆</span>' : ''}<span id="score-count-${k}">0</span></div>
         <div class="res-of">af ${MAX_SCORE} point</div>
       </div>`).join('');
   return `
   <div class="fade-in">
-    ${renderPhaseTrack('result')}
-    ${revealBoxHtml(r)}
-    <p class="sub center-text">${esc(namesList(G))} gættede blindt.</p>
+    <div class="eyebrow center-text" style="display:block;margin:4px 0 6px;">Resultat · ${wineTag()}</div>
     <div class="res-grid">${cols}</div>
+    ${revealBoxHtml(r)}
     <div class="card" style="padding:4px 6px;">${resultRowsHtml(r)}</div>
     ${ratingCardHtml(r)}
     <div class="toolbar">
