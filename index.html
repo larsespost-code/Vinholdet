@@ -622,7 +622,7 @@ function makeSheetsDb(url, key){
   const docSubs = new Set();   // {path, cb, seen}
   const histSubs = new Set();  // {cb, seen}
   let histHash = '', histList = null, busy = false, again = false;
-  let histAt = 0, histForce = true, fails = 0, lastOk = Date.now();
+  let histAt = 0, histForce = true, fails = 0, lastOk = Date.now(), quiet = false;
   let syncCtl = null, syncStart = 0, hiddenAt = 0; // the live-update request under way
   const HIST_EVERY = 12000; // the history is heavy for the sheet to build — fetch it less often than the live round
 
@@ -671,7 +671,7 @@ function makeSheetsDb(url, key){
       const wantHist = histSubs.size && (histForce || Date.now() - histAt > HIST_EVERY);
       const r = await call({ op:'sync', paths, hist: wantHist ? histHash : null });
       if(wantHist){ histAt = Date.now(); histForce = false; }
-      fails = 0; lastOk = Date.now(); sheetsHealth(null);
+      fails = 0; lastOk = Date.now(); if(!quiet) sheetsHealth(null);
       docSubs.forEach(s=>{
         if(!Object.prototype.hasOwnProperty.call(r.docs, s.path)) return; // subscribed while this request was under way — next tick
         const d = r.docs[s.path]; const key = JSON.stringify(d==null ? null : d);
@@ -691,7 +691,7 @@ function makeSheetsDb(url, key){
       // sending the link from another app) died with it — that's not the sheet's fault.
       if(hiddenAt >= syncStart){ /* ignore */ }
       // Only warn after a real outage: several failures AND half a minute without contact.
-      else if(++fails >= 3 && Date.now() - lastOk > 30000) sheetsHealth(e);
+      else if(++fails >= 3 && Date.now() - lastOk > 30000 && !quiet) sheetsHealth(e);
     }
     busy = false;
     if(again){ again = false; setTimeout(tick, 50); }
@@ -729,6 +729,105 @@ function makeSheetsDb(url, key){
     collection: (p)=> Object.assign(historyQuery(), { doc: (id)=>doc(p+'/'+id) }),
     ping: ()=> call({ op:'ping' }),
     retry: soonAll,
+    raw: (body)=> call(body),
+    setQuiet: (v)=>{ quiet = !!v; },
+  };
+}
+
+/* ================= FIREBASE (live) + REGNEARKET (arkiv) =================
+   Apps Script is far too slow for live play (20–60 s between phones, and it
+   sometimes doesn't answer at all). So the game itself — who serves, the
+   guesses, the review, the result — runs on Firestore, which pushes every
+   change to all phones within a second. The spreadsheet stays the archive:
+   every finished wine is still written to "Vine" and "Gæt", and the history
+   (and the statistics page) is still read from there, corrections included.
+   Everything lives under v/<the key from the team link>, so only people with
+   the link can read or write. */
+const FIREBASE_CONFIG = window.__VH_FIREBASE__ || {
+  apiKey: "AIzaSyACQ-1kJPSI8914_SEyx4UsUjdx0BZaSxg",
+  authDomain: "vinholdet.firebaseapp.com",
+  projectId: "vinholdet",
+  storageBucket: "vinholdet.firebasestorage.app",
+  messagingSenderId: "792574288389",
+  appId: "1:792574288389:web:1f28a36cb9a3b30ed1726c",
+};
+const FIREBASE_SDK = 'https://www.gstatic.com/firebasejs/10.14.1/';
+async function loadFirebase(){
+  const load = Promise.all([import(FIREBASE_SDK+'firebase-app.js'), import(FIREBASE_SDK+'firebase-firestore.js')]);
+  const [app, fs] = await Promise.race([load, new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')), 10000))]);
+  return { app, fs };
+}
+function makeFirebaseDb(F, key, sheet){
+  const fs = F.fs;
+  const app = F.app.initializeApp(FIREBASE_CONFIG);
+  const db = fs.initializeFirestore(app, { ignoreUndefinedProperties:true, experimentalAutoDetectLongPolling:true });
+  const ref = p => fs.doc(db, 'v', key, ...p.split('/'));
+  const snap = (path, s) => { const d = s.exists() ? s.data() : null;
+    return { id: path.split('/').pop(), exists: d!=null, data: ()=> d==null ? undefined : d,
+      metadata:{ fromCache: !!(s.metadata && s.metadata.fromCache), hasPendingWrites: !!(s.metadata && s.metadata.hasPendingWrites) } }; };
+  const fail = e => { const c = e && e.code; const er = new Error(c || 'error');
+    er.code = c==='not-found' ? 'invalid_argument' : c==='permission-denied' ? 'not_granted' : 'unavailable';
+    er.detail = 'Firebase: ' + (c || (e && e.message) || 'fejl'); return er; };
+  const plain = v => JSON.parse(JSON.stringify(v));
+  const isObj = v => v && typeof v==='object' && !Array.isArray(v);
+  // A patch like {judged:{Jonathan:{land:'good'}}} must MERGE (as the sheet did), not replace
+  // the whole "judged" map — so it is sent as field paths: judged › Jonathan › land.
+  function leaves(o, pre, out){
+    Object.keys(o).forEach(k=>{ const v = o[k];
+      if(isObj(v)){ if(Object.keys(v).length) leaves(v, pre.concat(k), out); }
+      else out.push(new fs.FieldPath(...pre, k), v===undefined ? null : v); });
+    return out;
+  }
+
+  // ---- archive: finished wines go to the sheet (exactly once), later ratings follow
+  const RESULT = new Set(), timers = {};
+  function mirrorSoon(path, ms){ clearTimeout(timers[path]); timers[path] = setTimeout(()=>mirror(path), ms||1500); }
+  async function mirror(path){
+    try{
+      const s = await fs.getDoc(ref(path)); if(!s.exists()) return;
+      const d = s.data(); if(d.phase!=='result') return;
+      RESULT.add(path);
+      const data = plain(d); delete data.archivedAt;
+      if(!d.archivedAt){
+        // only one phone may write the wine to the sheet
+        const mine = await fs.runTransaction(db, async tx=>{ const t = await tx.get(ref(path));
+          if(!t.exists() || t.data().archivedAt) return false; tx.update(ref(path), { archivedAt: Date.now() }); return true; });
+        if(!mine){ mirrorSoon(path, 8000); return; }
+        try{ await sheet.raw({ op:'set', path, data }); sheet.retry(); }
+        catch(e){ try{ await fs.updateDoc(ref(path), { archivedAt: fs.deleteField() }); }catch(_){} } // let the next change try again
+        return;
+      }
+      await sheet.raw({ op:'update', path, data }).catch(()=>{});
+    }catch(e){ /* the archive is best effort — the game itself never waits for it */ }
+  }
+  function after(path, data){
+    if(path==='config/main') sheet.raw({ op:'set', path, data: plain(data) }).catch(()=>{}); // the sheet uses the names for its rating columns
+    if(/^rounds\//.test(path) && (RESULT.has(path) || (data && data.phase==='result'))) mirrorSoon(path);
+  }
+
+  function doc(path){
+    return {
+      id: path.split('/').pop(), path,
+      async get(){ try{ return snap(path, await fs.getDoc(ref(path))); }catch(e){ throw fail(e); } },
+      async set(data){ try{ await fs.setDoc(ref(path), plain(data)); }catch(e){ throw fail(e); } after(path, data); },
+      async update(data){ const a = leaves(plain(data), [], []);
+        if(a.length){ try{ await fs.updateDoc(ref(path), ...a); }catch(e){ throw fail(e); } }
+        after(path, data); },
+      async delete(){ try{ await fs.deleteDoc(ref(path)); }catch(e){ throw fail(e); }
+        if(/^rounds\//.test(path)) sheet.raw({ op:'delete', path }).then(()=>sheet.retry()).catch(()=>{}); },
+      onSnapshot(cb, err){
+        return fs.onSnapshot(ref(path), s=>{ sheetsHealth(null); const x = snap(path, s);
+          if(/^rounds\//.test(path) && x.exists && x.data().phase==='result') RESULT.add(path);
+          cb(x); }, e=>{ sheetsHealth(fail(e)); if(err) err(e); });
+      },
+    };
+  }
+  return {
+    doc,
+    // the history (finished wines) is still read from the sheet
+    collection: (p)=> Object.assign(sheet.collection(p), { doc: (id)=>doc(p+'/'+id) }),
+    ping: ()=> sheet.raw({ op:'ping' }),
+    retry: ()=> sheet.retry(),
   };
 }
 
@@ -772,6 +871,7 @@ async function copyShareLink(){
 }
 
 let USER = null, MY_ACCOUNT_ID = null;
+let SHEET = null; // the Google-sheet connection (live backend, or archive behind Firebase)
 
 async function initBackend(){
   DB = await useCap('db');
@@ -780,7 +880,19 @@ async function initBackend(){
   if(DB) BACKEND = 'claude';
   else if(!IN_CLAUDE){
     const cfg = loadBackendCfg();
-    if(cfg){ DB = makeSheetsDb(cfg.url, cfg.key); BACKEND = 'sheets'; }
+    if(cfg){
+      SHEET = makeSheetsDb(cfg.url, cfg.key);
+      if(FIREBASE_CONFIG){
+        try{
+          DB = makeFirebaseDb(await loadFirebase(), cfg.key, SHEET); BACKEND = 'firebase'; SHEET.setQuiet(true);
+          // first time on Firebase: take the participants from the sheet
+          const c = await DB.doc('config/main').get();
+          if(!c.exists){ try{ const r = await SHEET.raw({ op:'sync', paths:['config/main'] }); const d = r.docs && r.docs['config/main'];
+            if(d && Array.isArray(d.participants) && d.participants.length) CONFIG = { participants: d.participants.slice() }; }catch(e){} }
+        }catch(e){ console.error('Firebase kunne ikke starte — bruger regnearket', e); DB = null; }
+      }
+      if(!DB){ DB = SHEET; BACKEND = 'sheets'; }
+    }
     else { NEEDS_SETUP = true; render(); return; }
   }
   USE_DB = !!DB;
@@ -995,7 +1107,7 @@ function subscribeRounds(){
 // catches up within seconds even if a live stream dropped silently.
 let pollBusy = false;
 async function pollOnce(){
-  if(!USE_DB || BACKEND==='sheets' || pollBusy || document.visibilityState !== 'visible') return;
+  if(!USE_DB || BACKEND!=='claude' || pollBusy || document.visibilityState !== 'visible') return;
   pollBusy = true;
   try{
     const p = await DB.doc('state/active').get();
@@ -1093,10 +1205,10 @@ function setSyncState(err, e){
   bar.style.display='flex';
   bar.classList.toggle('soft', !denied && !err); // lost contact while just looking: a calm note, not an alarm
   bar.innerHTML = denied
-    ? `<span>⚠ <b>${esc(MY_IDENTITY||'Du')}</b>: regnearket afviser forbindelsen — dine svar kan ikke gemmes. Bed Lars om et nyt link til Vinholdet.</span>`
+    ? `<span>⚠ <b>${esc(MY_IDENTITY||'Du')}</b>: ${BACKEND==='firebase'?'databasen':'regnearket'} afviser forbindelsen — dine svar kan ikke gemmes. Bed Lars om et nyt link til Vinholdet.</span>`
     : err
-    ? `<span>⚠ Kunne ikke gemme i regnearket — de andre ser muligvis ikke dine seneste ændringer.${errDetail(e)}</span><button class="btn btn-danger btn-sm" onclick="retrySync()">Prøv igen</button>`
-    : `<span>Forbindelsen til regnearket er langsom — prøver igen af sig selv.${errDetail(READ_ERROR)}</span><button class="btn btn-secondary btn-sm" onclick="retryConnection()">Prøv nu</button>`;
+    ? `<span>⚠ Kunne ikke gemme${BACKEND==='firebase'?'':' i regnearket'} — de andre ser muligvis ikke dine seneste ændringer.${errDetail(e)}</span><button class="btn btn-danger btn-sm" onclick="retrySync()">Prøv igen</button>`
+    : `<span>${BACKEND==='firebase'?'Ingen forbindelse lige nu':'Forbindelsen til regnearket er langsom'} — prøver igen af sig selv.${errDetail(READ_ERROR)}</span><button class="btn btn-secondary btn-sm" onclick="retryConnection()">Prøv nu</button>`;
 }
 function retrySync(){
   const redo = RETRY_LAST; RETRY_LAST = null;
@@ -2274,12 +2386,12 @@ function renderSettings(){
       <div class="eyebrow">Pointregler</div>
       <div class="rules-panel">${RULES_HTML}</div>
     </div>
-    ${BACKEND==='sheets' ? `<div class="card">
+    ${SHEET ? `<div class="card">
       <div class="eyebrow">Del med holdet</div>
       <p class="hint" style="margin-top:0;">Send dette link — det åbner appen færdigforbundet til regnearket. Ingen konto nødvendig.</p>
       <button class="btn btn-secondary btn-block" onclick="copyShareLink()">⧉ Kopiér link</button>
     </div>` : ''}
-    <div class="sync-note">${BACKEND==='sheets' ? '🔗 Forbundet til Google-regnearket' : USE_DB ? '🔗 Synkroniseret live mellem telefoner' : '⚠ Kører kun lokalt på denne telefon'}</div>
+    <div class="sync-note">${BACKEND==='firebase' ? '⚡ Live via Firebase · arkiv i Google-regnearket' : BACKEND==='sheets' ? '🔗 Forbundet til Google-regnearket' : USE_DB ? '🔗 Synkroniseret live mellem telefoner' : '⚠ Kører kun lokalt på denne telefon'}</div>
   </div>`;
 }
 function renameParticipant(i,val){ CONFIG.participants[i]=val; queueConfigSave(); }
@@ -2316,7 +2428,7 @@ function chooseGateRole(role){
 }
 // Links shown on the start screens: invite the others + the statistics page.
 function startLinksHtml(){
-  return `${BACKEND==='sheets' ? `<button class="btn btn-secondary btn-block" style="margin-top:22px;" onclick="copyShareLink()">📨 Send link til holdet</button>` : ''}
+  return `${SHEET ? `<button class="btn btn-secondary btn-block" style="margin-top:22px;" onclick="copyShareLink()">📨 Send link til holdet</button>` : ''}
     <a class="btn btn-ghost btn-block" href="dashboard.html" style="text-decoration:none;margin-top:6px;">📊 Se statistik →</a>`;
 }
 function renderIdentityGate(){
@@ -2397,7 +2509,7 @@ function render(){
   let html;
   if(NEEDS_SETUP) html = renderConnect();
   else if(USE_DB && !INITIAL_LOADED && (needsIdentity || VIEW==='game')) html = READ_ERROR
-    ? `<div class="empty">Kan ikke hente Vinholdet fra regnearket.<div class="hint" style="margin:8px 0 16px;">${esc(READ_ERROR.detail||'Ukendt fejl')}</div><button class="btn btn-secondary btn-block" onclick="retryConnection()">Prøv igen</button></div>`
+    ? `<div class="empty">Kan ikke hente Vinholdet${BACKEND==='firebase'?'':' fra regnearket'}.<div class="hint" style="margin:8px 0 16px;">${esc(READ_ERROR.detail||'Ukendt fejl')}</div><button class="btn btn-secondary btn-block" onclick="retryConnection()">Prøv igen</button></div>`
     : `<div class="empty">Henter Vinholdet…</div>`;
   else if(needsIdentity) html = renderIdentityGate();
   else if(VIEW==='history') html = renderHistory();
