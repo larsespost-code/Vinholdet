@@ -420,8 +420,8 @@ const CATS = [
   {id:'aargang',     label:'Årgang',        short:'Årgang', max:2},
 ];
 const MAX = 24;
-const PLAYER_COLORS = { 'lars':'#4A6A8C', 'pelle':'#5E7A3A', 'martin':'#B5643A', 'jonathan':'#8A6FA3' };
-const FALLBACK_COLORS = ['#4A6A8C','#5E7A3A','#B5643A','#8A6FA3','#8796A8'];
+const PLAYER_COLORS = { 'lars':'#4A6A8C', 'pelle':'#B9638A', 'martin':'#B5643A', 'jonathan':'#8A6FA3' };
+const FALLBACK_COLORS = ['#4A6A8C','#B9638A','#B5643A','#8A6FA3','#8796A8'];
 const MONTHS = ['jan','feb','mar','apr','maj','jun','jul','aug','sep','okt','nov','dec'];
 
 /* ============================================================ state */
@@ -575,6 +575,18 @@ function canonicalize(list){
 /* ============================================================ vine vs. gæt
    Hver række er ét gæt. En vin med tre gættere er tre rækker med samme wid —
    tæller man vine, vintyper eller vurderinger, tælles hver vin kun én gang. */
+// One object per wine: the sheet has a row per guess, so a wine blinded by three is three rows.
+function wineGroups(L){
+  const m = new Map();
+  L.forEach(w=>{ if(!m.has(w.wid)) m.set(w.wid, []); m.get(w.wid).push(w); });
+  return [...m.values()].map(rows=>{
+    rows = rows.slice().sort((a,b)=>a.guesser.localeCompare(b.guesser,'da'));
+    const f = rows[0];
+    return { ...f, rows, total: rows.reduce((a,w)=>a+w.score,0), seq: Math.max(...rows.map(w=>w.seq)),
+      guessers: rows.map(w=>w.guesser) };
+  });
+}
+function guessersLine(g){ return g.rows.map(w=>`${pnameHTML(w.guesser)} <b>${w.score}</b>`).join('<span class="gsep">·</span>'); }
 function uniqWines(L){ const seen = new Set(); return L.filter(w=>{ if(seen.has(w.wid)) return false; seen.add(w.wid); return true; }); }
 function nWines(L){ return new Set(L.map(w=>w.wid)).size; }
 
@@ -874,9 +886,9 @@ function secStanding(L, B){
     <div class="card"><div class="stand" style="--np:${S.length}">
       <div class="h"></div>${S.map(s=>`<div class="h" style="color:${colorOf(s.p)}">${esc(s.p)}</div>`).join('')}
       <div class="c lbl">Gns. pr. vin</div>${S.map(s=>col(s,L2,fmt1(s.a),'')).join('')}
-      <div class="c lbl" data-tip="${rule}" tabindex="0">Vundne aftener <span style="color:var(--text-faint);font-weight:400">ⓘ</span></div>${S.map(s=>col(s,L4,s.wins,`af ${W.total} aftener`)).join('')}
-      <div class="c lbl">Bedste vin</div>${S.map(s=>s.best?`<div class="c"><span class="big">${s.best.score}<span style="font-size:0.55em;color:var(--text-faint)"> p</span></span><span class="small linkish" data-wine="${esc(s.best.id)}" title="${esc(s.best.name)}">${esc(s.best.name)}</span></div>`:`<div class="c">–</div>`).join('')}
+      <div class="c lbl" data-tip="${rule}" tabindex="0">Vundne aftener <span style="color:var(--text-faint);font-weight:400">ⓘ</span></div>${S.map(s=>col(s,L4,s.wins,narrow()?`af ${W.total}`:`af ${W.total} aftener`)).join('')}
     </div>
+    <div class="best-list"><div class="best-h">Bedste vin</div>${S.map(s=>`<div class="best-row" ${s.best?`tabindex="0" data-wine="${esc(s.best.id)}"`:''}>${pnameHTML(s.p)}<span class="best-nm">${s.best?esc(s.best.name):'–'}</span><span class="best-sc">${s.best?s.best.score+'<small> p</small>':''}</span></div>`).join('')}</div>
     ${notes.length?`<div class="stand-note">${notes.join(' · ')}</div>`:''}</div>
   </section>`;
 }
@@ -981,17 +993,16 @@ function secCategories(L){
         <span class="tr"><i style="width:${r.v*100}%;background:${colorOf(p)}"></i>${r.o.map(x=>`<b class="tick" style="left:calc(${x.v*100}% - 1px)"></b>`).join('')}</span>
 </div>`).join('')}
       <div class="legend" style="margin-top:10px"><span><span class="kb" style="background:${colorOf(p)}"></span>${esc(p)}</span>${others.length?`<span><span class="kb" style="background:#1F2A37;width:3px"></span>${others.map(esc).join(', ')} til sammenligning</span>`:''}</div>
-      <div class="card-note">${note}</div></div>
-      <div class="card" style="margin-top:14px"><div class="card-title">Point pr. vin</div>${pointsChart(L, sp)}</div></section>`;
+      <div class="card-note">${note}</div></div></section>`;
   }
   const top = CATS.map(c=>({c, v:hitRate(L,c.id), n:L.filter(w=>w.cats[c.id].applicable).length})).filter(x=>x.v!=null).sort((a,b)=>b.v-a.v).slice(0,5);
-  return head + `<div class="grid g2">
+  return head + `<div>
       <div class="card"><div class="card-title"><span>Pointfrekvens pr. kategori</span><span class="sec-sub" style="font-family:var(--fb);text-transform:none;letter-spacing:0;color:var(--text-faint)">bedst øverst</span></div>
         <div class="legend legend-top">${sp.map(p=>`<span><span class="kb" style="background:${colorOf(p)}"></span>${esc(p)}</span>`).join('')}</div>
-        ${catsSorted(bp, sp).map(c=>`<div class="hbar-row nov"><span class="nm">${c.label} <span style="color:var(--text-faint)">${c.max}p</span></span><span class="tr pairbars">${sp.map(p=>{ const v = hitRate(bp[p], c.id); return `<i class="hit" style="width:${(v||0)*100}%;background:${colorOf(p)};border-radius:0 3px 3px 0" data-tip="${esc(`<div class='tt'>${c.label}</div>`+tipRow(colorOf(p), v==null?'–':pct(v), p))}"></i>`; }).join('')}</span></div>`).join('')}
+        ${catsSorted(bp, sp).map(c=>`<div class="freq-row"><div class="freq-nm">${c.label} <span>${c.max}p</span></div>${sp.map(p=>{ const v = hitRate(bp[p], c.id);
+          return `<div class="pbl" data-tip="${esc(`<div class='tt'>${c.label}</div>`+tipRow(colorOf(p), v==null?'–':pct(v), p))}"><span class="pbl-n">${esc(p)}</span><span class="pbl-t"><i style="width:${(v||0)*100}%;background:${colorOf(p)}"></i></span><em>${v==null?'–':pct(v)}</em></div>`; }).join('')}</div>`).join('')}
         <div class="card-note">${note}</div>
       </div>
-      <div class="card"><div class="card-title">Point pr. vin</div>${pointsChart(L, sp)}</div>
     </div>
     <div class="card" style="margin-top:14px"><div class="card-title">Her får vi oftest point</div>
       ${top.map((x,i)=>`<div class="hbar-row" style="grid-template-columns:28px minmax(90px,140px) 1fr 54px"><span style="font-family:var(--fnum);font-weight:800;color:var(--accent)">${i+1}.</span><span class="nm">${x.c.label}</span><span class="tr"><i class="hit" style="width:${x.v*100}%;background:var(--accent-2)" data-tip="${esc(`<div class='tt'>${x.c.label}</div>`+tipRow('#4A6A8C', pct(x.v), `af ${x.n} vine med facit`))}"></i></span><span class="v">${pct(x.v)}</span></div>`).join('')}
@@ -1040,14 +1051,10 @@ function secGeo(L){
   const switcher = `<div class="mini-seg"><button data-ui="geo" data-v="land" class="${UI.geo==='land'?'on':''}">Lande</button><button data-ui="geo" data-v="drue" class="${UI.geo==='drue'?'on':''}">Druer</button></div>`;
   const tap = both ? ' Tryk på en række for at se fordelingen mellem jer.' : '';
   return `<section class="section"><div class="sec-head"><span class="sec-num">${num()}</span><h2>Geografi og druer</h2>${switcher}</div>
-    <div class="grid g2">
+    <div>
       <div class="card"><div class="card-title"><span>Når det var facit</span></div>
         ${truthRows.length ? truthRows.map(r=>rowHTML(r,'t')).join('') : '<div class="empty">Ingen data.</div>'}
         <div class="card-note">Hvor mange gange ${word} blev gættet rigtigt ud af de gange, det var facit.${tap}${both?'':' Tryk for at filtrere.'}</div>
-      </div>
-      <div class="card"><div class="card-title"><span>${both?'Når I gættede det':'Når '+esc(sp[0])+' gættede det'}</span></div>
-        ${guessRows.length ? guessRows.map(r=>rowHTML(r,'g')).join('') : '<div class="empty">Ingen gæt endnu.</div>'}
-        <div class="card-note">Hvor mange gange gættet var forkert ud af de gange, ${word} kunne gættes. Flest fejlgæt øverst.${tap}</div>
       </div>
     </div></section>`;
 }
@@ -1090,14 +1097,15 @@ function secVintage(L){
 /* ============================================================ 8. sværeste vine */
 function secHardest(L){
   const sp = scopePlayers();
-  const sorted = L.slice().sort((a,b)=> a.score-b.score || b.date.localeCompare(a.date));
-  const ranked = competitionRank(sorted, w=>w.score).filter(r=>r.rank<=10);
+  const sorted = wineGroups(L).sort((a,b)=> a.total-b.total || b.date.localeCompare(a.date));
+  const ranked = competitionRank(sorted, w=>w.total).filter(r=>r.rank<=10);
   const shown = ranked.slice(0,5);
-  return `<section class="section"><div class="sec-head"><span class="sec-num">${num()}</span><h2>De sværeste vine</h2><span class="sec-sub">${sp.length===1?`Top 5 · der hvor ${esc(sp[0])} scorede færrest point`:'Top 5 · laveste scorer'}</span></div>
+  return `<section class="section"><div class="sec-head"><span class="sec-num">${num()}</span><h2>De sværeste vine</h2><span class="sec-sub">${sp.length===1?`Top 5 · der hvor ${esc(sp[0])} scorede færrest point`:'Top 5 · færrest point i alt til holdet'}</span></div>
     <div class="card"><ol class="top10">${shown.map(({rank,item:w})=>`<li tabindex="0" data-wine="${esc(w.id)}">
       <span class="rk">${rank}.</span>
-      <div style="min-width:0"><div class="nm">${esc(w.name)}</div><div class="sub">${pnameHTML(w.guesser)} gættede · ${fmtDate(w.date)}</div></div>
-      <span class="sc" style="color:var(--bad)">${w.score}<small> p</small></span></li>`).join('')}</ol>
+      <div style="min-width:0"><div class="nm">${esc(w.name)}</div><div class="sub">${fmtDate(w.date)} · ${guessersLine(w)}</div></div>
+      <span class="sc" style="color:var(--bad)">${w.total}<small> p</small></span></li>`).join('')}</ol>
+      <div class="card-note">Point i alt = alle gætteres point på vinen lagt sammen.</div>
       </div></section>`;
 }
 
@@ -1162,23 +1170,24 @@ function secArchive(L){
 }
 function archiveTable(L){
   const q = norm(UI.archiveQ);
-  let rows = L.filter(w=> !q || [w.name, w.owner, w.guesser, ...CATS.map(c=>w.cats[c.id].t), ...CATS.map(c=>w.cats[c.id].g)].some(s=>norm(s).includes(q)));
+  let rows = wineGroups(L).filter(g=> !q || [g.name, g.owner, ...g.guessers, ...CATS.map(c=>g.cats[c.id].t), ...g.rows.flatMap(w=>CATS.map(c=>w.cats[c.id].g))].some(s=>norm(s).includes(q)));
   const {key, dir} = UI.archiveSort;
-  const val = w => key==='date' ? w.date + String(w.seq).padStart(6,'0') : key==='score' ? w.score : key==='name' ? norm(w.name) : key==='land' ? norm(w.cats.land.t) : key==='drue' ? norm(w.cats.drue1.t) : key==='guesser' ? norm(w.guesser) : key==='owner' ? norm(w.owner) : key==='aargang' ? String(w.cats.aargang.t) : '';
+  const val = w => key==='date' ? w.date + String(w.seq).padStart(6,'0') : key==='score' ? w.total : key==='name' ? norm(w.name) : key==='land' ? norm(w.cats.land.t) : key==='drue' ? norm(w.cats.drue1.t) : key==='guesser' ? norm(w.guessers.join(' ')) : key==='owner' ? norm(w.owner) : key==='aargang' ? String(w.cats.aargang.t) : '';
   rows = rows.slice().sort((a,b)=>{ const x = val(a), y = val(b); return (x<y?-1:x>y?1:0)*dir; });
   const th = (k,l,cls='')=>`<th class="sortable ${cls} ${key===k?'sorted':''}" data-sort="${k}">${l}${key===k?(dir>0?' ▲':' ▼'):''}</th>`;
   if(!rows.length) return `<div class="empty">Ingen vine matcher “${esc(UI.archiveQ)}”.</div>`;
+  const facts = w => [w.cats.drue1.t, w.cats.land.t, w.cats.aargang.t].filter(Boolean).map(esc).join(' · ');
   if(narrow()) return `<ul class="wlist">${rows.map(w=>`<li class="wcard" tabindex="0" data-wine="${esc(w.id)}">
-      <span class="wn">${esc(w.name)}</span><span class="wsc">${w.score}<small> p</small></span>
-      <span class="meta">${fmtDate(w.date)} · ${pnameHTML(w.guesser)} gættede · medbragt af ${esc(w.owner)}</span>
-      <span class="pills">${typeChip(w)}${ratingTxt(w)}</span>
-      <span class="pills">${catCell(w,'land')}${catCell(w,'drue1')}${catCell(w,'aargang')}</span></li>`).join('')}</ul>
-    <div class="card-note">Grøn = ramt, gul = delvist, rød = forkert. Tryk for facit og gæt.</div>`;
-  return `<div class="tbl-wrap"><table class="tbl"><thead><tr>${th('date','Dato')}${th('name','Vin')}${th('land','Land')}${th('drue','Drue')}${th('aargang','Årgang')}${th('owner','Medbragt')}${th('guesser','Gætter')}${th('score','Point','num')}</tr></thead>
+      <span class="wn">${esc(w.name)}</span><span class="wsc">${w.total}<small> p</small></span>
+      <span class="meta">${fmtDate(w.date)} · medbragt af ${esc(w.owner)}${facts(w)?' · '+facts(w):''}</span>
+      <span class="pills gline">${guessersLine(w)}</span>
+      ${(w.vtype||ratingAvg(w)!=null)?`<span class="pills">${typeChip(w)}${ratingTxt(w)}</span>`:''}</li>`).join('')}</ul>
+    <div class="card-note">Én linje pr. vin. Tallet til højre er holdets point i alt. Tryk for facit og alle gæt.</div>`;
+  return `<div class="tbl-wrap"><table class="tbl"><thead><tr>${th('date','Dato')}${th('name','Vin')}${th('land','Land')}${th('drue','Drue')}${th('aargang','Årgang')}${th('owner','Medbragt')}${th('guesser','Gættere')}${th('score','Point i alt','num')}</tr></thead>
     <tbody>${rows.map(w=>`<tr tabindex="0" data-wine="${esc(w.id)}"><td class="dim" style="white-space:nowrap">${fmtDate(w.date)}</td><td>${esc(w.name)}</td>
-      <td>${catCell(w,'land')}</td><td>${catCell(w,'drue1')}</td><td>${catCell(w,'aargang')}</td><td class="dim">${esc(w.owner)}</td><td>${pnameHTML(w.guesser)}</td>
-      <td class="num" style="font-family:var(--fnum);font-size:0.62rem;color:var(--accent-2)">${w.score}</td></tr>`).join('')}</tbody></table></div>
-    <div class="card-note">Grøn = ramt, gul = delvist (årgang ±1), rød = forkert. Klik på en vin for facit og gæt.</div>`;
+      <td>${esc(w.cats.land.t)||'<span class="dim">–</span>'}</td><td>${esc(w.cats.drue1.t)||'<span class="dim">–</span>'}</td><td>${esc(w.cats.aargang.t)||'<span class="dim">–</span>'}</td><td class="dim">${esc(w.owner)}</td><td class="gline">${guessersLine(w)}</td>
+      <td class="num" style="font-family:var(--fnum);font-weight:800">${w.total}</td></tr>`).join('')}</tbody></table></div>
+    <div class="card-note">Én linje pr. vin. Point i alt er holdets samlede point på vinen. Klik på en vin for facit og alle gæt.</div>`;
 }
 function catCell(w, cid){ const c = w.cats[cid]; if(!c.applicable) return '<span class="dim">–</span>'; return `<span class="pill ${c.j==='good'?'good':c.j==='mid'?'mid':'bad'}" title="Gæt: ${esc(c.g||'(tomt)')}">${esc(c.t)}</span>`; }
 
@@ -1679,7 +1688,26 @@ if(window.ResizeObserver)new ResizeObserver(f).observe(document.body);f()})();
 })();
 </script>
 <style id="vinholdet-fire">
+.gline{line-height:1.6}.gline .pname{white-space:nowrap}.gline b{margin-left:4px}.gsep{margin:0 7px;color:var(--text-faint)}
+.wcard .pills.gline{font-size:14px;gap:0}
+.best-list{margin-top:18px}
+.best-h{font-family:var(--fm);font-size:12px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--text-dim);padding-bottom:8px;border-bottom:1.5px solid #1F2A37}
+.best-row{display:grid;grid-template-columns:minmax(90px,auto) minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;font-family:var(--fb)}
+.best-row:last-child{border-bottom:none}
+.best-nm{font-size:15px;color:var(--text);line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.best-sc{font-family:var(--fnum);font-weight:900;font-stretch:112%;font-size:22px;white-space:nowrap}
+.best-sc small{font-size:12px;color:var(--text-faint);font-weight:600}
+.freq-row{padding:10px 0;border-bottom:1px solid var(--border)}
+.freq-row:last-of-type{border-bottom:none}
+.freq-nm{font-family:var(--fb);font-weight:600;font-size:15px;margin-bottom:6px;color:var(--text)}
+.freq-nm span{color:var(--text-faint);font-weight:400}
+.pbl{display:grid;grid-template-columns:76px 1fr 44px;gap:8px;align-items:center;height:22px;font-family:var(--fb)}
+.pbl-n{font-size:13px;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pbl-t{position:relative;height:14px;background:rgba(31,42,55,.06);border-radius:3px;overflow:hidden}
+.pbl-t i{position:absolute;left:0;top:0;bottom:0;border-radius:3px}
+.pbl em{font-style:normal;font-size:13px;color:var(--text);text-align:right;font-variant-numeric:tabular-nums}
 @media(max-width:600px){
+  .hero-duel .hp-grid{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:18px;gap:18px 14px}
   .stand{grid-template-columns:minmax(84px,1fr) repeat(var(--np),minmax(0,1fr))}
   .stand .big{font-size:22px!important}
   .stand .h{padding-left:4px;padding-right:4px;letter-spacing:.04em}
