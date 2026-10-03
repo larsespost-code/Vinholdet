@@ -890,10 +890,9 @@ function secStanding(L, B){
   if(W.ties) notes.push(`${W.ties} ${W.ties===1?'aften':'aftener'} endte uafgjort`);
   if(W.solo) notes.push(`${W.solo} ${W.solo===1?'aften':'aftener'} havde kun én gætter`);
   const rule = esc(`<div class='tt'>Vundne aftener</div>Aftenens vinder er den, der fik flest point pr. vin i snit som gætter.`);
-  return `<section class="section" style="margin-top:-18px">
-    <div class="card"><div class="card-note" style="margin:0 0 10px">Den, der har klaret sig bedst, står med grønt.</div><div class="stand" style="--np:${S.length}">
+  return `<section class="section" style="margin-top:0">
+    <div class="card"><div class="stand" style="--np:${S.length}">
       <div class="h"></div>${S.map(s=>`<div class="h" style="color:${colorOf(s.p)}">${esc(s.p)}</div>`).join('')}
-      <div class="c lbl">Gns. pr. vin</div>${S.map(s=>col(s,L2,fmt1(s.a),'')).join('')}
       <div class="c lbl" data-tip="${rule}" tabindex="0">Vundne aftener <span style="color:var(--text-faint);font-weight:400">ⓘ</span></div>${S.map(s=>col(s,L4,s.wins,narrow()?`af ${W.total}`:`af ${W.total} aftener`)).join('')}
     </div>
     <div class="best-list"><div class="best-h">Bedste vin</div>${S.map(s=>`<div class="best-row" ${s.best?`tabindex="0" data-wine="${esc(s.best.id)}"`:''}>${pnameHTML(s.p)}<span class="best-nm">${s.best?esc(s.best.name):'–'}</span><span class="best-sc">${s.best?s.best.score+'<small> p</small>':''}</span></div>`).join('')}</div>
@@ -1173,7 +1172,7 @@ function secRecords(L, B){
 /* ============================================================ 11. vinarkiv */
 function secArchive(L){
   return `<section class="section"><div class="sec-head"><span class="sec-num">${num()}</span><h2>Vinarkiv</h2><span class="sec-sub">${nWines(L)} vine · ${L.length} gæt</span></div>
-    <div class="card"><div class="arch-tools"><input class="search" id="arch-q" type="search" placeholder="Søg på vin, land, drue…" value="${esc(UI.archiveQ)}" autocomplete="off">${narrow()?`<select class="sel" id="arch-sort" aria-label="Sortér">${[['date:-1','Nyeste'],['date:1','Ældste'],['score:-1','Flest point'],['score:1','Færrest point'],['vtype:1','Vintype'],['name:1','Navn'],['land:1','Land'],['drue:1','Drue']].map(([v,l])=>`<option value="${v}" ${v===UI.archiveSort.key+':'+UI.archiveSort.dir?'selected':''}>${l}</option>`).join('')}</select>`:''}</div>
+    <div class="card"><div class="arch-tools"><input class="search" id="arch-q" type="search" placeholder="Søg på vin, land, drue…" value="${esc(UI.archiveQ)}" autocomplete="off">${narrow()?`<select class="sel" id="arch-sort" aria-label="Sortér">${[['date:-1','Nyeste'],['date:1','Ældste'],['score:-1','Flest point'],['score:1','Færrest point'],['rating:-1','Højeste vurdering'],['rating:1','Laveste vurdering'],['vtype:1','Vintype'],['name:1','Navn'],['land:1','Land'],['drue:1','Drue']].map(([v,l])=>`<option value="${v}" ${v===UI.archiveSort.key+':'+UI.archiveSort.dir?'selected':''}>${l}</option>`).join('')}</select>`:''}</div>
       <div id="arch-table">${archiveTable(L)}</div></div></section>`;
 }
 function archiveTable(L){
@@ -1181,7 +1180,9 @@ function archiveTable(L){
   let rows = wineGroups(L).filter(g=> !q || [g.name, g.owner, ...g.guessers, ...CATS.map(c=>g.cats[c.id].t), ...g.rows.flatMap(w=>CATS.map(c=>w.cats[c.id].g))].some(s=>norm(s).includes(q)));
   const {key, dir} = UI.archiveSort;
   const val = w => key==='date' ? w.date + String(w.seq).padStart(6,'0') : key==='score' ? w.total : key==='name' ? norm(w.name) : key==='land' ? norm(w.cats.land.t) : key==='drue' ? norm(w.cats.drue1.t) : key==='guesser' ? norm(w.guessers.join(' ')) : key==='owner' ? norm(w.owner) : key==='aargang' ? String(w.cats.aargang.t) : key==='vtype' ? String(w.vtype ? VTYPES.findIndex(t=>t.id===w.vtype) : 99).padStart(2,'0') + String(w.date) : '';
-  rows = rows.slice().sort((a,b)=>{ const x = val(a), y = val(b); return (x<y?-1:x>y?1:0)*dir; });
+  rows = rows.slice().sort((a,b)=>{
+    if(key==='rating'){ const x = ratingAvg(a), y = ratingAvg(b); if(x==null || y==null) return (x==null) - (y==null); return (x-y)*dir; } // unrated wines last
+    const x = val(a), y = val(b); return (x<y?-1:x>y?1:0)*dir; });
   const th = (k,l,cls='')=>`<th class="sortable ${cls} ${key===k?'sorted':''}" data-sort="${k}">${l}${key===k?(dir>0?' ▲':' ▼'):''}</th>`;
   if(!rows.length) return `<div class="empty">Ingen vine matcher “${esc(UI.archiveQ)}”.</div>`;
   const facts = w => [w.cats.drue1.t, w.cats.land.t, w.cats.aargang.t].filter(Boolean).map(esc).join(' · ');
@@ -1191,9 +1192,10 @@ function archiveTable(L){
       <span class="pills gline">${guessersLine(w)}</span>
       ${(w.vtype||ratingAvg(w)!=null)?`<span class="pills">${typeChip(w)}${ratingTxt(w)}</span>`:''}</li>`).join('')}</ul>
     <div class="card-note">Én linje pr. vin. Tallet til højre er holdets point i alt. Tryk for facit og alle gæt.</div>`;
-  return `<div class="tbl-wrap"><table class="tbl"><thead><tr>${th('date','Dato')}${th('name','Vin')}${th('vtype','Type')}${th('land','Land')}${th('drue','Drue')}${th('aargang','Årgang')}${th('owner','Medbragt')}${th('guesser','Gættere')}${th('score','Point i alt','num')}</tr></thead>
+  return `<div class="tbl-wrap"><table class="tbl"><thead><tr>${th('date','Dato')}${th('name','Vin')}${th('vtype','Type')}${th('land','Land')}${th('drue','Drue')}${th('aargang','Årgang')}${th('owner','Medbragt')}${th('guesser','Gættere')}${th('rating','★ Vurdering','num')}${th('score','Point i alt','num')}</tr></thead>
     <tbody>${rows.map(w=>`<tr tabindex="0" data-wine="${esc(w.id)}"><td class="dim" style="white-space:nowrap">${fmtDate(w.date)}</td><td>${esc(w.name)}</td><td>${typeChip(w)||'<span class="dim">–</span>'}</td>
       <td>${esc(w.cats.land.t)||'<span class="dim">–</span>'}</td><td>${esc(w.cats.drue1.t)||'<span class="dim">–</span>'}</td><td>${esc(w.cats.aargang.t)||'<span class="dim">–</span>'}</td><td class="dim">${esc(w.owner)}</td><td class="gline">${guessersLine(w)}</td>
+      <td class="num">${ratingAvg(w)!=null ? fmtR(ratingAvg(w)) : '<span class="dim">–</span>'}</td>
       <td class="num" style="font-family:var(--fnum);font-weight:800">${w.total}</td></tr>`).join('')}</tbody></table></div>
     <div class="card-note">Én linje pr. vin. Point i alt er holdets samlede point på vinen. Klik på en vin for facit og alle gæt.</div>`;
 }
@@ -1387,7 +1389,7 @@ root.addEventListener('click', e=>{
   const t = e.target;
   const fb = t.closest('[data-f]:not(select)'); if(fb){ setFilter(fb.dataset.f, fb.dataset.v); return; }
   const ub = t.closest('[data-ui]'); if(ub){ UI[ub.dataset.ui] = ub.dataset.v; render(); return; }
-  const so = t.closest('[data-sort]'); if(so){ const k = so.dataset.sort; UI.archiveSort = { key:k, dir: UI.archiveSort.key===k ? -UI.archiveSort.dir : (k==='date'||k==='score'?-1:1) }; document.getElementById('arch-table').innerHTML = archiveTable(filtered()); return; }
+  const so = t.closest('[data-sort]'); if(so){ const k = so.dataset.sort; UI.archiveSort = { key:k, dir: UI.archiveSort.key===k ? -UI.archiveSort.dir : (k==='date'||k==='score'||k==='rating'?-1:1) }; document.getElementById('arch-table').innerHTML = archiveTable(filtered()); return; }
   const go = t.closest('[data-geo-open]'); if(go){ UI.geoOpen = UI.geoOpen === go.dataset.geoOpen ? null : go.dataset.geoOpen; render(); return; }
   const wn = t.closest('[data-wine]'); if(wn){ openWine(wn.dataset.wine); return; }
   const vt = t.closest('[data-vtype]'); if(vt){ setFilter('vtype', F.vtype===vt.dataset.vtype ? 'all' : vt.dataset.vtype); return; }
