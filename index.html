@@ -2544,6 +2544,7 @@ document.addEventListener('visibilitychange', ()=>{
 window.addEventListener('pagehide', ()=>{ if(hasPendingChanges()) flushPendingChanges(); });
 
 let LAST_SCREEN_KEY = null;
+let RESULT_SCROLLED = null; // round whose result screen has been scrolled to the top on this phone
 function render(){
   document.getElementById('btn-settings').classList.toggle('active', VIEW==='settings');
   const c = document.getElementById('content');
@@ -2570,7 +2571,11 @@ function render(){
   if(screenKey === LAST_SCREEN_KEY) html = html.replace(/\bfade-in\b/g, '');
   LAST_SCREEN_KEY = screenKey;
   c.innerHTML = html;
-  if(!needsIdentity && VIEW==='game' && ACTIVE && ACTIVE.phase==='result') animateBottle(ACTIVE);
+  if(!needsIdentity && VIEW==='game' && ACTIVE && ACTIVE.phase==='result'){
+    // the bottle must be in view when the result appears — wherever this phone was scrolled to
+    if(RESULT_SCROLLED !== ACTIVE.id){ RESULT_SCROLLED = ACTIVE.id; window.scrollTo(0,0); }
+    animateBottle(ACTIVE);
+  }
   syncWakeLock();
 }
 
