@@ -832,13 +832,23 @@ function secOverview(L, B){
       {l:'Højeste score', n: best ? `${best.score}<span style="font-size:0.45em;color:var(--text-faint)"> p</span>` : '–', s: best ? `<span class="linkish" data-wine="${esc(best.id)}" title="${esc(best.name)}">${esc(best.name)}</span>` : ''},
       {l:'Seneste aften', n: lastEv ? fmtDate(lastEv,false) : '–', s: lastEv ? `Se ${nWines(L.filter(w=>w.date===lastEv))} vine →` : '', ev:lastEv},
     ];
-    kpiHTML = `<div class="card hero-duel"><span class="eyebrow">Gennemsnit pr. vin</span>
+    // Three or more players: a ranked list (the side-by-side duel layout only works for two).
+    const rankHTML = ()=>{ const R = S.slice().sort((a,b)=>b.a-a.a || b.tot-a.tot); const solo = R.length>1 && fmt1(R[0].a)!==fmt1(R[1].a);
+      return `<div class="card hero-duel"><span class="eyebrow">Gennemsnit pr. vin</span>
+        <div class="rk-list">${R.map((x,i)=>`<div class="rk-row ${i===0&&solo?'lead':''}">
+          <span class="rk-n">${i+1}</span>
+          <div class="rk-who">${pnameHTML(x.p)}<span class="s">${x.n} vine · ${x.tot} point i alt</span></div>
+          <b class="rk-avg">${fmt1(x.a)}</b>
+          <span class="rk-bar"><i style="width:${x.a/MAX*100}%;background:${colorOf(x.p)}"></i></span></div>`).join('')}</div>
+        <div class="card-note">Point pr. vin i snit som gætter, ud af ${MAX} mulige.</div>
+      </div>`; };
+    kpiHTML = (S.length > 2 ? rankHTML() : `<div class="card hero-duel"><span class="eyebrow">Gennemsnit pr. vin</span>
         <div class="hp-grid" style="--np:${S.length}">${S.map(s=>`<div class="hp">${pnameHTML(s.p)}<b>${fmt1(s.a)}</b><span class="s">point pr. vin · ${s.n} vine</span></div>`).join('')}</div>
         <div class="hero-total"><span class="eyebrow">Samlet antal point</span>
           <div class="splitbar" style="margin-top:10px">${S.map(s=>`<i style="flex:${s.tot||0.001};background:${colorOf(s.p)}" data-tip="${esc(tipRow(colorOf(s.p), s.tot+' point', s.p))}"></i>`).join('')}</div>
           <div class="row2">${S.map(s=>`<span>${esc(s.p)} <b>${s.tot}</b></span>`).join('')}</div>
         </div>
-      </div>
+      </div>`) + `
       <div class="grid g-kpi4" style="margin-top:14px">${k.map(x=>`<div class="card kpi ${x.ev?'clickable':''}" ${x.ev?`tabindex="0" data-evening="${x.ev}"`:''}><div class="l">${x.l}</div><div class="n">${x.n}</div><div class="s">${x.s}</div></div>`).join('')}</div>`;
   }
   return `<section class="section fade-in"><div class="sec-head"><span class="sec-num">${num()}</span><h2>Overblik</h2>${single?`<span class="sec-sub">${pnameHTML(sp[0])} som gætter</span>`:''}</div>
@@ -1688,6 +1698,16 @@ if(window.ResizeObserver)new ResizeObserver(f).observe(document.body);f()})();
 })();
 </script>
 <style id="vinholdet-fire">
+.rk-list{margin-top:8px}
+.rk-row{display:grid;grid-template-columns:24px minmax(0,1fr) auto;column-gap:12px;row-gap:8px;align-items:center;padding:13px 0;border-bottom:1px solid var(--border)}
+.rk-row:last-child{border-bottom:none}
+.rk-n{font-family:var(--fnum);font-weight:800;font-size:18px;color:var(--text-faint)}
+.rk-who{display:flex;flex-direction:column;gap:2px;min-width:0;font-family:var(--fb);font-size:17px}
+.rk-who .s{font-size:13.5px;color:var(--text-faint)}
+.rk-avg{font-family:var(--fnum);font-weight:900;font-stretch:112%;font-size:34px;line-height:1;font-variant-numeric:tabular-nums;color:var(--text)}
+.rk-row.lead .rk-avg,.rk-row.lead .rk-n{color:var(--good)}
+.rk-bar{grid-column:2/4;height:8px;border-radius:4px;background:rgba(31,42,55,.07);overflow:hidden}
+.rk-bar i{display:block;height:100%;border-radius:4px}
 .gline{line-height:1.6}.gline .pname{white-space:nowrap}.gline b{margin-left:4px}.gsep{margin:0 7px;color:var(--text-faint)}
 .wcard .pills.gline{font-size:14px;gap:0}
 .best-list{margin-top:18px}
@@ -1707,7 +1727,7 @@ if(window.ResizeObserver)new ResizeObserver(f).observe(document.body);f()})();
 .pbl-t i{position:absolute;left:0;top:0;bottom:0;border-radius:3px}
 .pbl em{font-style:normal;font-size:13px;color:var(--text);text-align:right;font-variant-numeric:tabular-nums}
 @media(max-width:600px){
-  .hero-duel .hp-grid{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:18px;gap:18px 14px}
+
   .stand{grid-template-columns:minmax(84px,1fr) repeat(var(--np),minmax(0,1fr))}
   .stand .big{font-size:22px!important}
   .stand .h{padding-left:4px;padding-right:4px;letter-spacing:.04em}
