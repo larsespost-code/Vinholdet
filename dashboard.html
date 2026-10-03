@@ -891,12 +891,9 @@ function secStanding(L, B){
   if(W.solo) notes.push(`${W.solo} ${W.solo===1?'aften':'aftener'} havde kun én gætter`);
   const rule = esc(`<div class='tt'>Vundne aftener</div>Aftenens vinder er den, der fik flest point pr. vin i snit som gætter.`);
   return `<section class="section" style="margin-top:0">
-    <div class="card"><div class="stand" style="--np:${S.length}">
-      <div class="h"></div>${S.map(s=>`<div class="h" style="color:${colorOf(s.p)}">${esc(s.p)}</div>`).join('')}
-      <div class="c lbl" data-tip="${rule}" tabindex="0">Vundne aftener <span style="color:var(--text-faint);font-weight:400">ⓘ</span></div>${S.map(s=>col(s,L4,s.wins,narrow()?`af ${W.total}`:`af ${W.total} aftener`)).join('')}
+    <div class="card">
+    <div class="best-list" style="margin-top:0"><div class="best-h">Bedste vin</div>${S.map(s=>`<div class="best-row" ${s.best?`tabindex="0" data-wine="${esc(s.best.id)}"`:''}>${pnameHTML(s.p)}<span class="best-nm">${s.best?esc(s.best.name):'–'}</span><span class="best-sc">${s.best?s.best.score+'<small> p</small>':''}</span></div>`).join('')}</div>
     </div>
-    <div class="best-list"><div class="best-h">Bedste vin</div>${S.map(s=>`<div class="best-row" ${s.best?`tabindex="0" data-wine="${esc(s.best.id)}"`:''}>${pnameHTML(s.p)}<span class="best-nm">${s.best?esc(s.best.name):'–'}</span><span class="best-sc">${s.best?s.best.score+'<small> p</small>':''}</span></div>`).join('')}</div>
-    ${notes.length?`<div class="stand-note">${notes.join(' · ')}</div>`:''}</div>
   </section>`;
 }
 
