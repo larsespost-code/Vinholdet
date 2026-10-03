@@ -1006,6 +1006,7 @@ function applyRoundSnapshot(rdata){
   const visibleChanged = phaseChanged || visibleContent(incoming) !== visibleContent(ACTIVE);
   ACTIVE = incoming;
   WAITING_TO_GUESS = false;
+  if(ACTIVE.phase==='result') LOCAL_DONE.set(ACTIVE.id, roundToRows(ACTIVE));
   if(phaseChanged) CONFIRM = null;
   // Someone started a wine while this person was choosing "servér/blindes": just take them in.
   if(!MY_IDENTITY && PENDING_GATE_NAME && ACTIVE.phase !== 'result'){
@@ -1040,11 +1041,16 @@ function visibleContent(r){
 
 function applyPointer(roundId, pdata){
   // "Det var dagens sidste flaske" pressed on either phone → both show the day summary.
+  const stillRating = ()=> ACTIVE && ACTIVE.phase==='result' && canRate(ACTIVE) && !RATED_DONE.has(ACTIVE.id);
   if(pdata && pdata.dayEndAt && pdata.dayEndAt !== DAY_END_SEEN && Date.now() - pdata.dayEndAt < 3*3600*1000){
     DAY_END_SEEN = pdata.dayEndAt;
-    if(ACTIVE && ACTIVE.phase==='result') IGNORED_ROUNDS.add(ACTIVE.id);
-    VIEW = 'day'; ACTIVE = null; render();
+    if(stillRating()) PENDING_DAY = true; // shown as soon as this phone has sent its rating
+    else {
+      if(ACTIVE && ACTIVE.phase==='result') IGNORED_ROUNDS.add(ACTIVE.id);
+      VIEW = 'day'; ACTIVE = null; render();
+    }
   }
+  if(PENDING_DAY && !roundId && stillRating()) return;
   // A round was just created on this phone: until the shared pointer shows
   // it, ignore older pointer values (a read that was already under way).
   // Until the new wine is actually saved, an older pointer must never close it:
@@ -1436,6 +1442,7 @@ function finishRound(){
   ACTIVE.ownerIndex = ownerIndexFor(ACTIVE.ownerName);
   ACTIVE.finishedAt = Date.now();
   ACTIVE.phase = 'result';
+  LOCAL_DONE.set(ACTIVE.id, roundToRows(ACTIVE));
   if(!USE_DB){ HISTORY.unshift(...roundToRows(ACTIVE)); pushActiveNow(); }
   else patchRoundNow({phase:'result', judged, scores, ownerIndex:ACTIVE.ownerIndex, finishedAt:ACTIVE.finishedAt});
   render(); window.scrollTo(0,0);
@@ -1522,13 +1529,26 @@ function posToRate(p){ return clampRate(p); }
 function fmtRate(v){ return (v==null || v==='' || isNaN(+v)) ? '–' : String(Math.round(+v)); }
 function myRating(){ return ACTIVE && ACTIVE.ratings && ACTIVE.ratings[MY_IDENTITY] != null ? ACTIVE.ratings[MY_IDENTITY] : null; }
 function canRate(r){ return !!r && !!MY_IDENTITY && (r.ownerName===MY_IDENTITY || guessersOf(r).includes(MY_IDENTITY)); }
+const RATED_DONE = new Set(); // rounds this phone has sent its rating for (→ the "what now?" screen)
+let PENDING_DAY = false;      // the evening was ended elsewhere while this phone was still rating
 function setMyRating(v){
   if(!ACTIVE || !canRate(ACTIVE)) return;
   ACTIVE.ratings = ACTIVE.ratings || {};
   ACTIVE.ratings[MY_IDENTITY] = v;
-  markDirty('ratings.'+MY_IDENTITY, v); queueSave();
   const el = document.getElementById('rate-val'); if(el) el.textContent = fmtRate(v);
-  const h = document.getElementById('rate-hint'); if(h) h.textContent = 'Gemt';
+  const h = document.getElementById('rate-hint'); if(h) h.textContent = 'Tryk “Send din bedømmelse”, når du er klar';
+}
+function sendRating(){
+  if(!ACTIVE) return;
+  if(canRate(ACTIVE)){
+    const s = document.getElementById('rate-slider');
+    const v = myRating() ?? (s ? clampRate(s.value) : 75);
+    ACTIVE.ratings = ACTIVE.ratings || {}; ACTIVE.ratings[MY_IDENTITY] = v;
+    markDirty('ratings.'+MY_IDENTITY, v); flushPendingChanges();
+  }
+  RATED_DONE.add(ACTIVE.id);
+  if(PENDING_DAY){ PENDING_DAY = false; IGNORED_ROUNDS.add(ACTIVE.id); ACTIVE = null; VIEW = 'day'; }
+  render(); window.scrollTo(0,0);
 }
 function onRateInput(pos){ setMyRating(posToRate(pos)); }
 function nudgeRate(d){
@@ -1543,20 +1563,22 @@ function ratingsOthersHtml(r){
 function updateRatingsUI(){ const el = document.getElementById('rate-others'); if(el && ACTIVE) el.innerHTML = ratingsOthersHtml(ACTIVE); }
 function ratingCardHtml(r){
   const others = ratingsOthersHtml(r);
-  if(!canRate(r)) return others ? `<div class="card rate-card"><div class="eyebrow">Vurdering af vinen</div><div class="rate-others" id="rate-others">${others}</div></div>` : '';
+  if(!canRate(r)) return (others ? `<div class="card rate-card"><div class="eyebrow">Vurdering af vinen</div><div class="rate-others" id="rate-others">${others}</div></div>` : '')
+    + `<button class="btn btn-primary btn-block" onclick="sendRating()">Videre →</button>`;
   const mine = myRating();
   const ticks = [1,25,50,75,100].map(v=>`<span style="left:${((v-RATE_MIN)/(RATE_MAX-RATE_MIN)*100).toFixed(2)}%">${v}</span>`).join('');
   return `<div class="card rate-card">
     <div class="eyebrow">Din vurdering af vinen</div>
     <div class="rate-val" id="rate-val">${fmtRate(mine)}</div>
-    <div class="rate-hint" id="rate-hint">${mine!=null ? 'Gemt' : 'Træk for at give vinen point (1–100)'}</div>
+    <div class="rate-hint" id="rate-hint">Træk for at give vinen point (1–100)</div>
     <div class="rate-wrap">
       <input type="range" class="rate-slider" id="rate-slider" min="${RATE_MIN}" max="${RATE_MAX}" step="1" value="${rateToPos(mine ?? 75)}" oninput="onRateInput(this.value)" aria-label="Vurdering 1 til 100">
     </div>
     <div class="rate-ticks">${ticks}</div>
     <div class="rate-fine"><button class="btn btn-secondary btn-sm" onclick="nudgeRate(-1)">−1</button><button class="btn btn-secondary btn-sm" onclick="nudgeRate(1)">+1</button></div>
     <div class="rate-others" id="rate-others">${others}</div>
-  </div>`;
+  </div>
+  <button class="btn btn-primary btn-block" onclick="sendRating()">Send din bedømmelse →</button>`;
 }
 
 /* ================= RENDER: GAME ================= */
@@ -1571,7 +1593,7 @@ function renderGame(){
     return renderWaiting('guessing');
   }
   if(ACTIVE.phase==='review') return renderReview(role==='owner');
-  if(ACTIVE.phase==='result') return renderResult();
+  if(ACTIVE.phase==='result') return RATED_DONE.has(ACTIVE.id) ? renderNextStep(ACTIVE) : renderResult();
   return renderIdle();
 }
 
@@ -2046,20 +2068,35 @@ function renderResult(){
     ${revealBoxHtml(r)}
     <div class="card" style="padding:4px 6px;">${resultRowsHtml(r)}</div>
     ${ratingCardHtml(r)}
-    <div class="toolbar">
-      <button class="btn btn-primary btn-block" onclick="dismissResult(); newRound();">Servér næste vin →</button>
-      <button class="btn btn-secondary btn-block" onclick="endDay()">🍾 Det var dagens sidste flaske</button>
-    </div>
-    <button class="btn btn-ghost btn-block" onclick="dismissResult(); switchView('history');" style="margin-top:6px;">Se historik</button>
   </div>`;
 }
+// After the rating: what happens next. Each phone chooses for itself.
+function renderNextStep(r){
+  const others = ratingsOthersHtml(r);
+  return `
+  <div class="fade-in center-text">
+    <div class="eyebrow" style="display:block;margin-top:10px;">${canRate(r) ? 'Tak for din bedømmelse' : wineTag()}</div>
+    <h2>Hvad nu?</h2>
+    ${others ? `<p class="sub" id="rate-others">${others}</p>` : ''}
+    <button class="btn btn-primary btn-block" onclick="nextServe()">🍷 Jeg serverer den næste vin</button>
+    <button class="btn btn-secondary btn-block" style="margin-top:10px;" onclick="nextGuess()">🕶️ Jeg skal gætte den næste vin</button>
+    <button class="btn btn-secondary btn-block" style="margin-top:10px;" onclick="endDay()">🍾 Det var aftenens sidste vin</button>
+    <button class="btn btn-ghost btn-block" style="margin-top:14px;" onclick="RATED_DONE.delete(ACTIVE.id); render();">← Se resultatet igen</button>
+  </div>`;
+}
+function nextServe(){ dismissResult(); newRound(); }
+function nextGuess(){ dismissResult(); WAITING_TO_GUESS = true; render(); window.scrollTo(0,0); }
 
 /* ================= DAY SUMMARY ================= */
 // "The day" = the latest tasting session: the most recent finished wines
 // with no gap longer than 6 hours between them (an evening that runs past
 // midnight still counts as one day).
+// Wines this phone saw finish tonight — the sheet's history can lag a little behind.
+const LOCAL_DONE = new Map(); // wineId → rows
 function sessionRounds(){
-  const list = HISTORY.slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const known = new Set(HISTORY.map(h=>h.wineId||h.id));
+  const extra = [...LOCAL_DONE.entries()].filter(([id])=>!known.has(id)).flatMap(([,rows])=>rows);
+  const list = HISTORY.concat(extra).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   if(!list.length || Date.now() - (list[0].createdAt||0) > 24*3600*1000) return [];
   const out = [list[0]];
   for(let i=1;i<list.length;i++){
@@ -2077,10 +2114,18 @@ function endDay(){
   if(USE_DB) DB.doc('state/active').set({roundId:null, dayEndAt:now, _writer:SESSION_ID, updatedAt:now}).catch(e=>setSyncState(true,e));
   render();
 }
+function continueEveningHtml(){
+  return `<div class="card card-flat" style="text-align:center;">
+      <div class="eyebrow">Kom I til at afslutte for tidligt?</div>
+      <p class="hint" style="margin:0 0 12px;">Start bare en ny vin — den tæller med i samme aften.</p>
+      <button class="btn btn-secondary btn-block" onclick="newRound()">🍷 Jeg serverer den næste vin</button>
+      <button class="btn btn-secondary btn-block" style="margin-top:8px;" onclick="WAITING_TO_GUESS=true; switchView('game')">🕶️ Jeg skal gætte den næste vin</button>
+    </div>`;
+}
 function renderDay(){
   const rounds = sessionRounds();
   if(!rounds.length) return `<div class="fade-in"><h2>Dagens resultat</h2><div class="empty">Ingen færdige vine i dag endnu.</div>
-    <button class="btn btn-primary btn-block" onclick="switchView('game')">Tilbage</button></div>`;
+    ${continueEveningHtml()}<button class="btn btn-ghost btn-block" onclick="switchView('game')">Tilbage</button></div>`;
   const people = {};
   CONFIG.participants.forEach(p=>people[p]={points:0, bottles:0});
   rounds.forEach(r=>{ const g=r.guesserName; if(!g) return; people[g]=people[g]||{points:0,bottles:0}; people[g].points+=r.score||0; people[g].bottles++; });
@@ -2103,7 +2148,8 @@ function renderDay(){
     <div class="card"><div class="eyebrow">Pointgennemsnit pr. flaske</div>${avgRows}
       <div class="hint">Til sammenligning, når I ikke har gættet lige mange flasker — tæller ikke med i dagens vinder.</div></div>
     <div class="card"><div class="eyebrow">Dagens flasker</div>${wines}</div>
-    <button class="btn btn-primary btn-block" onclick="switchView('game')">Tilbage til start</button>
+    ${continueEveningHtml()}
+    <button class="btn btn-ghost btn-block" onclick="switchView('game')">Tilbage til start</button>
   </div>`;
 }
 
