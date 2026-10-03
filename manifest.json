@@ -1,7 +1,6 @@
 {
   "name": "Vinholdet",
   "short_name": "Vinholdet",
-  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#F3F6F9",
