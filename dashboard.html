@@ -724,6 +724,19 @@ function render(){
   document.body.classList.toggle('sheet-open', !!UI.sheet);
   bindAfterRender();
 }
+function tabHTML(T){
+  const keepTab = UI.tab, keepN = SECN;
+  UI.tab = T; SECN = 0;
+  try{
+    const L = filtered(), B = baseFiltered();
+    let body;
+    if(!L.length) body = `<div class="state">Ingen vine matcher filtrene.</div>${T==='vine'?secTop10():''}`;
+    else if(T==='smagninger') body = secTypes(B) + secLastEvening() + secEvenings(B) + secArchive(L);
+    else if(T==='vine')       body = secTypeSplit(B) + secTop10() + secHardest(L) + secGeo(L);
+    else                      body = secOverview(L, B) + secStanding(L, B) + secTrend(L) + secCategories(L) + secKings(L);
+    return scopeNoteHTML() + body;
+  } finally { UI.tab = keepTab; SECN = keepN; }
+}
 function toTop(){
   const se = document.scrollingElement || document.documentElement;
   se.style.overflow = 'hidden'; se.scrollTop = 0; window.scrollTo(0,0);
@@ -733,7 +746,7 @@ function toTop(){
 }
 function setTab(t, dir, fromSwipe){
   const from = TABS.findIndex(x=>x.id===UI.tab), to = TABS.findIndex(x=>x.id===t);
-  if(!dir && from>=0 && to>=0 && from!==to) dir = to > from ? 1 : -1;
+  if(dir === undefined && from>=0 && to>=0 && from!==to) dir = to > from ? 1 : -1; // 0 = no slide (the swipe already moved it)
   UI.tab = t; UI.geoOpen = null; render(); toTop();
   if(dir && window.slideIn) window.slideIn(dir, fromSwipe);
 }
@@ -1690,6 +1703,9 @@ if(window.ResizeObserver)new ResizeObserver(f).observe(document.body);f()})();
 <style id="ux-swipe">
 #root{touch-action:pan-y}
 #root.dragging{will-change:transform}
+#peek{position:fixed;z-index:1;overflow:hidden;pointer-events:none;will-change:transform}
+#peek .fade-in{animation:none}
+#peek>div>:first-child{margin-top:0!important}
 </style>
 <script>
 /* Swipe mellem fanerne: siden følger fingeren og glider over i nabofanen. */
@@ -1702,9 +1718,24 @@ if(window.ResizeObserver)new ResizeObserver(f).observe(document.body);f()})();
   const T = ms => Math.round(ms * (reduce() ? .6 : 1));
   const W = ()=> window.innerWidth || 400;
   let x0 = null, y0 = 0, t0 = 0, mode = null, dx = 0, lastX = 0, lastT = 0, vx = 0, busy = false;
+  let peek = null, peekDir = 0;
+  // The tab next door, drawn beside the current one as it will look at the top of the page.
+  function showPeek(dir){
+    if(peek && peekDir === dir) return;
+    hidePeek();
+    const j = idx() + dir; if(j < 0 || j >= TABS.length) return;
+    const r = root.getBoundingClientRect(), top = r.top + window.scrollY; // where the tab starts at scroll 0
+    peek = document.createElement('div'); peek.id = 'peek'; peekDir = dir;
+    peek.style.cssText = `top:${top}px;left:${r.left + dir * W()}px;width:${r.width}px;height:${window.innerHeight - top}px`;
+    peek.innerHTML = `<div style="padding:${getComputedStyle(root).padding}">${tabHTML(TABS[j].id)}</div>`;
+    root.parentNode.insertBefore(peek, root.nextSibling);
+  }
+  function hidePeek(){ if(peek){ peek.remove(); peek = null; peekDir = 0; } }
   const idx = ()=> TABS.findIndex(x=>x.id===UI.tab);
-  const set = (x, ms)=>{ root.style.transition = ms ? `transform ${ms}ms ${EASE}, opacity ${ms}ms ${EASE}` : 'none';
-    root.style.transform = x ? `translate3d(${x}px,0,0)` : ''; root.style.opacity = x ? String(1 - Math.min(.35, Math.abs(x)/W()*.5)) : ''; };
+  const set = (x, ms)=>{ const tr = ms ? `transform ${ms}ms ${EASE}, opacity ${ms}ms ${EASE}` : 'none';
+    root.style.transition = tr; root.style.transform = x ? `translate3d(${x}px,0,0)` : '';
+    root.style.opacity = (x && !peek) ? String(1 - Math.min(.35, Math.abs(x)/W()*.5)) : '';
+    if(peek){ peek.style.transition = ms ? `transform ${ms}ms ${EASE}` : 'none'; peek.style.transform = x ? `translate3d(${x}px,0,0)` : ''; } };
   // a new tab glides in from the side it lies on
   window.slideIn = (dir, fromSwipe)=>{
     set(dir * (fromSwipe ? W() * .9 : W() * .35), 0); void root.offsetWidth;
@@ -1724,6 +1755,7 @@ if(window.ResizeObserver)new ResizeObserver(f).observe(document.body);f()})();
     const now = Date.now(); vx = (t.clientX - lastX) / Math.max(1, now - lastT); lastX = t.clientX; lastT = now;
     const i = idx(), edge = (mx > 0 && i === 0) || (mx < 0 && i === TABS.length - 1);
     dx = edge ? mx * .25 : mx; // rubber band at the first/last tab
+    if(edge) hidePeek(); else showPeek(mx < 0 ? 1 : -1);
     set(dx, 0);
   }, {passive:false});
   const end = ()=>{
@@ -1732,10 +1764,17 @@ if(window.ResizeObserver)new ResizeObserver(f).observe(document.body);f()})();
     mode = null;
     const i = idx(), dir = dx < 0 ? 1 : -1, j = i + dir;
     const go = j >= 0 && j < TABS.length && (Math.abs(dx) > W() * .22 || (Math.abs(vx) > .45 && Math.abs(dx) > 30));
-    if(!go){ set(0, T(220)); setTimeout(()=>{ root.style.transition = ''; root.classList.remove('dragging'); }, T(240)); return; }
+    if(!go){ set(0, T(220)); setTimeout(()=>{ root.style.transition = ''; root.classList.remove('dragging'); hidePeek(); }, T(240)); return; }
     busy = true;
-    set(-dir * W(), T(170)); // the current tab glides out …
-    setTimeout(()=>{ busy = false; setTab(TABS[j].id, dir, true); }, T(170)); // … and the next one glides in
+    const withPeek = !!peek && peekDir === dir;
+    set(-dir * W(), T(withPeek ? 240 : 170)); // the current tab glides out, the next one in beside it …
+    setTimeout(()=>{
+      busy = false;
+      if(withPeek){ // … and becomes the real page in the same frame — nothing jumps
+        root.style.transition = 'none'; root.style.transform = ''; root.style.opacity = '';
+        setTab(TABS[j].id, 0); hidePeek(); root.classList.remove('dragging');
+      } else setTab(TABS[j].id, dir, true);
+    }, T(withPeek ? 240 : 170));
   };
   document.addEventListener('touchend', end, {passive:true});
   document.addEventListener('touchcancel', end, {passive:true});
