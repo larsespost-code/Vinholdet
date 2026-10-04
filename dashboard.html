@@ -1696,7 +1696,10 @@ if(window.ResizeObserver)new ResizeObserver(f).observe(document.body);f()})();
 (function(){
   const NO = '.recs,.tbl-wrap,.chart-x,input,select,textarea,.mini-seg,.seg';
   const EASE = 'cubic-bezier(.22,.8,.25,1)';
+  // A slide you drive with your own finger is not the kind of motion "Reducer bevægelse" guards
+  // against — so it always glides; with that setting on, the automatic part is just quicker.
   const reduce = ()=> window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const T = ms => Math.round(ms * (reduce() ? .6 : 1));
   const W = ()=> window.innerWidth || 400;
   let x0 = null, y0 = 0, t0 = 0, mode = null, dx = 0, lastX = 0, lastT = 0, vx = 0, busy = false;
   const idx = ()=> TABS.findIndex(x=>x.id===UI.tab);
@@ -1704,9 +1707,8 @@ if(window.ResizeObserver)new ResizeObserver(f).observe(document.body);f()})();
     root.style.transform = x ? `translate3d(${x}px,0,0)` : ''; root.style.opacity = x ? String(1 - Math.min(.35, Math.abs(x)/W()*.5)) : ''; };
   // a new tab glides in from the side it lies on
   window.slideIn = (dir, fromSwipe)=>{
-    if(reduce()){ set(0, 0); return; }
     set(dir * (fromSwipe ? W() * .9 : W() * .35), 0); void root.offsetWidth;
-    requestAnimationFrame(()=>{ set(0, fromSwipe ? 300 : 260); setTimeout(()=>{ root.style.transition = ''; root.classList.remove('dragging'); }, 320); });
+    requestAnimationFrame(()=>{ set(0, T(fromSwipe ? 300 : 260)); setTimeout(()=>{ root.style.transition = ''; root.classList.remove('dragging'); }, T(320)); });
   };
   document.addEventListener('touchstart', e=>{
     if(busy || e.touches.length !== 1 || UI.sheet || document.getElementById('modal').classList.contains('show') || !ALL.length || e.target.closest(NO) || !e.target.closest('#root')){ x0 = null; return; }
@@ -1722,7 +1724,7 @@ if(window.ResizeObserver)new ResizeObserver(f).observe(document.body);f()})();
     const now = Date.now(); vx = (t.clientX - lastX) / Math.max(1, now - lastT); lastX = t.clientX; lastT = now;
     const i = idx(), edge = (mx > 0 && i === 0) || (mx < 0 && i === TABS.length - 1);
     dx = edge ? mx * .25 : mx; // rubber band at the first/last tab
-    if(!reduce()) set(dx, 0);
+    set(dx, 0);
   }, {passive:false});
   const end = ()=>{
     if(x0 === null) return; x0 = null;
@@ -1730,11 +1732,10 @@ if(window.ResizeObserver)new ResizeObserver(f).observe(document.body);f()})();
     mode = null;
     const i = idx(), dir = dx < 0 ? 1 : -1, j = i + dir;
     const go = j >= 0 && j < TABS.length && (Math.abs(dx) > W() * .22 || (Math.abs(vx) > .45 && Math.abs(dx) > 30));
-    if(!go){ set(0, 220); setTimeout(()=>{ root.style.transition = ''; root.classList.remove('dragging'); }, 240); return; }
-    if(reduce()){ set(0, 0); root.classList.remove('dragging'); setTab(TABS[j].id, dir, true); return; }
+    if(!go){ set(0, T(220)); setTimeout(()=>{ root.style.transition = ''; root.classList.remove('dragging'); }, T(240)); return; }
     busy = true;
-    set(-dir * W(), 170); // the current tab glides out …
-    setTimeout(()=>{ busy = false; setTab(TABS[j].id, dir, true); }, 170); // … and the next one glides in
+    set(-dir * W(), T(170)); // the current tab glides out …
+    setTimeout(()=>{ busy = false; setTab(TABS[j].id, dir, true); }, T(170)); // … and the next one glides in
   };
   document.addEventListener('touchend', end, {passive:true});
   document.addEventListener('touchcancel', end, {passive:true});
