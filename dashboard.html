@@ -350,6 +350,14 @@ select.year-select,select.sel{border:1.5px solid #1F2A37;border-radius:8px;paddi
 
 .hbar-row.clickable:hover,.top10 li:hover,.tbl tbody tr:hover{background:rgba(31,42,55,.05)}
 
+/* wine detail: no mid-word breaks, readable score */
+.score-big small{font-family:var(--fb);font-size:22px;font-weight:600;letter-spacing:0;color:var(--text-faint);margin-left:4px;font-stretch:100%}
+.cmp .hd{letter-spacing:.08em;overflow-wrap:normal;white-space:nowrap}
+.cmp>div{overflow-wrap:break-word;hyphens:auto}
+.cmp .cat{text-transform:none;font-family:var(--fb);font-size:15px;line-height:1.3;overflow-wrap:normal;hyphens:manual}
+.cmp .pt{overflow-wrap:normal}
+.cmp .pill{white-space:nowrap}
+@media(max-width:560px){.cmp{grid-template-columns:auto 1fr 1fr auto}.cmp>div{padding:10px 3px;font-size:15.5px}.cmp .cat{font-size:13.5px;max-width:90px;padding-right:6px;padding-top:9.5px}.cmp .hd{font-size:11px;letter-spacing:.06em}}
 </style>
 <style id="fixes">
 /* Scroll på mobil: ingen scroll-justering, ingen fast topbjælke på små skærme */
