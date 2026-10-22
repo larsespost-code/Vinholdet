@@ -719,6 +719,7 @@ function render(){
     return;
   }
   SECN = 0;
+  if(window.swipeReset) window.swipeReset();
   window.BAR_QUIET_UNTIL = Date.now() + 800;
   renderHeaderPlayer();
   renderNav();
@@ -1749,7 +1750,11 @@ if(window.ResizeObserver)new ResizeObserver(f).observe(document.body);f()})();
     set(dir * (fromSwipe ? W() * .9 : W() * .35), 0); void root.offsetWidth;
     requestAnimationFrame(()=>{ set(0, T(fromSwipe ? 300 : 260)); setTimeout(()=>{ root.style.transition = ''; root.classList.remove('dragging'); }, T(320)); });
   };
+  // Drop a half-finished drag (e.g. a second finger landed mid-swipe) so no stale copy of a tab is left on top.
+  function abort(){ x0 = null; mode = null; dx = 0; root.style.transition = ''; root.style.transform = ''; root.style.opacity = ''; root.classList.remove('dragging'); hidePeek(); }
+  window.swipeReset = ()=>{ if(!busy && x0 === null) abort(); };
   document.addEventListener('touchstart', e=>{
+    if(x0 !== null && e.touches.length > 1){ abort(); return; }
     if(busy || e.touches.length !== 1 || UI.sheet || document.getElementById('modal').classList.contains('show') || !ALL.length || e.target.closest(NO) || !e.target.closest('#root')){ x0 = null; return; }
     x0 = lastX = e.touches[0].clientX; y0 = e.touches[0].clientY; t0 = lastT = Date.now(); mode = null; dx = 0; vx = 0;
   }, {passive:true});
