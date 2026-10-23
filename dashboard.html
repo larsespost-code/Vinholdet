@@ -437,7 +437,7 @@ const MONTHS = ['jan','feb','mar','apr','maj','jun','jul','aug','sep','okt','nov
 /* ============================================================ state */
 let ALL = [];            // alle vine (normaliseret)
 let PLAYERS = [];        // navne på gættere
-let F = { player:'all', period:'all', land:'all', drue:'all', vtype:'all' };
+let F = { player:'all', period:'all', land:'all', drue:'all', vtype:'all', aargang:'all' };
 let UI = { tab:'smagninger', sheet:false, top10All:'', hardAll:'', trend:'evening', geo:'land', geoOpen:null, archiveSort:{key:'date',dir:-1}, archiveQ:'' };
 let LOADED_AT = null;
 
@@ -569,7 +569,11 @@ function buildVocab(values){
   const display = f => [...disp.get(f).entries()].sort((a,b)=>b[1]-a[1])[0][0];
   return raw => { const f = fold(raw); if(!f) return ''; const t = map.get(f); return t ? display(t) : String(raw).trim(); };
 }
+// Local grape names count as the grape (Spätburgunder → Pinot Noir), also in older hand-typed rows.
+const GRAPE_SYN = (()=>{ const m = new Map(); [["Albariño",["Alvarinho","alvarinho"]],["Blaufränkisch",["Lemberger","kekfrankos","lemberger"]],["Bual",["Boal"]],["Cabernet Franc",["bouchet","breton"]],["Cabernet Sauvignon",["cab sav","cabsav"]],["Carignan",["Cariñena","Mazuelo","carignano","carinena","mazuelo"]],["Chardonnay",["morillon"]],["Chenin Blanc",["chenin","steen"]],["Cinsault",["cinsaut"]],["Fernão Pires",["Maria Gomes"]],["Gamay",["gamay noir"]],["Gewürztraminer",["gewuerztraminer","gewurz"]],["Grenache",["Cannonau","Garnacha","cannonau","garnacha","garnatxa"]],["Grenache Blanc",["Garnacha Blanca","Garnatxa Blanca"]],["Grenache Gris",["Garnacha Gris","Garnatxa Gris"]],["Grüner Veltliner",["gruener veltliner","gruner","veltliner"]],["Macabeo",["Macabeu","Viura"]],["Malbec",["Côt","cot","côt"]],["Melon de Bourgogne",["Muscadet","melon"]],["Mencía",["jaen"]],["Mourvèdre",["Mataró","Monastrell","mataro","monastrell"]],["Muscat",["Moscatel","Moscato Bianco","Muskateller","moscatel","moscato","muskat","muskateller"]],["Nebbiolo",["chiavennasca","spanna"]],["Picpoul",["Piquepoul"]],["Pinot Blanc",["Weißburgunder","pinot bianco","weissburgunder"]],["Pinot Gris",["Grauburgunder","Pinot Grigio","Ruländer","grauburgunder","pinot grigio","rulander"]],["Pinot Noir",["Blauburgunder","Pinot Nero","Spätburgunder","blauburgunder","pinot nero","spatburgunder"]],["Riesling",["rheinriesling","white riesling"]],["Sangiovese",["brunello","morellino","nielluccio","prugnolo gentile","sangioveto"]],["Sauvignon Blanc",["fume blanc"]],["Savagnin",["naturé","savagnin blanc","traminer"]],["Syrah",["Shiraz","shiraz"]],["Sémillon",["Semillon"]],["Tempranillo",["Aragonez","Tinta Roriz","aragonez","cencibel","tinta del pais","tinta roriz","tinto fino","ull de llebre"]],["Trebbiano",["Ugni Blanc","ugni blanc"]],["Vermentino",["Rolle","rolle"]],["Xarel·lo",["Xarello"]],["Zinfandel",["Primitivo","primitivo","tribidrag"]]].forEach(([n, ss])=>{ m.set(fold(n), n); ss.forEach(x=>m.set(fold(x), n)); }); return m; })();
+function grapeSyn(v){ const s = String(v ?? '').trim(); return s ? s.split(/\s*,\s*/).map(x=>GRAPE_SYN.get(fold(x)) || x).join(', ') : s; }
 function canonicalize(list){
+  list.forEach(w=>['t','g'].forEach(k=>{ w.cats.drue1[k] = grapeSyn(w.cats.drue1[k]); w.cats.drue2[k] = grapeSyn(w.cats.drue2[k]); }));
   const grape = buildVocab(list.flatMap(w=>['drue1','drue2'].flatMap(c=>[w.cats[c].t, w.cats[c].g])));
   const voc = {}; ['region','appellation','type'].forEach(c=>{ voc[c] = buildVocab(list.flatMap(w=>[w.cats[c].t, w.cats[c].g])); });
   list.forEach(w=>{
@@ -611,12 +615,15 @@ function baseFiltered(){
   else if(/^d/.test(F.period)){ const d = F.period.slice(1); L = L.filter(w=>w.date===d); }
   if(F.land !== 'all') L = L.filter(w=>norm(w.cats.land.t)===F.land);
   if(F.drue !== 'all') L = L.filter(w=>norm(w.cats.drue1.t)===F.drue);
+  if(F.aargang !== 'all'){ const a = F.aargang, from = +a.slice(1);
+    L = L.filter(w=>{ const t = w.cats.aargang.t, y = yearOf(t);
+      return a==='nv' ? norm(t)==='nv' : a[0]==='r' ? (y!=null && y>=from && y<=from+4) : y===from; }); }
   if(F.vtype !== 'all') L = L.filter(w=>w.vtype===F.vtype);
   return L;
 }
 function filtered(){ const L = baseFiltered(); return F.player==='all' ? L : L.filter(w=>w.guesser===F.player); }
 function scopePlayers(){ return F.player==='all' ? PLAYERS : [F.player]; }
-function isFiltered(){ return F.player!=='all' || F.period!=='all' || F.land!=='all' || F.drue!=='all' || F.vtype!=='all'; }
+function isFiltered(){ return F.player!=='all' || F.period!=='all' || F.land!=='all' || F.drue!=='all' || F.vtype!=='all' || F.aargang!=='all'; }
 
 /* ============================================================ stats helpers */
 function byPlayer(L){ const o = {}; PLAYERS.forEach(p=>o[p]=L.filter(w=>w.guesser===p)); return o; }
@@ -704,10 +711,11 @@ function renderError(msg){
     Kunne ikke hente data.<br><span style="color:var(--text-faint);font-size:1rem">${esc(msg)}</span><br><button class="btn" onclick="load()">Prøv igen</button></div>`;
 }
 
-const APP_VERSION = '1 · 3. okt 2026';
+const APP_VERSION = '2 · 23. okt 2026';
 const TABS = [
   {id:'smagninger', l:'Smagninger', i:'<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>'},
   {id:'vine',       l:'Vinene',     i:'<path d="M8 3h8l-.7 8.2c-.3 3-2.1 4.7-3.3 5.2V21M9 21h6"/>'},
+  {id:'ratings',    l:'Ratings',    i:'<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>'},
   {id:'en',         l:'Overblik',        i:'<circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M3 20c0-3 2.2-5 5-5s5 2 5 5M11 20c0-3 2.2-5 5-5s5 2 5 5"/>'},
 ];
 function renderNav(){
@@ -725,7 +733,8 @@ function render(){
   renderNav();
   const L = filtered(), B = baseFiltered(), T = UI.tab;
   let body;
-  if(!L.length) body = `<div class="state">Ingen vine matcher filtrene. <br><button class="btn" onclick="resetFilters()">Nulstil filtre</button></div>${T==='vine'?secTop10():''}`;
+  if(!(T==='ratings' ? B : L).length) body = `<div class="state">Ingen vine matcher filtrene. <br><button class="btn" onclick="resetFilters()">Nulstil filtre</button></div>${T==='vine'?secTop10():''}`;
+  else if(T==='ratings') body = secRatings(B);
   else if(T==='smagninger') body = secTypes(B) + secLastEvening() + secEvenings(B) + secArchive(L);
   else if(T==='vine')       body = secTypeSplit(B) + secTop10() + secHardest(L) + secGeo(L);
   else                      body = secOverview(L, B) + secStanding(L, B) + secTrend(L) + secCategories(L) + secKings(L);
@@ -739,7 +748,8 @@ function tabHTML(T){
   try{
     const L = filtered(), B = baseFiltered();
     let body;
-    if(!L.length) body = `<div class="state">Ingen vine matcher filtrene.</div>${T==='vine'?secTop10():''}`;
+    if(!(T==='ratings' ? B : L).length) body = `<div class="state">Ingen vine matcher filtrene.</div>${T==='vine'?secTop10():''}`;
+    else if(T==='ratings') body = secRatings(B);
     else if(T==='smagninger') body = secTypes(B) + secLastEvening() + secEvenings(B) + secArchive(L);
     else if(T==='vine')       body = secTypeSplit(B) + secTop10() + secHardest(L) + secGeo(L);
     else                      body = secOverview(L, B) + secStanding(L, B) + secTrend(L) + secCategories(L) + secKings(L);
@@ -773,12 +783,13 @@ function renderHeaderPlayer(){
   if(!PLAYERS.length){ el.innerHTML = ''; return; }
   const b = (v,l)=>`<button class="${F.player===v?'on':''}" data-f="player" data-v="${esc(v)}">${esc(l)}</button>`;
   const n = activeFilterCount();
-  el.innerHTML = `<div class="seg" role="group" aria-label="Vis gætter">${b('all','Alle')}${PLAYERS.map(p=>b(p,p)).join('')}</div><button class="filter-btn ${n?'active':''}" data-open-sheet aria-haspopup="dialog"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>Filtrér${n?`<span class="badge">${n}</span>`:''}</button>`;
+  // Everyone rates every wine, so "who guessed" means nothing on the Ratings tab.
+  el.innerHTML = `${UI.tab==='ratings' ? '<span></span>' : `<div class="seg" role="group" aria-label="Vis gætter">${b('all','Alle')}${PLAYERS.map(p=>b(p,p)).join('')}</div>`}<button class="filter-btn ${n?'active':''}" data-open-sheet aria-haspopup="dialog"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>Filtrér${n?`<span class="badge">${n}</span>`:''}</button>`;
 }
 document.getElementById('hdr-player').addEventListener('click', e=>{
   const fb = e.target.closest('[data-f]'); if(fb) setFilter(fb.dataset.f, fb.dataset.v);
 });
-function activeFilterCount(){ return ['period','land','drue','vtype'].filter(k=>F[k]!=='all').length; }
+function activeFilterCount(){ return ['period','land','drue','vtype','aargang'].filter(k=>F[k]!=='all').length; }
 function sheetHTML(){
   const ev = evenings(ALL);
   const years = [...new Set(ev.map(d=>d.slice(0,4)))];
@@ -794,10 +805,14 @@ function sheetHTML(){
     ${ALL.some(w=>w.vtype)?`<div class="fgroup"><span class="flabel">Vintype</span><select class="sel" data-f="vtype"><option value="all">Alle typer</option>${VTYPES.filter(t=>ALL.some(w=>w.vtype===t.id)).map(t=>`<option value="${t.id}">${t.l}</option>`).join('')}</select></div>`:''}
     <div class="fgroup"><span class="flabel">Land (facit)</span><select class="sel" data-f="land"><option value="all">Alle lande</option>${lands.map(l=>`<option value="${esc(norm(l))}">${esc(l)}</option>`).join('')}</select></div>
     <div class="fgroup"><span class="flabel">Drue (facit)</span><select class="sel" data-f="drue"><option value="all">Alle druer</option>${druer.map(l=>`<option value="${esc(norm(l))}">${esc(l)}</option>`).join('')}</select></div>
+    ${(()=>{ const ys = [...new Set(ALL.map(w=>yearOf(w.cats.aargang.t)).filter(Boolean))].sort((a,b)=>b-a), rs = [...new Set(ys.map(y=>Math.floor(y/5)*5))];
+      const nv = ALL.some(w=>norm(w.cats.aargang.t)==='nv'); if(!ys.length && !nv) return '';
+      return `<div class="fgroup"><span class="flabel">Årgang (facit)</span><select class="sel" data-f="aargang"><option value="all">Alle årgange</option>${nv?'<option value="nv">NV (ikke-vintage)</option>':''}${rs.length>1?`<optgroup label="Perioder">${rs.map(r=>`<option value="r${r}">${r}–${r+4}</option>`).join('')}</optgroup>`:''}<optgroup label="Enkelte år">${ys.map(y=>`<option value="y${y}">${y}</option>`).join('')}</optgroup></select></div>`; })()}
     <div class="row">${isFiltered()?`<button class="btn btn-secondary" onclick="resetFilters()">Nulstil</button>`:''}<button class="btn btn-primary" data-close-sheet>Vis ${nWines(filtered())} vine</button></div>
   </div></div>`;
 }
 function scopeNoteHTML(){
+  if(UI.tab==='ratings') return activeFilterCount() ? `<div class="scope-note fade-in"><span>Viser <b>${nWines(baseFiltered())}</b> af ${nWines(ALL)} vine</span><button class="reset" onclick="resetFilters()">Nulstil</button></div>` : '';
   if(!isFiltered() || (F.player!=='all' && !activeFilterCount())) return '';
   return `<div class="scope-note fade-in"><span>Viser <b>${nWines(filtered())}</b> af ${nWines(ALL)} vine${UI.tab==='vine'?' · Top 10 viser altid alle':''}</span><button class="reset" onclick="resetFilters()">Nulstil</button></div>`;
 }
@@ -805,7 +820,7 @@ function uniqSorted(arr){
   const m = new Map(); arr.filter(Boolean).forEach(x=>{ const k = norm(x); if(!m.has(k)) m.set(k, x); });
   return [...m.values()].sort((a,b)=>a.localeCompare(b,'da'));
 }
-function resetFilters(){ F = { player:'all', period:'all', land:'all', drue:'all', vtype:'all' }; render(); }
+function resetFilters(){ F = { player:'all', period:'all', land:'all', drue:'all', vtype:'all', aargang:'all' }; render(); }
 function setFilter(k, v){ F[k] = v; render(); }
 
 /* ============================================================ 1. oversigt */
@@ -943,7 +958,7 @@ function secTrend(L){
       <div class="mini-seg"><button data-ui="trend" data-v="evening" class="${UI.trend==='evening'?'on':''}">Pr. aften</button><button data-ui="trend" data-v="running" class="${UI.trend==='running'?'on':''}">Løbende gns.</button></div></div>
       ${ev.length < 2 ? `<div class="empty">Der skal være mindst to aftener for at vise en udvikling.</div>` : lineChart(ev, series)}
       <div class="legend" style="margin-top:8px">${sp.map(p=>`<span><span class="k" style="background:${colorOf(p)}"></span>${esc(p)}</span>`).join('')}</div>
-      <div class="card-note">${UI.trend==='evening'?'Hvert punkt er jeres gennemsnit som gætter den aften. Træk fingeren hen over grafen for at aflæse en aften.':'Gennemsnittet af alle vine til og med den aften – stiger linjen, bliver man bedre.'}</div>
+      <div class="card-note">${UI.trend==='evening'?'Træk fingeren hen over grafen for at aflæse en aften.':'Gennemsnittet af alle vine til og med den aften – stiger linjen, bliver man bedre.'}</div>
     </div></section>`;
 }
 function lineChart(xs, series){
@@ -1027,7 +1042,7 @@ function secCategories(L){
   }
   const top = CATS.map(c=>({c, v:hitRate(L,c.id), n:L.filter(w=>w.cats[c.id].applicable).length})).filter(x=>x.v!=null).sort((a,b)=>b.v-a.v).slice(0,5);
   return head + `<div>
-      <div class="card"><div class="card-title"><span>Pointfrekvens pr. kategori</span><span class="sec-sub" style="font-family:var(--fb);text-transform:none;letter-spacing:0;color:var(--text-faint)">bedst øverst</span></div>
+      <div class="card"><div class="card-title"><span>Pointfrekvens pr. kategori</span></div>
         <div class="legend legend-top">${sp.map(p=>`<span><span class="kb" style="background:${colorOf(p)}"></span>${esc(p)}</span>`).join('')}</div>
         ${catsSorted(bp, sp).map(c=>`<div class="freq-row"><div class="freq-nm">${c.label} <span>${c.max}p</span></div>${sp.map(p=>{ const v = hitRate(bp[p], c.id);
           return `<div class="pbl" data-tip="${esc(`<div class='tt'>${c.label}</div>`+tipRow(colorOf(p), v==null?'–':pct(v), p))}"><span class="pbl-n">${esc(p)}</span><span class="pbl-t"><i style="width:${(v||0)*100}%;background:${colorOf(p)}"></i></span><em>${v==null?'–':pct(v)}</em></div>`; }).join('')}</div>`).join('')}
@@ -1084,7 +1099,7 @@ function secGeo(L){
     <div>
       <div class="card"><div class="card-title"><span>Når det var facit</span></div>
         ${truthRows.length ? truthRows.map(r=>rowHTML(r,'t')).join('') : '<div class="empty">Ingen data.</div>'}
-        <div class="card-note">Hvor mange gange ${word} blev gættet rigtigt ud af de gange, det var facit.${tap}${both?'':' Tryk for at filtrere.'}</div>
+        <div class="card-note">Hvor mange gange ${word} blev gættet rigtigt ud af de gange, det var det korrekte svar.${tap}${both?'':' Tryk for at filtrere.'}</div>
       </div>
     </div></section>`;
 }
@@ -1377,6 +1392,143 @@ function secTypes(L){
     </div></section>`;
 }
 
+/* ============================================================ ratings
+   Jeres ratings. Alle rater hver vin, så fanen viser altid jer alle
+   side om side; Alle/navne-knappen (hvem der gættede) gælder ikke her,
+   men periode, land, drue, årgang og vintype gør. */
+const RATE_MIN_GROUP = 2; // a group needs this many rated wines to be shown
+// The rating scale: here 1–100 in whole numbers. (Blindervenner uses stars 0–5; only this line differs.)
+const RSCALE = { min:1, max:100, label:'1–100', unit:10, bin:1, eps:.5, tick:v=>String(Math.round(v)), diff:d=>String(Math.round(d)) };
+// An axis zoomed to where the ratings actually are, on whole units of the scale.
+function rateAxis(vals){
+  const u = RSCALE.unit; let lo = Math.max(RSCALE.min, Math.floor((Math.min(...vals) - RSCALE.bin) / u) * u), hi = Math.min(RSCALE.max, Math.ceil((Math.max(...vals) + RSCALE.bin) / u) * u);
+  if(hi - lo < 2*u){ hi = Math.min(RSCALE.max, lo + 2*u); lo = Math.max(RSCALE.min, hi - 2*u); }
+  const step = (hi - lo) / u <= 5 ? u : 2*u, ticks = []; for(let t = Math.ceil(lo/step - 1e-9)*step; t <= hi + 1e-9; t += step) ticks.push(Math.round(t*100)/100);
+  return { lo, hi, ticks, x: v => (v - lo) / (hi - lo) * 100 };
+}
+const genName = n => /[sxzSXZ]$/.test(n) ? n+'’' : n+'s'; // Lars’ / Tores
+function raters(W){ return PLAYERS.filter(p=>W.some(w=>ratingOf(w,p)!=null)); }
+function rateDots(w, R){ return R.map(p=>`${pnameHTML(p)} <b>${fmtR(ratingOf(w,p))}</b>`).join('<span class="gsep">·</span>'); }
+function secRatings(B){
+  const W = uniqWines(B), R = raters(W);
+  if(!W.some(w=>ratingAvg(w)!=null)) return `<div class="state">Ingen ratings endnu.<br><span style="color:var(--text-faint);font-size:1rem">Når I giver vinene stjerner i appen, dukker de op her.</span></div>`;
+  return secRateFav(W, R) + secRateBy(W, R) + secRatePeople(W, R) + secRateScore(B, R);
+}
+function secRateFav(W, R){
+  const rated = W.filter(w=>ratingAvg(w)!=null).sort((a,b)=> ratingAvg(b)-ratingAvg(a) || b.date.localeCompare(a.date));
+  const li = (w, i, gold) => `<li tabindex="0" data-wine="${esc(w.id)}">
+      <span class="rk ${gold && i===0 ? 'gold' : ''}">${i+1}.</span>
+      <div style="min-width:0"><div class="nm">${esc(w.name)}</div><div class="sub gline">${rateDots(w, R)}</div></div>
+      <span class="sc">${fmtR(ratingAvg(w))}<small> ★</small></span></li>`;
+  const head = `<section class="section"><div class="sec-head"><span class="sec-num">${num()}</span><h2>Favoritter</h2><span class="sec-sub">Højeste gennemsnitlige rating</span></div>`;
+  if(UI.rateAll || rated.length <= 10)
+    return head + `<div class="card"><ol class="top10">${rated.map((w,i)=>li(w,i,true)).join('')}</ol>
+      ${rated.length > 10 ? `<button class="more-btn" data-ui="rateAll" data-v="">Vis kun top og bund 5</button>` : ''}</div></section>`;
+  const top = rated.slice(0, 5), low = rated.slice(-5).reverse();
+  return head + `<div class="card"><ol class="top10">${top.map((w,i)=>li(w,i,true)).join('')}</ol></div>
+    <div class="card" style="margin-top:12px"><div class="card-title"><span>Bund 5</span></div><ol class="top10">${low.map((w,i)=>li(w,i,false)).join('')}</ol>
+      <button class="more-btn" data-ui="rateAll" data-v="1">Se alle ${rated.length} vine</button></div></section>`;
+}
+function secRateBy(W, R){
+  const key = UI.rby || 'type';
+  const get = { type: w=> w.vtype ? vtOf(w.vtype).l : '', drue: w=>w.cats.drue1.t, land: w=>w.cats.land.t, region: w=>w.cats.region.t }[key];
+  const m = new Map();
+  W.filter(w=>ratingAvg(w)!=null).forEach(w=>{ const name = String(get(w)||'').trim(); if(!name) return; const k = norm(name); if(!m.has(k)) m.set(k, {name, ws:[]}); m.get(k).ws.push(w); });
+  const rows = [...m.values()].filter(g=>g.ws.length >= RATE_MIN_GROUP).map(g=>({ ...g,
+      all: avg(g.ws.map(ratingAvg)),
+      per: R.map(p=>{ const v = g.ws.map(w=>ratingOf(w,p)).filter(x=>x!=null); return { p, v: v.length ? avg(v) : null, n: v.length }; }) }))
+    .sort((a,b)=> b.all-a.all || b.ws.length-a.ws.length || a.name.localeCompare(b.name,'da'));
+  const ax = rows.length ? rateAxis(rows.flatMap(r=>r.per.map(x=>x.v)).filter(x=>x!=null)) : null, pos = v => Math.max(0, Math.min(100, ax.x(v)));
+  const tipFor = r => esc(`<div class='tt'>${esc(r.name)} · ${r.ws.length} vine</div>` + r.per.map(x=>tipRow(colorOf(x.p), fmtR(x.v), x.p)).join(''));
+  const many = R.length > 2 ? ' many' : ''; // more than two people: the values go on their own line under the scale
+  const row = r => `<div class="rb-row${many}" data-tip="${tipFor(r)}"><span class="nm" title="${esc(r.name)}">${esc(r.name)}<small>${r.ws.length} vine</small></span>
+      <span class="rb-track">${r.per.filter(x=>x.v!=null).map(x=>`<i style="left:${pos(x.v)}%;background:${colorOf(x.p)}"></i>`).join('')}</span>
+      <span class="rb-val">${r.per.map(x=>`<span><span class="dot" style="background:${colorOf(x.p)}"></span>${fmtR(x.v)}</span>`).join('')}</span></div>`;
+  const opt = (v, l) => `<button data-ui="rby" data-v="${v}" class="${key===v?'on':''}">${l}</button>`;
+  const switcher = `<div class="mini-seg">${opt('type','Type')}${opt('drue','Drue')}${opt('land','Land')}${opt('region','Region')}</div>`;
+  return `<section class="section"><div class="sec-head"><span class="sec-num">${num()}</span><h2>Hvad I kan lide</h2></div>
+    <div class="card"><div class="card-title" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><span>Rating fordelt på</span>${switcher}</div>
+      ${rows.length ? `<div class="rb-scale${many}"><span></span><span class="rb-ticks">${ax.ticks.map(t=>`<i style="left:${pos(t)}%">${RSCALE.tick(t)}</i>`).join('')}</span><span></span></div>${rows.map(row).join('')}`
+        : `<div class="card-note">Endnu ingen ${key==='type'?'typer':key==='drue'?'druer':key==='land'?'lande':'regioner'} med mindst ${RATE_MIN_GROUP} ratede vine.</div>`}
+      <div class="card-note">Prikkerne er jeres gennemsnit (skala ${RSCALE.label}), bedst øverst. Kun grupper med mindst ${RATE_MIN_GROUP} vine.</div>
+    </div></section>`;
+}
+function secRatePeople(W, R){
+  if(!R.length) return '';
+  // One dot per wine on a shared scale, zoomed to where your ratings actually are (they are given in tenths).
+  const all = W.flatMap(w=>R.map(p=>ratingOf(w,p))).filter(x=>x!=null);
+  const { ticks, x: xp } = rateAxis(all);
+  const strip = (p, mine) => {
+    const stacks = new Map();
+    const dots = mine.slice().sort((a,b)=>a.v-b.v).map(x=>{ const k = Math.round(x.v / RSCALE.bin); const n = stacks.get(k) || 0; stacks.set(k, n+1); return { ...x, n }; });
+    const maxN = Math.max(1, ...stacks.values()), gap = Math.min(11, 88 / maxN), H = Math.max(40, Math.min(100, maxN * gap + 12));
+    const mean = avg(mine.map(x=>x.v));
+    return `<div class="rp-strip" style="height:${H}px"><b class="rp-mean" style="left:${xp(mean)}%"></b>${dots.map(x=>`<i style="left:${xp(x.v)}%;bottom:${4 + x.n*gap}px;background:${colorOf(p)}" data-tip="${esc(`<div class='tt'>${esc(x.w.name)}</div>`+tipRow(colorOf(p), fmtR(x.v)+' ★', p))}"></i>`).join('')}</div>
+      <div class="rp-ticks">${ticks.map(t=>`<i style="left:${xp(t)}%">${RSCALE.tick(t)}</i>`).join('')}</div>`;
+  };
+  const card = p => {
+    const mine = W.map(w=>({ w, v: ratingOf(w,p) })).filter(x=>x.v!=null);
+    const own = mine.filter(x=>norm(x.w.owner)===norm(p)), other = mine.filter(x=>x.w.owner && norm(x.w.owner)!==norm(p));
+    const oa = own.length ? avg(own.map(x=>x.v)) : null, xa = other.length ? avg(other.map(x=>x.v)) : null;
+    const others = R.filter(x=>x!==p), otherLbl = others.length===1 ? `${esc(genName(others[0]))} vine` : 'De andres vine';
+    return `<div class="card rp-card">
+      <div class="rp-head">${pnameHTML(p)}<span class="rp-big">${fmtR(avg(mine.map(x=>x.v)))}<small> ★ snit · ${mine.length} vine</small></span></div>
+      ${strip(p, mine)}
+      <div class="rp-own"><div><span>Egne vine</span><b>${fmtR(oa)}</b><small>${own.length} vine</small></div><div><span>${otherLbl}</span><b>${fmtR(xa)}</b><small>${other.length} vine</small></div></div>
+    </div>`;
+  };
+  let agree = '';
+  if(R.length >= 2){
+    const both = W.map(w=>{ const v = R.map(p=>ratingOf(w,p)).filter(x=>x!=null); return v.length >= 2 ? { w, d: Math.max(...v) - Math.min(...v) } : null; }).filter(Boolean);
+    if(both.length){
+      const md = avg(both.map(x=>x.d)), same = both.filter(x=>x.d < RSCALE.eps).length;
+      const worst = both.filter(x=>x.d >= RSCALE.eps).sort((a,b)=>b.d-a.d || b.w.date.localeCompare(a.w.date)).slice(0, 5);
+      agree = `<div class="card" style="margin-top:12px"><div class="card-title"><span>Enighed</span></div>
+        <div class="rp-agree"><div><b>${fmtR(md)}</b><span>${RSCALE.max===5 ? 'stjerner fra hinanden i snit' : 'fra hinanden i snit (skala '+RSCALE.label+')'}</span></div><div><b>${same}/${both.length}</b><span>vine med samme rating</span></div></div>
+        ${worst.length ? `<div class="card-note" style="margin:10px 0 4px">Mest uenige om</div><ol class="top10">${worst.map((x,i)=>`<li tabindex="0" data-wine="${esc(x.w.id)}"><span class="rk">${i+1}.</span><div style="min-width:0"><div class="nm">${esc(x.w.name)}</div><div class="sub gline">${rateDots(x.w, R)}</div></div><span class="sc">${fmtR(x.d)}<small> ★</small></span></li>`).join('')}</ol>` : ''}
+      </div>`;
+    }
+  }
+  return `<section class="section"><div class="sec-head"><span class="sec-num">${num()}</span><h2>Jeres bedømmelser</h2><span class="sec-sub">Hvem er strengest — og rater man sine egne vine højere?</span></div>
+    <div class="grid g2">${R.map(card).join('')}</div>
+    <div class="card-note" style="margin-top:8px">Hver prik er en vin, stregen er snittet.</div>${agree}</section>`;
+}
+function secRateScore(B, R){
+  // Every guessed wine as a dot (score → own rating) and a straight trend line through them.
+  const per = R.map(p=>{ const pts = B.filter(w=>w.guesser===p && ratingOf(w,p)!=null).map(w=>({ w, x: w.score, y: ratingOf(w,p) }));
+    let slope = null, icpt = null;
+    if(pts.length >= 3){ const mx = avg(pts.map(q=>q.x)), my = avg(pts.map(q=>q.y)), vx = pts.reduce((a,q)=>a+(q.x-mx)**2, 0);
+      if(vx > 0){ slope = pts.reduce((a,q)=>a+(q.x-mx)*(q.y-my), 0) / vx; icpt = my - slope*mx; } }
+    return { p, pts, slope, icpt }; }).filter(x=>x.pts.length);
+  if(!per.length) return '';
+  const ys = per.flatMap(x=>x.pts.map(q=>q.y)), xs = per.flatMap(x=>x.pts.map(q=>q.x));
+  const ya = rateAxis(ys), y0 = Math.max(RSCALE.min, ya.lo - RSCALE.unit), y1 = Math.min(RSCALE.max, ya.hi + RSCALE.unit);
+  const x1 = Math.max(12, Math.ceil(Math.max(...xs) / 4) * 4);
+  const Wd = 340, Hd = 200, m = { l:30, r:10, t:10, b:28 }, iw = Wd-m.l-m.r, ih = Hd-m.t-m.b;
+  const X = v => m.l + v / x1 * iw, Y = v => m.t + (1 - (v - y0) / (y1 - y0)) * ih;
+  const yt = rateAxis([y0 + RSCALE.bin, y1 - RSCALE.bin]).ticks.filter(t=>t >= y0 && t <= y1);
+  const xt = []; for(let t = 0; t <= x1; t += 4) xt.push(t);
+  const svg = `<svg class="rs-chart" viewBox="0 0 ${Wd} ${Hd}" role="img" aria-label="Rating mod score">
+    ${yt.map(t=>`<line x1="${m.l}" x2="${Wd-m.r}" y1="${Y(t)}" y2="${Y(t)}" class="g"/><text x="${m.l-6}" y="${Y(t)+4}" text-anchor="end">${RSCALE.tick(t)}</text>`).join('')}
+    ${xt.map(t=>`<text x="${X(t)}" y="${Hd-10}" text-anchor="middle">${t}</text>`).join('')}
+    ${per.map(x=>x.pts.map(q=>`<circle cx="${X(q.x)}" cy="${Y(q.y)}" r="4.5" fill="${colorOf(x.p)}" fill-opacity=".75" data-tip="${esc(`<div class='tt'>${esc(q.w.name)}</div>`+tipRow(colorOf(x.p), `${q.x} p · ${fmtR(q.y)} ★`, x.p))}"/>`).join('')).join('')}
+    ${per.filter(x=>x.slope!=null).map(x=>{ const a = Math.min(...x.pts.map(q=>q.x)), b = Math.max(...x.pts.map(q=>q.x)); const ya = x.icpt + x.slope*a, yb = x.icpt + x.slope*b;
+      return `<line x1="${X(a)}" y1="${Y(Math.max(y0, Math.min(y1, ya)))}" x2="${X(b)}" y2="${Y(Math.max(y0, Math.min(y1, yb)))}" stroke="${colorOf(x.p)}" stroke-width="2.5" stroke-linecap="round"/>`; }).join('')}
+  </svg>`;
+  const say = x => { if(x.slope==null) return 'for få vine til en tendens'; const d = x.slope * 5;
+    return Math.abs(d) < RSCALE.eps ? 'ingen forskel' : `${d > 0 ? '+' : '−'}${fmtR(Math.abs(d))} ★ pr. 5 point mere`; };
+  return `<section class="section"><div class="sec-head"><span class="sec-num">${num()}</span><h2>Smager det bedre, når man gætter rigtigt?</h2></div>
+    <div class="card">${svg}
+      <div class="rs-legend">${per.map(x=>`<div>${pnameHTML(x.p)}<span>${say(x)}</span></div>`).join('')}</div>
+      <div class="card-note">Hver prik er en vin, I selv gættede: point vandret, jeres egen rating lodret. Linjen viser tendensen.</div></div></section>`;
+}
+function ratingBars(w){
+  const R = PLAYERS.filter(p=>ratingOf(w,p)!=null); if(!R.length) return '';
+  const v = R.map(p=>ratingOf(w,p)), d = v.length >= 2 ? Math.max(...v) - Math.min(...v) : null;
+  return `<div class="rbars">${R.map(p=>`<div class="rbar">${pnameHTML(p)}<span class="tr"><i style="width:${ratingOf(w,p)/RSCALE.max*100}%;background:${colorOf(p)}"></i></span><b>${fmtR(ratingOf(w,p))}</b></div>`).join('')}
+    ${d!=null ? `<div class="rbar-d">${d < RSCALE.eps ? 'Helt enige' : RSCALE.diff(d)+' fra hinanden'}</div>` : ''}</div>`;
+}
+
 /* ============================================================ vin-detalje */
 function openWine(id, from){
   const w = ALL.find(x=>x.id===id); if(!w) return;
@@ -1386,6 +1538,7 @@ function openWine(id, from){
     <h3>${esc(w.name)}</h3>
     <div style="color:var(--text-dim)">Gættet af ${pnameHTML(w.guesser)}${(()=>{ const sib = ALL.filter(x=>x.wid===w.wid && x.id!==w.id); return sib.length ? ` · også gættet af ${sib.map(x=>`<span class="linkish" data-wine="${esc(x.id)}">${esc(x.guesser)} ${x.score} p</span>`).join(', ')}` : ''; })()}</div>
     ${(w.vtype||ratingAvg(w)!=null)?`<div class="wmeta-row">${typeChip(w)}${ratingTxt(w)}</div>`:''}
+    ${ratingBars(w)}
     <div class="score-big">${w.score}<small> / 24</small></div>
     <div class="bar-mini" style="max-width:none;height:8px"><i style="width:${w.score/MAX*100}%;background:linear-gradient(90deg,var(--accent),var(--accent-2))"></i></div>
     <div class="cmp"><div class="hd">Kategori</div><div class="hd">Facit</div><div class="hd">Gæt</div><div class="hd" style="text-align:right">Point</div>
@@ -1793,6 +1946,50 @@ if(window.ResizeObserver)new ResizeObserver(f).observe(document.body);f()})();
   document.addEventListener('touchcancel', end, {passive:true});
 })();
 </script>
+<style id="ratings">
+/* ratings */
+.rb-row{display:grid;grid-template-columns:minmax(96px,150px) 1fr auto;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid rgba(31,42,55,.1);font-family:var(--fb)}
+.rb-row .nm{font-size:15px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rb-row .nm small{display:block;font-weight:400;font-size:12px;color:var(--text-faint)}
+.rb-track{position:relative;height:14px;border-radius:7px;background:rgba(31,42,55,.07)}
+.rb-track i{position:absolute;top:50%;width:13px;height:13px;margin:-6.5px 0 0 -6.5px;border-radius:50%;box-shadow:0 0 0 2px var(--surface)}
+.rb-val{display:flex;gap:10px;font-size:14px;font-variant-numeric:tabular-nums;color:var(--text-dim)}
+.rb-val .dot,.rbar .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:middle}
+.rb-scale{display:grid;grid-template-columns:minmax(96px,150px) 1fr auto;gap:12px;margin-top:8px}
+.rb-scale>span:last-child{visibility:hidden;font-size:14px}
+.rb-ticks{position:relative;height:16px}
+.rb-ticks i{position:absolute;transform:translateX(-50%);font-style:normal;font-family:var(--fm);font-size:11px;color:var(--text-faint)}
+.rp-card{display:flex;flex-direction:column;gap:12px}
+.rp-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-family:var(--fb);font-weight:700;font-size:16px}
+.rp-big{font-family:var(--fnum);font-weight:var(--fnumw);font-size:34px;line-height:1;color:var(--text)}
+.rp-big small{font-family:var(--fb);font-size:13px;font-weight:400;color:var(--text-faint)}
+.rp-strip{position:relative;border-bottom:1.5px solid rgba(31,42,55,.35);margin:4px 6px 0}
+.rp-strip i{position:absolute;width:9px;height:9px;margin-left:-4.5px;border-radius:50%;box-shadow:0 0 0 1px var(--surface)}
+.rp-strip .rp-mean{position:absolute;top:0;bottom:-4px;width:0;border-left:2px dashed rgba(31,42,55,.55)}
+.rp-ticks{position:relative;height:16px;margin:2px 6px 0}
+.rp-ticks i{position:absolute;transform:translateX(-50%);font-style:normal;font-family:var(--fm);font-size:11px;color:var(--text-faint)}
+.rp-own{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rp-own>div,.rp-agree>div{background:rgba(31,42,55,.05);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;font-family:var(--fb)}
+.rp-own span,.rp-agree span{font-size:12.5px;color:var(--text-dim)}
+.rp-own b,.rp-agree b{font-family:var(--fnum);font-weight:var(--fnumw);font-size:24px;color:var(--text)}
+.rp-own small{font-size:12px;color:var(--text-faint)}
+.rp-agree{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rs-chart{width:100%;height:auto;display:block;font-family:var(--fm);font-size:10px;fill:var(--text-faint)}
+.rs-chart .g{stroke:rgba(31,42,55,.1)}
+.rs-legend{display:flex;flex-direction:column;gap:6px;margin-top:10px;font-family:var(--fb);font-size:14.5px}
+.rs-legend>div{display:flex;justify-content:space-between;gap:10px}
+.rs-legend span:last-child{color:var(--text-dim)}
+.rbars{margin:12px 0 4px;display:flex;flex-direction:column;gap:6px;font-family:var(--fb)}
+.rbar{display:grid;grid-template-columns:minmax(64px,auto) 1fr 34px;gap:10px;align-items:center;font-size:15px}
+.rbar .tr{height:10px;border-radius:5px;background:rgba(31,42,55,.08);overflow:hidden}
+.rbar .tr i{display:block;height:100%;border-radius:5px}
+.rbar b{text-align:right;font-variant-numeric:tabular-nums}
+.rbar-d{font-size:13px;color:var(--text-faint)}
+.rb-row.many,.rb-scale.many{grid-template-columns:minmax(96px,150px) 1fr}
+.rb-row.many .rb-val{grid-column:2;margin-top:-4px}.rb-scale.many>span:last-child{display:none}
+@media(max-width:560px){.rb-row.many,.rb-scale.many{grid-template-columns:96px 1fr}}
+@media(max-width:560px){.rb-row,.rb-scale{grid-template-columns:96px 1fr auto;gap:8px}.rb-val{gap:6px;font-size:13px}}
+</style>
 <style id="vinholdet-fire">
 .ts-row{display:grid;grid-template-columns:minmax(110px,150px) 1fr auto;gap:12px;align-items:center;padding:8px 0;font-family:var(--fb)}
 .ts-row.clickable{cursor:pointer}.ts-row.sel .ts-nm{text-decoration:underline}
