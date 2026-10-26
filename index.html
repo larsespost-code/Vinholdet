@@ -2310,10 +2310,14 @@ const BOTTLE = { bottom: 292, neckBase: 104 };
 function bottleLevelY(score){ return BOTTLE.bottom - (BOTTLE.bottom - BOTTLE.neckBase) * Math.max(0, Math.min(1, score/MAX_SCORE)); }
 
 // The liquid takes the colour of the wine (blue-grey when no type was chosen).
-const LIQUID = { 'Hvid':['#F3E7B3','#D9C276'], 'Bobler':['#F2E9C0','#D6C784'], 'Orange':['#F0B877','#C9792F'],
-  'Rosé':['#F5C2C5','#DE8C95'], 'Rød':['#A8384C','#6B1A2B'], 'Restsød/Sød':['#E9BE6A','#B07A26'] };
+// The wine in the bottle has the colour of the wine in the glass (the host's Vintype): [top, bottom, surface].
+const LIQUID = { 'Rød':['#A3283A','#5C1020','#C9586A'], 'Hvid':['#F2E3A4','#D6BE62','#FBF4D2'], 'Orange':['#D8A677','#9C6B4A','#F1CFA6'],
+  'Rosé':['#F6B3BF','#DD7A8A','#FCD9DF'], 'Bobler':['#F2E3A4','#D6BE62','#FFFBEA'], 'Restsød/Sød':['#E8B23A','#A8700F','#F7D57A'] };
 function bottleSvg(k, count, name, me){
-  const liq = LIQUID[(ACTIVE && ACTIVE.wineType) || ''] || ['#BFD0E2','#6F8FB0'];
+  const wt = (ACTIVE && ACTIVE.wineType) || '', liq = LIQUID[wt] || ['#BFD0E2','#6F8FB0','#E6EEF6'];
+  // sparkling wine: bubbles rise through the liquid only (clipped to the current fill level)
+  const bubbles = wt==='Bobler' ? `<g clip-path="url(#level-clip-${k})">${[[34,2.2,2.4,0],[46,1.6,3.1,1.1],[58,2.6,2.7,0.5],[70,1.8,3.4,1.9],[82,2.3,2.9,0.8],[94,1.7,3.2,2.3],[40,1.9,3.6,2.8],[64,1.5,2.5,1.5],[88,2.1,3.8,0.2],[52,1.8,3.3,2.6]]
+      .map(([x,r,d,b])=>`<circle cx="${x}" cy="300" r="${r}" fill="#FFFFFF" fill-opacity="0.85"><animate attributeName="cy" from="300" to="96" dur="${d}s" begin="-${b}s" repeatCount="indefinite"/></circle>`).join('')}</g>` : '';
   const body = 'M50 12 H78 V92 C78 108 108 118 108 150 V282 Q108 296 94 296 H34 Q20 296 20 282 V150 C20 118 50 108 50 92 Z';
   const solo = count<=1;
   const ticks = solo ? [6,12,18,24].map(p=>{ const y=bottleLevelY(p).toFixed(1);
@@ -2330,10 +2334,12 @@ function bottleSvg(k, count, name, me){
       <linearGradient id="wine-g-${k}" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stop-color="${liq[0]}"/><stop offset="100%" stop-color="${liq[1]}"/>
       </linearGradient>
+      <clipPath id="level-clip-${k}"><rect id="wine-level-${k}" x="0" y="${BOTTLE.bottom}" width="150" height="0"/></clipPath>
     </defs>
     <g clip-path="url(#bottle-clip-${k})">
       <rect id="wine-fill-${k}" x="0" y="${BOTTLE.bottom}" width="150" height="0" fill="url(#wine-g-${k})"/>
-      <rect id="wine-surface-${k}" x="0" y="${BOTTLE.bottom}" width="150" height="3" fill="#E6EEF6" opacity="0.7"/>
+      ${bubbles}
+      <rect id="wine-surface-${k}" x="0" y="${BOTTLE.bottom}" width="150" height="3" fill="${liq[2]}" opacity="0.7"/>
     </g>
     <path d="${body}" fill="none" stroke="#4A6A8C" stroke-width="2.2"/>
     <rect x="47" y="6" width="34" height="10" rx="2" fill="#9DB4CC" opacity="0.9"/>
@@ -2349,10 +2355,11 @@ function resultScore(r, n){ return (r.scores && r.scores[n]!=null) ? r.scores[n]
 let BOTTLE_ANIM = null; // {id, t0, k}
 function animateBottle(round){
   const G = guessersOf(round);
-  const els = G.map((n,k)=>({ fill:document.getElementById('wine-fill-'+k), surf:document.getElementById('wine-surface-'+k),
+  const els = G.map((n,k)=>({ fill:document.getElementById('wine-fill-'+k), surf:document.getElementById('wine-surface-'+k), lvl:document.getElementById('wine-level-'+k),
     num:document.getElementById('score-count-'+k), target: resultScore(round, n) })).filter(e=>e.fill && e.num);
   if(!els.length) return;
   const set = (e, y, n)=>{ e.fill.setAttribute('y', y.toFixed(1)); e.fill.setAttribute('height', (BOTTLE.bottom - y + 10).toFixed(1));
+    if(e.lvl){ e.lvl.setAttribute('y', y.toFixed(1)); e.lvl.setAttribute('height', (BOTTLE.bottom - y + 10).toFixed(1)); }
     e.surf.setAttribute('y', (y-1).toFixed(1)); e.surf.style.opacity = (y < BOTTLE.bottom-1 ? 0.7 : 0); e.num.textContent = n; };
   // A rising fill level is not the kind of motion "reduce motion" guards against — keep it, just shorter.
   const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
