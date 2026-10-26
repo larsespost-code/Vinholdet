@@ -669,12 +669,6 @@ function shareLink(name){
   const c = loadBackendCfg(); if(!c) return '';
   return location.origin + location.pathname + (name ? '?navn=' + encodeURIComponent(name) : '') + '#s=' + encodeURIComponent(c.url) + '&k=' + encodeURIComponent(c.key);
 }
-// A personal link: the app knows who you are and is connected, also from the home screen.
-async function copyPersonalLink(name){
-  const link = shareLink(name); if(!link) return;
-  try{ await navigator.clipboard.writeText(link); showToast('Link til ' + name + ' kopieret'); }
-  catch(e){ prompt('Kopiér linket til ' + name + ':', link); }
-}
 
 function makeSheetsDb(url, key){
   const docSubs = new Set();   // {path, cb, seen}
@@ -921,11 +915,30 @@ function renderConnect(){
   </div>`;
 }
 
+// "Send link" sends a personal link: straight to the one other person, or a choice when there are several.
 async function copyShareLink(){
-  const link = shareLink();
-  if(navigator.share){ try{ await navigator.share({ title:'Vinholdet', text:'Vinholdet — blindsmagning i aften? Åbn her:', url: link }); return; }catch(e){ if(e && e.name==='AbortError') return; } }
-  try{ await navigator.clipboard.writeText(link); showToast('Link kopieret — send det til holdet'); }
-  catch(e){ prompt('Kopiér linket:', link); }
+  const others = otherParticipants(MY_IDENTITY);
+  if(others.length === 1) return sendPersonalLink(others[0]);
+  openLinkSheet(others.length ? others : CONFIG.participants);
+}
+async function sendPersonalLink(name){
+  closePickSheet();
+  const link = shareLink(name); if(!link) return;
+  if(navigator.share){ try{ await navigator.share({ title:'Vinholdet', text:'Vinholdet — blindsmagning i aften? Dit link, åbn her:', url: link }); return; }catch(e){ if(e && e.name==='AbortError') return; } }
+  try{ await navigator.clipboard.writeText(link); showToast('Link til ' + name + ' kopieret'); }
+  catch(e){ prompt('Kopiér linket til ' + name + ':', link); }
+}
+function openLinkSheet(names){
+  let el = document.getElementById('psheet');
+  if(!el){ el = document.createElement('div'); el.id = 'psheet'; document.body.appendChild(el); }
+  el.innerHTML = `<div class="psheet-bg" onclick="closePickSheet()"></div>
+    <div class="psheet" role="dialog" aria-modal="true" aria-label="Send personligt link til">
+      <div class="psheet-grab"></div>
+      <div class="psheet-head"><b>Send personligt link til</b><button type="button" class="psheet-x" onclick="closePickSheet()" aria-label="Luk">✕</button></div>
+      <div class="psheet-list">${names.map(n=>`<button type="button" class="prow" data-n="${esc(n)}" onclick="sendPersonalLink(this.dataset.n)"><span>${esc(n)}</span><small>›</small></button>`).join('')}</div>
+    </div>`;
+  document.body.classList.add('psheet-open');
+  requestAnimationFrame(()=>el.classList.add('show'));
 }
 
 let USER = null, MY_ACCOUNT_ID = null;
@@ -2760,10 +2773,8 @@ function renderSettings(){
     </div>
     ${SHEET ? `<div class="card">
       <div class="eyebrow">Del med holdet</div>
-      <p class="hint" style="margin-top:0;">Send dette link — det åbner appen færdigforbundet til regnearket. Ingen konto nødvendig.</p>
-      <button class="btn btn-secondary btn-block" onclick="copyShareLink()">⧉ Kopiér link</button>
-      <div class="hint" style="margin:14px 0 8px;">Personlige links — hver især åbner sit eget link, og læg det gerne på hjemmeskærmen derfra:</div>
-      <div class="chips">${CONFIG.participants.map(p=>`<button type="button" class="chip-pick" data-n="${esc(p)}" onclick="copyPersonalLink(this.dataset.n)">⧉ ${esc(p)}</button>`).join('')}</div>
+      <p class="hint" style="margin-top:0;">Send hver sit personlige link. Det åbner appen færdigforbundet og ved, hvem man er — læg det gerne på hjemmeskærmen derfra.</p>
+      <div class="chips">${CONFIG.participants.map(p=>`<button type="button" class="chip-pick" data-n="${esc(p)}" onclick="sendPersonalLink(this.dataset.n)">⧉ ${esc(p)}</button>`).join('')}</div>
     </div>` : ''}
     <div class="sync-note">${BACKEND==='firebase' ? '⚡ Live via Firebase · arkiv i Google-regnearket' : BACKEND==='sheets' ? '🔗 Forbundet til Google-regnearket' : USE_DB ? '🔗 Synkroniseret live mellem telefoner' : '⚠ Kører kun lokalt på denne telefon'}</div>
   </div>`;
