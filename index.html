@@ -581,11 +581,19 @@ let saveTimer=null, configSaveTimer=null;
 function uid(){ return Math.random().toString(36).slice(2,10)+Date.now().toString(36); }
 function esc(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function todayISO(){ return new Date().toISOString().slice(0,10); }
+// Shared data and backend replies are not trusted to hold numbers where numbers belong.
+function numFields(r){
+  if(!r || typeof r!=='object') return r;
+  if('ownerIndex' in r) r.ownerIndex = Number(r.ownerIndex) || '';
+  if('score' in r) r.score = Number(r.score) || 0;
+  if(r.scores && typeof r.scores==='object') Object.keys(r.scores).forEach(k=>{ r.scores[k] = Number(r.scores[k]) || 0; });
+  return r;
+}
 function formatDate(iso){
   if(!iso) return '';
   const [y,m,d]=iso.split('-');
   const months=['jan','feb','mar','apr','maj','jun','jul','aug','sep','okt','nov','dec'];
-  return `${parseInt(d)}. ${months[parseInt(m)-1]} ${y}`;
+  return `${parseInt(d)||''}. ${months[parseInt(m)-1]||''} ${parseInt(y)||''}`;
 }
 function ownerIndexFor(name){ return new Set(HISTORY.filter(r=>r.ownerName===name).map(r=>r.wineId||r.id)).size + 1; }
 // Historikken består af én række pr. gæt; en vin = alle rækker med samme vin-ID.
@@ -640,24 +648,32 @@ let BACKEND = 'none';            // 'claude' | 'sheets' | 'none'
 let NEEDS_SETUP = false;         // outside Claude and not yet connected to a sheet
 const IN_CLAUDE = !!(window.claude && typeof window.claude.use === 'function');
 
+// Only a Google Apps Script web app may be the backend (the same rule as the manual connect form).
+const OK_BACKEND_URL = /^https:\/\/script\.google(usercontent)?\.com\//;
 function loadBackendCfg(){
-  // A shared link carries the connection in the #fragment: #s=<webapp-url>&k=<key>
+  // The personal link carries the connection in the #fragment: #s=<webapp-url>&k=<key>.
+  // It stays in the address, so an icon added to the iPhone home screen from the link keeps it
+  // (the home screen has its own storage). There is no built-in key: without the link, the app asks for it.
   try{
     const h = new URLSearchParams(location.hash.slice(1));
-    if(h.get('s') && h.get('k')){
+    if(h.get('s') && h.get('k') && OK_BACKEND_URL.test(h.get('s'))){
       const cfg = { url: h.get('s'), key: h.get('k') };
       localStorage.setItem('vinholdet_backend', JSON.stringify(cfg));
-      history.replaceState(null, '', location.pathname + location.search); // keep the key out of the address bar
       return cfg;
     }
   }catch(e){}
-  try{ const c = JSON.parse(localStorage.getItem('vinholdet_backend')||'null'); if(c && c.url && c.key) return c; }catch(e){}
-  return DEFAULT_BACKEND; // indbygget forbindelse: virker uden link, også fra hjemmeskærmen på iPhone
+  try{ const c = JSON.parse(localStorage.getItem('vinholdet_backend')||'null'); if(c && c.url && c.key && OK_BACKEND_URL.test(c.url)) return c; }catch(e){}
+  return null;
 }
-const DEFAULT_BACKEND = { url: 'https://script.google.com/macros/s/AKfycbx8Zt1w2rcZPoNZAFzqF94cP89utfsimLoL9AsirY48427rSGffOko5H-ggxYb-mRW3mA/exec', key: 'beea88ef3890404e87e66bf8' };
-function shareLink(){
+function shareLink(name){
   const c = loadBackendCfg(); if(!c) return '';
-  return location.origin + location.pathname + '#s=' + encodeURIComponent(c.url) + '&k=' + encodeURIComponent(c.key);
+  return location.origin + location.pathname + (name ? '?navn=' + encodeURIComponent(name) : '') + '#s=' + encodeURIComponent(c.url) + '&k=' + encodeURIComponent(c.key);
+}
+// A personal link: the app knows who you are and is connected, also from the home screen.
+async function copyPersonalLink(name){
+  const link = shareLink(name); if(!link) return;
+  try{ await navigator.clipboard.writeText(link); showToast('Link til ' + name + ' kopieret'); }
+  catch(e){ prompt('Kopiér linket til ' + name + ':', link); }
 }
 
 function makeSheetsDb(url, key){
@@ -877,7 +893,7 @@ async function connectSheet(){
   const url = (document.getElementById('cfg-url')||{}).value.trim();
   const key = (document.getElementById('cfg-key')||{}).value.trim();
   const msg = document.getElementById('cfg-msg');
-  if(!/^https:\/\/script\.google(usercontent)?\.com\//.test(url) || !key){ msg.textContent = 'Indsæt både webapp-URL (starter med https://script.google.com/) og nøglen.'; return; }
+  if(!OK_BACKEND_URL.test(url) || !key){ msg.textContent = 'Indsæt både webapp-URL (starter med https://script.google.com/) og nøglen.'; return; }
   msg.textContent = 'Forbinder…';
   try{
     await makeSheetsDb(url, key).ping();
@@ -893,7 +909,7 @@ function renderConnect(){
   return `<div class="fade-in">
     <div class="hero-icon"><svg viewBox="0 0 24 24" fill="none"><rect x="4" y="3" width="16" height="18" rx="2" stroke="#4A6A8C" stroke-width="1.5"/><path d="M4 9h16M4 15h16M10 3v18" stroke="#9DB4CC" stroke-width="1.3"/></svg></div>
     <h2 class="center-text">Forbind til regnearket</h2>
-    <p class="sub center-text">Kun på din telefon. De andre slipper for dette — de får et færdigt link fra dig.</p>
+    <p class="sub center-text">Åbn appen via dit personlige link — så er du forbundet. Felterne herunder er kun til den, der ejer regnearket.</p>
     <div class="card">
       <div class="field"><div class="field-label"><span class="txt">Webapp-URL</span></div>
         <input type="text" id="cfg-url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off"></div>
@@ -972,7 +988,7 @@ async function initBackend(){
 
 async function loadLocalFallback(){
   try{ const c=localStorage.getItem('vinholdet_config'); if(c) CONFIG=JSON.parse(c); }catch(e){}
-  try{ const h=localStorage.getItem('vinholdet_history'); if(h) HISTORY=JSON.parse(h); }catch(e){}
+  try{ const h=localStorage.getItem('vinholdet_history'); if(h) HISTORY=JSON.parse(h).map(numFields); }catch(e){}
   try{ const a=localStorage.getItem('vinholdet_active'); if(a) ACTIVE=JSON.parse(a); }catch(e){}
 }
 
@@ -1039,7 +1055,7 @@ function lockedFields(r){
 function applyRoundSnapshot(rdata){
   if(rdata) setTimeout(markLoaded, 0);
   if(!rdata || IGNORED_ROUNDS.has(rdata.id)) return;
-  const incoming = clone(rdata);
+  const incoming = numFields(clone(rdata));
   const sameRound = !!ACTIVE && ACTIVE.id === incoming.id;
   if(sameRound){
     // Never move a round's phase backwards (a late/out-of-order copy).
@@ -1148,7 +1164,7 @@ function subscribePointer(){
 
 function subscribeRounds(){
   unsubRounds = DB.collection('rounds').where('phase','==','result').orderBy('createdAt','desc').limit(500).onSnapshot(snap=>{
-    const next = snap.docs.map(d=>clone(d.data()));
+    const next = snap.docs.map(d=>numFields(clone(d.data())));
     if(canonical(next.map(r=>roundContent(r))) === canonical(HISTORY.map(r=>roundContent(r)))) return;
     HISTORY = next;
     if(VIEW !== 'game' || !ACTIVE) render(); // history isn't shown on a wine's own screens
@@ -1474,9 +1490,9 @@ function setJudge(name, catId, val){
 // One row per guesser — the same shape as the history read back from the sheet.
 function roundToRows(r){
   return guessersOf(r).map(n=>({ id:r.id+'|'+n, wineId:r.id, phase:'result', date:r.date, createdAt:r.createdAt, finishedAt:r.finishedAt,
-    ownerName:r.ownerName, ownerIndex:r.ownerIndex, wineNote:r.wineNote, wineType:r.wineType||'', guesserName:n,
+    ownerName:r.ownerName, ownerIndex:Number(r.ownerIndex)||'', wineNote:r.wineNote, wineType:r.wineType||'', guesserName:n,
     truth:clone(r.truth), guess:clone((r.guesses||{})[n]||emptyAnswers()), judged:clone((r.judged||{})[n]||{}),
-    score:(r.scores||{})[n]||0, ratings:clone(r.ratings||{}) }));
+    score:Number((r.scores||{})[n])||0, ratings:clone(r.ratings||{}) }));
 }
 function finishRound(){
   // Lock in the marks as shown (suggestions the server didn't change count as
@@ -1703,7 +1719,7 @@ function renderPhaseTrack(active){
   return `<div class="phase-track">${phases.map(p=>`<div class="phase-dot ${p===active?'on':''}"></div>`).join('')}</div>`;
 }
 function gen(n){ n=String(n||''); return /[sxzSXZ]$/.test(n) ? n+'’' : n+'s'; }
-function wineTag(){ return `${esc(gen(ACTIVE.ownerName))} ${ACTIVE.ownerIndex || ownerIndexFor(ACTIVE.ownerName)}. vin`; }
+function wineTag(){ return `${esc(gen(ACTIVE.ownerName))} ${Number(ACTIVE.ownerIndex) || ownerIndexFor(ACTIVE.ownerName)}. vin`; }
 
 function renderWaiting(kind){
   const msg = kind==='entry' ? `${esc(ACTIVE.ownerName)} indtaster vinen i hemmelighed` : `${esc(namesList(guessersOf(ACTIVE))||'Holdet')} gætter blindt lige nu`;
@@ -2462,7 +2478,7 @@ function renderDay(){
     <div class="lb-row"><div class="lb-name">${esc(n)}</div><div class="lb-score" style="color:var(--text-dim);text-shadow:none;">${d.bottles ? (d.points/d.bottles).toFixed(1).replace('.',',')+'p' : '—'}</div></div>`).join('');
   const wines = wineGroups(rounds).reverse().map(w=>{ const ar = avgRating(w);
     return `
-    <div class="lb-row"><div class="lb-name" style="font-size:1rem;">${esc(gen(w.ownerName))} ${w.ownerIndex||''}. vin${w.wineNote?` — ${esc(w.wineNote)}`:''}<div class="lb-sub">${w.rows.map(x=>`${esc(x.guesserName)} ${x.score}p`).join(' · ')}</div></div><div class="lb-score" style="font-size:18px;">${ar!=null ? 'Ø '+Math.round(ar) : ''}</div></div>`; }).join('');
+    <div class="lb-row"><div class="lb-name" style="font-size:1rem;">${esc(gen(w.ownerName))} ${Number(w.ownerIndex)||''}. vin${w.wineNote?` — ${esc(w.wineNote)}`:''}<div class="lb-sub">${w.rows.map(x=>`${esc(x.guesserName)} ${Number(x.score)||0}p`).join(' · ')}</div></div><div class="lb-score" style="font-size:18px;">${ar!=null ? 'Ø '+Math.round(ar) : ''}</div></div>`; }).join('');
   return `
   <div class="fade-in">
     <div class="eyebrow center-text" style="display:block;">Dagens resultat</div>
@@ -2505,8 +2521,8 @@ function renderHistory(){
     <div class="card hist-card">
       <div class="hist-item" data-w="${esc(w.wineId)}" onclick="toggleHist(this.dataset.w)">
         <div>
-          <div class="name">${esc(gen(w.ownerName))} ${w.ownerIndex||''}. vin${w.wineNote?` — ${esc(w.wineNote)}`:''}</div>
-          <div class="sub">${formatDate(w.date)} · ${w.rows.map(x=>`${esc(x.guesserName)} ${x.score}p`).join(' · ')}</div>
+          <div class="name">${esc(gen(w.ownerName))} ${Number(w.ownerIndex)||''}. vin${w.wineNote?` — ${esc(w.wineNote)}`:''}</div>
+          <div class="sub">${formatDate(w.date)} · ${w.rows.map(x=>`${esc(x.guesserName)} ${Number(x.score)||0}p`).join(' · ')}</div>
         </div>
         <div class="score">${ar!=null ? Math.round(ar) : '–'}<small>${ar!=null ? 'vurdering' : ''}</small></div>
       </div>
@@ -2729,7 +2745,7 @@ function renderAnalysis(){
 
 /* ================= RENDER: SETTINGS ================= */
 function renderSettings(){
-  const idChips = CONFIG.participants.map(p=>`<div class="chip-pick ${MY_IDENTITY===p?'selected':''}" onclick="setIdentity('${esc(p)}')">${esc(p)}</div>`).join('');
+  const idChips = CONFIG.participants.map(p=>`<div class="chip-pick ${MY_IDENTITY===p?'selected':''}" data-n="${esc(p)}" onclick="setIdentity(this.dataset.n)">${esc(p)}</div>`).join('');
   const chips = CONFIG.participants.map((p,i)=>`
     <div class="chip-edit">
       <input type="text" value="${esc(p)}" oninput="renameParticipant(${i}, this.value)">
@@ -2746,6 +2762,8 @@ function renderSettings(){
       <div class="eyebrow">Del med holdet</div>
       <p class="hint" style="margin-top:0;">Send dette link — det åbner appen færdigforbundet til regnearket. Ingen konto nødvendig.</p>
       <button class="btn btn-secondary btn-block" onclick="copyShareLink()">⧉ Kopiér link</button>
+      <div class="hint" style="margin:14px 0 8px;">Personlige links — hver især åbner sit eget link, og læg det gerne på hjemmeskærmen derfra:</div>
+      <div class="chips">${CONFIG.participants.map(p=>`<button type="button" class="chip-pick" data-n="${esc(p)}" onclick="copyPersonalLink(this.dataset.n)">⧉ ${esc(p)}</button>`).join('')}</div>
     </div>` : ''}
     <div class="sync-note">${BACKEND==='firebase' ? '⚡ Live via Firebase · arkiv i Google-regnearket' : BACKEND==='sheets' ? '🔗 Forbundet til Google-regnearket' : USE_DB ? '🔗 Synkroniseret live mellem telefoner' : '⚠ Kører kun lokalt på denne telefon'}</div>
   </div>`;
@@ -2794,7 +2812,7 @@ function renderIdentityGate(){
       ${heroIcon}
       <h2>Hvem er du?</h2>
       <p class="sub">Vælg dit navn, så ved appen, hvornår det er dig, der skal indtaste eller gætte.</p>
-      <div class="chips" style="justify-content:center;">${CONFIG.participants.map(p=>`<div class="chip-pick" onclick="pickGateName('${esc(p)}')">${esc(p)}</div>`).join('')}</div>
+      <div class="chips" style="justify-content:center;">${CONFIG.participants.map(p=>`<div class="chip-pick" data-n="${esc(p)}" onclick="pickGateName(this.dataset.n)">${esc(p)}</div>`).join('')}</div>
       ${startLinksHtml()}
     </div>`;
   }

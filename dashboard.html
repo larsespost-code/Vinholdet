@@ -460,18 +460,20 @@ function fmtDate(iso, withYear=true){
 function pnameHTML(n){ return `<span class="pname"><span class="dot" style="background:${colorOf(n)}"></span>${esc(n)}</span>`; }
 
 /* ============================================================ data */
+// Only a Google Apps Script web app may be the backend; no built-in key (the app's personal link stores it).
+const OK_BACKEND_URL = /^https:\/\/script\.google(usercontent)?\.com\//;
 function cfg(){
   try{
     const h = new URLSearchParams(location.hash.slice(1));
-    if(h.get('s') && h.get('k')){
+    if(h.get('s') && h.get('k') && OK_BACKEND_URL.test(h.get('s'))){
       const c = { url: h.get('s'), key: h.get('k') };
       localStorage.setItem('vinholdet_backend', JSON.stringify(c));
       history.replaceState(null, '', location.pathname + location.search);
       return c;
     }
   }catch(e){}
-  try{ const c = JSON.parse(localStorage.getItem('vinholdet_backend')||'null'); if(c && c.url && c.key) return c; }catch(e){}
-  return { url: 'https://script.google.com/macros/s/AKfycbx8Zt1w2rcZPoNZAFzqF94cP89utfsimLoL9AsirY48427rSGffOko5H-ggxYb-mRW3mA/exec', key: 'beea88ef3890404e87e66bf8' }; // indbygget forbindelse
+  try{ const c = JSON.parse(localStorage.getItem('vinholdet_backend')||'null'); if(c && c.url && c.key && OK_BACKEND_URL.test(c.url)) return c; }catch(e){}
+  return null;
 }
 
 async function fetchWines(){
