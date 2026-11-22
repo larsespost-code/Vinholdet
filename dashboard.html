@@ -670,6 +670,144 @@ function competitionRank(sorted, key){
   return sorted.map((x,i)=>{ const v = key(x); if(v !== prev){ rank = i+1; prev = v; } return { rank, item:x }; });
 }
 
+
+/* ============================================================ smagsnoter
+   Tags, profilskydere og egne noter fra bedømmelsen. De ligger i appens
+   database (Firestore) på hver vin – ikke i regnearket – så de hentes derfra
+   med samme nøgle som resten. */
+const FIREBASE_CONFIG = window.__VH_FIREBASE__ || {
+  apiKey: "AIzaSyACQ-1kJPSI8914_SEyx4UsUjdx0BZaSxg",
+  authDomain: "vinholdet.firebaseapp.com",
+  projectId: "vinholdet",
+  storageBucket: "vinholdet.firebasestorage.app",
+  messagingSenderId: "792574288389",
+  appId: "1:792574288389:web:1f28a36cb9a3b30ed1726c",
+};
+const TASTE_AXES = [
+  { k:'syre',       l:'Syre',       w:['Lav','Blød','Frisk','Livlig','Høj'] },
+  { k:'fylde',      l:'Fylde',      w:['Let','Let til middel','Middel','Middelfyldig','Fyldig'] },
+  { k:'sodme',      l:'Sødme',      w:['Tør','Næsten tør','Halvtør','Halvsød','Sød'] },
+  { k:'tannin',     l:'Tannin',     w:['Blød','Let','Middel','Fast','Kraftig'] },
+  { k:'bobler',     l:'Bobler',     w:['Blide','Fine','Middel','Livlige','Kraftige'] },
+  { k:'intensitet', l:'Intensitet', w:['Diskret','Let','Middel','Udtalt','Intens'] },
+  { k:'eftersmag',  l:'Eftersmag',  w:['Kort','Kort til middel','Middel','Lang','Meget lang'] },
+];
+const TASTE = { map:null, err:'', busy:false };
+try{ const c = JSON.parse(localStorage.getItem('vinholdet_tasting')||'null'); if(c && typeof c==='object') TASTE.map = c; }catch(e){}
+async function loadTasting(){
+  const c = cfg(); if(!c || TASTE.busy) return;
+  TASTE.busy = true;
+  try{
+    const SDK = 'https://www.gstatic.com/firebasejs/10.14.1/';
+    const [A, FS] = await Promise.all([import(SDK+'firebase-app.js'), import(SDK+'firebase-firestore.js')]);
+    const app = A.getApps().length ? A.getApp() : A.initializeApp(FIREBASE_CONFIG);
+    let db; try{ db = FS.initializeFirestore(app, { experimentalAutoDetectLongPolling:true }); }catch(e){ db = FS.getFirestore(app); }
+    const snap = await FS.getDocs(FS.collection(db, 'v', c.key, 'rounds'));
+    const map = {};
+    snap.forEach(d=>{ const t = d.data().tasting; if(t && typeof t==='object' && Object.keys(t).length) map[d.id] = t; });
+    const changed = JSON.stringify(map) !== JSON.stringify(TASTE.map);
+    TASTE.map = map; TASTE.err = '';
+    try{ localStorage.setItem('vinholdet_tasting', JSON.stringify(map)); }catch(e){}
+    if(changed && ALL.length && UI.tab==='smag') render();
+  }catch(e){
+    TASTE.err = 'Smagsnoterne kunne ikke hentes lige nu.';
+    if(ALL.length && UI.tab==='smag') render();
+  }finally{ TASTE.busy = false; }
+}
+// One entry per person per wine that has anything filled in.
+function tasteEntries(W){
+  const out = [];
+  if(!TASTE.map) return out;
+  W.forEach(w=>{ const t = TASTE.map[w.wid]; if(!t) return;
+    Object.entries(t).forEach(([p, e])=>{ if(!e || typeof e!=='object') return;
+      const tags = Array.isArray(e.tags) ? e.tags.filter(Boolean) : [], prof = e.profile || {}, note = String(e.note||'').trim();
+      const has = tags.length || note || TASTE_AXES.some(a=>prof[a.k]>=1);
+      if(has) out.push({ w, p, tags, prof, note, profil: e.profil || '' }); }); });
+  return out;
+}
+function tastePeople(E){ const seen = []; [...PLAYERS, ...E.map(e=>e.p)].forEach(p=>{ if(E.some(e=>norm(e.p)===norm(p)) && !seen.some(x=>norm(x)===norm(p))) seen.push(p); }); return seen; }
+function axisWord(a, v){ return a.w[Math.max(0, Math.min(4, Math.round(v)-1))]; }
+
+function secTaste(B){
+  const W = uniqWines(B), E = tasteEntries(W);
+  if(!TASTE.map && !TASTE.err) return `<div class="state">Henter smagsnoter…</div>`;
+  if(!TASTE.map) return `<div class="state">${esc(TASTE.err)}<br><button class="btn" onclick="loadTasting()">Prøv igen</button></div>`;
+  if(!E.length) return `<div class="state">Ingen smagsnoter endnu.<br><span style="color:var(--text-faint);font-size:1rem">Når I trykker “Uddyb din bedømmelse” i appen og vælger smagsnoter, profil eller skriver noter, dukker de op her.</span></div>`;
+  return secTasteRadar(E) + secTasteTags(E) + secTasteNotes(E);
+}
+
+function secTasteRadar(E){
+  const P = tastePeople(E).filter(p=>E.some(e=>norm(e.p)===norm(p) && TASTE_AXES.some(a=>e.prof[a.k]>=1)));
+  const axes = TASTE_AXES.filter(a=>E.some(e=>e.prof[a.k]>=1));
+  const head = `<section class="section"><div class="sec-head"><span class="sec-num">${num()}</span><h2>Jeres smagsprofil</h2><span class="sec-sub">Gennemsnit af profilskyderne${F.drue!=='all'||F.vtype!=='all'?' for de valgte vine':' – filtrér fx på en drue'}</span></div>`;
+  if(!P.length) return head + `<div class="card"><div class="taste-empty">Ingen har brugt profilskyderne endnu.</div></div></section>`;
+  const stat = (p, a) => { const v = E.filter(e=>norm(e.p)===norm(p) && e.prof[a.k]>=1).map(e=>+e.prof[a.k]); return v.length ? { v: avg(v), n: v.length } : null; };
+  const table = `<div class="rd-tbl" style="grid-template-columns:minmax(80px,1fr) repeat(${P.length},minmax(0,1fr))"><span></span>${P.map(p=>`<span class="rd-h">${pnameHTML(p)}</span>`).join('')}
+    ${axes.map(a=>`<span class="rd-a">${a.l}</span>${P.map(p=>{ const s = stat(p,a); return `<span>${s ? `<b>${axisWord(a, s.v)}</b><small>${fmt1(s.v)} · ${s.n}</small>` : '<small>–</small>'}</span>`; }).join('')}`).join('')}</div>`;
+  if(axes.length < 3) return head + `<div class="card">${table}<div class="taste-empty" style="margin-top:10px">Radaren kommer, når mindst tre profiltræk er brugt.</div></div></section>`;
+  const S = 340, cx = S/2, cy = S/2, R = 112, n = axes.length;
+  const ang = i => -Math.PI/2 + i * 2*Math.PI/n;
+  const pt = (i, v) => [cx + Math.cos(ang(i)) * R * v/5, cy + Math.sin(ang(i)) * R * v/5];
+  const rings = [1,2,3,4,5].map(v=>`<polygon points="${axes.map((a,i)=>pt(i,v).map(x=>x.toFixed(1)).join(',')).join(' ')}" class="rd-ring${v===5?' out':''}"/>`).join('');
+  const spokes = axes.map((a,i)=>{ const [x,y] = pt(i,5); return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" class="rd-spoke"/>`; }).join('');
+  const labels = axes.map((a,i)=>{ const [x,y] = pt(i,6.1), c = Math.cos(ang(i)); const anchor = Math.abs(c) < .3 ? 'middle' : c > 0 ? 'start' : 'end';
+    return `<text x="${x.toFixed(1)}" y="${(y+4).toFixed(1)}" text-anchor="${anchor}" class="rd-lbl">${a.l}</text>`; }).join('');
+  const series = P.map(p=>{
+    const col = colorOf(p), pts = axes.map((a,i)=>{ const s = stat(p,a); return { a, i, s, xy: pt(i, s ? s.v : 0) }; });
+    const poly = `<polygon points="${pts.map(q=>q.xy.map(x=>x.toFixed(1)).join(',')).join(' ')}" fill="${col}" fill-opacity="${P.length>2 ? .06 : .14}" stroke="${col}" stroke-width="2" stroke-linejoin="round"/>`;
+    const dots = pts.filter(q=>q.s).map(q=>{ const tipH = esc(`<div class='tt'>${esc(q.a.l)}</div>` + tipRow(col, axisWord(q.a, q.s.v), `${p} · snit ${fmt1(q.s.v)} af ${q.s.n}`));
+      return `<g data-tip="${tipH}"><circle cx="${q.xy[0].toFixed(1)}" cy="${q.xy[1].toFixed(1)}" r="12" fill="transparent"/><circle cx="${q.xy[0].toFixed(1)}" cy="${q.xy[1].toFixed(1)}" r="4.5" fill="${col}" stroke="var(--surface)" stroke-width="2"/></g>`; }).join('');
+    return poly + dots;
+  }).join('');
+  const legend = P.length > 1 ? `<div class="rd-legend">${P.map(p=>`<span>${pnameHTML(p)}<small>${E.filter(e=>norm(e.p)===norm(p) && TASTE_AXES.some(a=>e.prof[a.k]>=1)).length} vine</small></span>`).join('')}</div>` : '';
+  return head + `<div class="card">
+    <svg class="rd-svg" viewBox="-40 -6 ${S+80} ${S+12}" role="img" aria-label="Radardiagram over jeres gennemsnitlige smagsprofil">${rings}${spokes}${series}${labels}</svg>
+    ${legend}
+    <details class="rd-more"><summary>Se tallene</summary>${table}</details>
+  </div></section>`;
+}
+
+function secTasteTags(E){
+  const P = tastePeople(E), cnt = new Map();
+  E.forEach(e=>e.tags.forEach(t=>{ const k = norm(t); const x = cnt.get(k) || { t, n:0, by:{} }; x.n++; x.by[e.p] = (x.by[e.p]||0) + 1; cnt.set(k, x); }));
+  const list = [...cnt.values()].sort((a,b)=>b.n-a.n || a.t.localeCompare(b.t, 'da'));
+  if(!list.length) return '';
+  const shown = UI.tagsAll ? list : list.slice(0, 12), mx = list[0].n;
+  const row = x => { const tipH = esc(`<div class='tt'>${esc(x.t)}</div>` + P.filter(p=>x.by[p]).map(p=>tipRow(colorOf(p), String(x.by[p]), p)).join(''));
+    return `<div class="hbar-row tg-row" data-tip="${tipH}"><span class="nm">${esc(x.t)}</span>
+      <span class="tg-bar">${P.filter(p=>x.by[p]).map(p=>`<i style="width:${(x.by[p]/mx*100).toFixed(1)}%;background:${colorOf(p)}"></i>`).join('')}</span><span class="v">${x.n}</span></div>`; };
+  return `<section class="section"><div class="sec-head"><span class="sec-num">${num()}</span><h2>Hyppigste smagsnoter</h2><span class="sec-sub">Hvor mange gange hver note er valgt</span></div>
+    <div class="card">${P.length>1?`<div class="rd-legend" style="margin:0 0 10px">${P.map(p=>pnameHTML(p)).join('')}</div>`:''}${shown.map(row).join('')}
+    ${list.length > 12 ? `<button class="more-btn" data-ui="tagsAll" data-v="${UI.tagsAll?'':'1'}">${UI.tagsAll ? 'Vis kun top 12' : `Se alle ${list.length} noter`}</button>` : ''}</div></section>`;
+}
+
+function secTasteNotes(E){
+  const L = E.filter(e=>e.note || e.tags.length).sort((a,b)=>b.w.date.localeCompare(a.w.date) || (b.w.createdAt - a.w.createdAt));
+  if(!L.length) return '';
+  const shown = UI.notesAll ? L : L.slice(0, 6);
+  const item = e => `<div class="tn-item" tabindex="0" data-wine="${esc(e.w.id)}">
+      <div class="tn-top"><span class="tn-nm">${esc(e.w.name)}</span><span class="tn-d">${fmtDate(e.w.date, false)}</span></div>
+      <div class="tn-who">${pnameHTML(e.p)}${tasteProfileLine(e)}</div>
+      ${e.tags.length ? `<div class="tn-tags">${e.tags.map(t=>`<span>${esc(t)}</span>`).join('')}</div>` : ''}
+      ${e.note ? `<div class="tn-note">${esc(e.note)}</div>` : ''}
+    </div>`;
+  return `<section class="section"><div class="sec-head"><span class="sec-num">${num()}</span><h2>Seneste noter</h2><span class="sec-sub">Tryk på en vin for at se hele bedømmelsen</span></div>
+    <div class="card tn-list">${shown.map(item).join('')}
+    ${L.length > 6 ? `<button class="more-btn" data-ui="notesAll" data-v="${UI.notesAll?'':'1'}">${UI.notesAll ? 'Vis færre' : `Se alle ${L.length}`}</button>` : ''}</div></section>`;
+}
+function tasteProfileLine(e){
+  const bits = TASTE_AXES.filter(a=>e.prof[a.k]>=1).map(a=>`${a.l}: ${axisWord(a, e.prof[a.k]).toLowerCase()}`);
+  return bits.length ? `<span class="tn-prof">${esc(bits.join(' · '))}</span>` : '';
+}
+// In the wine's own card: everyone's notes for that wine.
+function tasteDetailHTML(w){
+  const E = tasteEntries([w]); if(!E.length) return '';
+  return `<div class="tn-detail"><div class="card-title" style="margin:16px 0 6px">Smagsnoter</div>${E.map(e=>`<div class="tn-item">
+      <div class="tn-who">${pnameHTML(e.p)}${tasteProfileLine(e)}</div>
+      ${e.tags.length ? `<div class="tn-tags">${e.tags.map(t=>`<span>${esc(t)}</span>`).join('')}</div>` : ''}
+      ${e.note ? `<div class="tn-note">${esc(e.note)}</div>` : ''}</div>`).join('')}</div>`;
+}
+
 /* ============================================================ tooltip */
 const tip = document.getElementById('tip');
 function showTip(e, html){
@@ -722,6 +860,7 @@ const TABS = [
   {id:'smagninger', l:'Smagninger', i:'<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>'},
   {id:'vine',       l:'Vinene',     i:'<path d="M8 3h8l-.7 8.2c-.3 3-2.1 4.7-3.3 5.2V21M9 21h6"/>'},
   {id:'ratings',    l:'Ratings',    i:'<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>'},
+  {id:'smag',       l:'Smagsnoter', i:'<path d="M12 21c-4.4 0-7-3.4-7-7.5C5 8 12 3 12 3s7 5 7 10.5c0 4.1-2.6 7.5-7 7.5z"/><path d="M12 21V11M12 15l3-3M12 17l-3-3"/>'},
   {id:'en',         l:'Overblik',        i:'<circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M3 20c0-3 2.2-5 5-5s5 2 5 5M11 20c0-3 2.2-5 5-5s5 2 5 5"/>'},
 ];
 function renderNav(){
@@ -739,8 +878,9 @@ function render(){
   renderNav();
   const L = filtered(), B = baseFiltered(), T = UI.tab;
   let body;
-  if(!(T==='ratings' ? B : L).length) body = `<div class="state">Ingen vine matcher filtrene. <br><button class="btn" onclick="resetFilters()">Nulstil filtre</button></div>${T==='vine'?secTop10():''}`;
+  if(!(T==='ratings'||T==='smag' ? B : L).length) body = `<div class="state">Ingen vine matcher filtrene. <br><button class="btn" onclick="resetFilters()">Nulstil filtre</button></div>${T==='vine'?secTop10():''}`;
   else if(T==='ratings') body = secRatings(B);
+  else if(T==='smag') body = secTaste(B);
   else if(T==='smagninger') body = secTypes(B) + secLastEvening() + secEvenings(B) + secArchive(L);
   else if(T==='vine')       body = secTypeSplit(B) + secTop10() + secHardest(L) + secGeo(L);
   else                      body = secOverview(L, B) + secStanding(L, B) + secTrend(L) + secCategories(L) + secKings(L);
@@ -754,8 +894,9 @@ function tabHTML(T){
   try{
     const L = filtered(), B = baseFiltered();
     let body;
-    if(!(T==='ratings' ? B : L).length) body = `<div class="state">Ingen vine matcher filtrene.</div>${T==='vine'?secTop10():''}`;
+    if(!(T==='ratings'||T==='smag' ? B : L).length) body = `<div class="state">Ingen vine matcher filtrene.</div>${T==='vine'?secTop10():''}`;
     else if(T==='ratings') body = secRatings(B);
+  else if(T==='smag') body = secTaste(B);
     else if(T==='smagninger') body = secTypes(B) + secLastEvening() + secEvenings(B) + secArchive(L);
     else if(T==='vine')       body = secTypeSplit(B) + secTop10() + secHardest(L) + secGeo(L);
     else                      body = secOverview(L, B) + secStanding(L, B) + secTrend(L) + secCategories(L) + secKings(L);
@@ -790,7 +931,7 @@ function renderHeaderPlayer(){
   const b = (v,l)=>`<button class="${F.player===v?'on':''}" data-f="player" data-v="${esc(v)}">${esc(l)}</button>`;
   const n = activeFilterCount();
   // Everyone rates every wine, so "who guessed" means nothing on the Ratings tab.
-  el.innerHTML = `${UI.tab==='ratings' ? '<span></span>' : `<div class="seg" role="group" aria-label="Vis gætter">${b('all','Alle')}${PLAYERS.map(p=>b(p,p)).join('')}</div>`}<button class="filter-btn ${n?'active':''}" data-open-sheet aria-haspopup="dialog"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>Filtrér${n?`<span class="badge">${n}</span>`:''}</button>`;
+  el.innerHTML = `${UI.tab==='ratings'||UI.tab==='smag' ? '<span></span>' : `<div class="seg" role="group" aria-label="Vis gætter">${b('all','Alle')}${PLAYERS.map(p=>b(p,p)).join('')}</div>`}<button class="filter-btn ${n?'active':''}" data-open-sheet aria-haspopup="dialog"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h16M7 12h10M10 18h4"/></svg>Filtrér${n?`<span class="badge">${n}</span>`:''}</button>`;
 }
 document.getElementById('hdr-player').addEventListener('click', e=>{
   const fb = e.target.closest('[data-f]'); if(fb) setFilter(fb.dataset.f, fb.dataset.v);
@@ -818,7 +959,7 @@ function sheetHTML(){
   </div></div>`;
 }
 function scopeNoteHTML(){
-  if(UI.tab==='ratings') return activeFilterCount() ? `<div class="scope-note fade-in"><span>Viser <b>${nWines(baseFiltered())}</b> af ${nWines(ALL)} vine</span><button class="reset" onclick="resetFilters()">Nulstil</button></div>` : '';
+  if(UI.tab==='ratings'||UI.tab==='smag') return activeFilterCount() ? `<div class="scope-note fade-in"><span>Viser <b>${nWines(baseFiltered())}</b> af ${nWines(ALL)} vine</span><button class="reset" onclick="resetFilters()">Nulstil</button></div>` : '';
   if(!isFiltered() || (F.player!=='all' && !activeFilterCount())) return '';
   return `<div class="scope-note fade-in"><span>Viser <b>${nWines(filtered())}</b> af ${nWines(ALL)} vine${UI.tab==='vine'?' · Top 10 viser altid alle':''}</span><button class="reset" onclick="resetFilters()">Nulstil</button></div>`;
 }
@@ -1545,6 +1686,7 @@ function openWine(id, from){
     <div style="color:var(--text-dim)">Gættet af ${pnameHTML(w.guesser)}${(()=>{ const sib = ALL.filter(x=>x.wid===w.wid && x.id!==w.id); return sib.length ? ` · også gættet af ${sib.map(x=>`<span class="linkish" data-wine="${esc(x.id)}">${esc(x.guesser)} ${x.score} p</span>`).join(', ')}` : ''; })()}</div>
     ${(w.vtype||ratingAvg(w)!=null)?`<div class="wmeta-row">${typeChip(w)}${ratingTxt(w)}</div>`:''}
     ${ratingBars(w)}
+    ${tasteDetailHTML(w)}
     <div class="score-big">${w.score}<small> / 24</small></div>
     <div class="bar-mini" style="max-width:none;height:8px"><i style="width:${w.score/MAX*100}%;background:linear-gradient(90deg,var(--accent),var(--accent-2))"></i></div>
     <div class="cmp"><div class="hd">Kategori</div><div class="hd">Facit</div><div class="hd">Gæt</div><div class="hd" style="text-align:right">Point</div>
@@ -1671,6 +1813,7 @@ function setPill(text, kind){
 let pillTimer = null;
 let lastJSON = null;
 async function load(soft){
+  loadTasting();
   reloadBtn.classList.add('spin');
   clearTimeout(pillTimer);
   if(!ALL.length){
@@ -2045,6 +2188,41 @@ if(window.ResizeObserver)new ResizeObserver(f).observe(document.body);f()})();
   .ttbl td.avg{font-size:16px}
   .ttbl .tsw{margin-right:5px}
 }
+
+/* smagsnoter */
+.rd-svg{width:100%;max-width:440px;height:auto;display:block;margin:0 auto;overflow:visible}
+.rd-ring{fill:none;stroke:var(--grid,rgba(30,45,50,.10));stroke-width:1}
+.rd-ring.out{stroke:var(--border,rgba(30,45,50,.18))}
+.rd-spoke{stroke:var(--grid,rgba(30,45,50,.10));stroke-width:1}
+.rd-lbl{font-family:var(--fb);font-size:13px;fill:var(--text-dim)}
+.rd-svg [data-tip]{cursor:pointer}
+.rd-legend{display:flex;flex-wrap:wrap;gap:8px 18px;justify-content:center;margin-top:6px}
+.rd-legend span{display:inline-flex;align-items:center;gap:6px}
+.rd-legend small{color:var(--text-faint);font-size:.85rem}
+.rd-more{margin-top:12px}
+.rd-more summary{cursor:pointer;color:var(--text-dim);font-size:.95rem;text-decoration:underline;text-underline-offset:3px}
+.rd-tbl{display:grid;gap:6px 10px;margin-top:10px;align-items:baseline}
+.rd-tbl>span{font-size:.95rem;color:var(--text)}
+.rd-tbl .rd-a{color:var(--text-dim)}
+.rd-tbl b{font-weight:700;display:block}
+.rd-tbl small{color:var(--text-faint);font-size:.78rem}
+.taste-empty{color:var(--text-faint);text-align:center}
+.tg-row{cursor:default}
+.tg-bar{display:flex;gap:2px;height:14px}
+.tg-bar i{display:block;height:100%;min-width:3px}
+.tg-bar i:last-child{border-radius:0 4px 4px 0}
+.tn-list{padding-top:6px;padding-bottom:6px}
+.tn-item{padding:12px 0;border-bottom:1px solid var(--border,rgba(30,45,50,.14))}
+.tn-list .tn-item[data-wine]{cursor:pointer}
+.tn-item:last-of-type{border-bottom:0}
+.tn-top{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.tn-nm{font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tn-d{color:var(--text-faint);font-size:.88rem;white-space:nowrap}
+.tn-who{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;margin-top:4px}
+.tn-prof{color:var(--text-faint);font-size:.85rem}
+.tn-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+.tn-tags span{font-size:.85rem;padding:3px 9px;border-radius:999px;border:1px solid var(--border-strong,rgba(30,45,50,.45));color:var(--text)}
+.tn-note{margin-top:7px;color:var(--text-dim);line-height:1.45;white-space:pre-wrap}
 </style>
 </body>
 </html>
