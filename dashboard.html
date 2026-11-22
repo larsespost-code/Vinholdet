@@ -695,7 +695,7 @@ const TASTE_AXES = [
 const TASTE = { map:null, err:'', busy:false };
 try{ const c = JSON.parse(localStorage.getItem('vinholdet_tasting')||'null'); if(c && typeof c==='object') TASTE.map = c; }catch(e){}
 async function loadTasting(){
-  const c = cfg(); if(!c || TASTE.busy) return;
+  const c = cfg(); if(PROEVE || !c || TASTE.busy) return;
   TASTE.busy = true;
   try{
     const SDK = 'https://www.gstatic.com/firebasejs/10.14.1/';
@@ -714,11 +714,74 @@ async function loadTasting(){
     if(ALL.length && UI.tab==='smag') render();
   }finally{ TASTE.busy = false; }
 }
+
+/* ---- Prøvetilstand (?proeve): opdigtede smagsnoter på vinene, så fanen kan ses
+   før der findes rigtige. Intet gemmes. Uden forbindelse opdigtes vinene også. */
+const PROEVE = (()=>{ try{ return new URLSearchParams(location.search).has('proeve'); }catch(e){ return false; } })();
+const PROEVE_TAGS = {
+  rod:   ['Kirsebær','Hindbær','Solbær','Brombær','Blomme','Viol','Skovbund','Peber','Lakrids','Egetræ','Tobak','Læder','Vanilje','Kaffe'],
+  hvid:  ['Citron','Lime','Grønt æble','Pære','Fersken','Hvide blomster','Flint','Salt','Honning','Smør','Nødder','Brioche','Urter'],
+  rose:  ['Jordbær','Hindbær','Ribs','Citrus','Fersken','Vandmelon','Roser','Urter','Salt'],
+  bobler:['Citron','Grønt æble','Brioche','Toast','Gær','Mandel','Kridt','Hasselnød'],
+  orange:['Appelsinskal','Te','Tørret abrikos','Kvæde','Nødder','Honning','Urter'],
+  sod:   ['Honning','Abrikos','Appelsinmarmelade','Safran','Bivoks','Fersken'],
+};
+const PROEVE_NOTES = ['Lukket i starten, men åbnede sig fint efter en halv time.', 'Saftig og frisk – kunne drikke den hele aftenen.', 'Lang, krydret eftersmag. Mere fad end jeg havde regnet med.',
+  'Overraskende let i munden i forhold til duften.', 'Elegant og præcis. Min favorit i aften.', 'Lidt kort, men meget charmerende frugt.', 'Tanninerne blødte op med maden.'];
+function proeveRand(seed){ let h = 2166136261; for(const ch of String(seed)){ h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return ()=>{ h ^= h << 13; h ^= h >>> 17; h ^= h << 5; return ((h >>> 0) % 10000) / 10000; }; }
+function proeveKind(w){
+  const t = norm(w.vtype||''), g = norm(w.cats && w.cats.drue1 ? w.cats.drue1.t : '');
+  if(/bobl|mousser/.test(t)) return 'bobler';
+  if(/ros/.test(t)) return 'rose';
+  if(/orange/.test(t)) return 'orange';
+  if(/sød|sod|restsød/.test(t)) return 'sod';
+  if(/hvid/.test(t)) return 'hvid';
+  if(/rød|rod/.test(t)) return 'rod';
+  return /chardonnay|riesling|sauvignon blanc|chenin|savagnin|grüner|gruner|albari|viognier|pinot gris|muscat|gewürz|gewurz|sémillon|semillon/.test(g) ? 'hvid' : 'rod';
+}
+let PROEVE_MAP = null, PROEVE_FOR = '';
+function proeveMap(){
+  const W = uniqWines(ALL), sig = W.map(w=>w.wid).join(',');
+  if(PROEVE_MAP && PROEVE_FOR === sig) return PROEVE_MAP;
+  const map = {};
+  W.forEach(w=>{
+    const k = proeveKind(w), tags = PROEVE_TAGS[k], people = [w.owner, ...ALL.filter(x=>x.wid===w.wid).map(x=>x.guesser)].filter((p,i,a)=>p && a.indexOf(p)===i);
+    map[w.wid] = {};
+    people.forEach(p=>{
+      const r = proeveRand(w.wid+'|'+p);
+      if(r() < .15) return; // not everyone fills it in
+      const base = { syre: k==='hvid'||k==='bobler' ? 4 : 3, fylde: k==='rod' ? 4 : 2, sodme: k==='sod' ? 5 : 1, tannin: 3, bobler: 3, intensitet: 3, eftersmag: 3 };
+      const prof = {};
+      Object.keys(base).forEach(a=>{
+        const allowed = a==='tannin' ? (k==='rod'||k==='orange') : a==='bobler' ? k==='bobler' : a==='sodme' ? k!=='rod' : true;
+        prof[a] = allowed && r() < .85 ? Math.max(1, Math.min(5, base[a] + Math.round((r()-.5)*2.4))) : null;
+      });
+      const pick = tags.filter(()=>r() < .3).slice(0, 5);
+      map[w.wid][p] = { tags: pick.length ? pick : [tags[Math.floor(r()*tags.length)]], profile: prof, note: r() < .45 ? PROEVE_NOTES[Math.floor(r()*PROEVE_NOTES.length)] : '', profil:'' };
+    });
+  });
+  PROEVE_MAP = map; PROEVE_FOR = sig;
+  return map;
+}
+function proeveWines(){
+  const P = PLAYERS.length ? PLAYERS : ['Lars','Pelle','Martin','Jonathan'];
+  const W = [['Pinot Noir','Bourgogne','Frankrig','Rød'],['Riesling','Mosel','Tyskland','Hvid'],['Syrah','Rhône','Frankrig','Rød'],['Nebbiolo','Piemonte','Italien','Rød'],
+    ['Chardonnay','Champagne','Frankrig','Bobler'],['Savagnin','Jura','Frankrig','Hvid'],['Grenache','Provence','Frankrig','Rosé'],['Tempranillo','Rioja','Spanien','Rød']];
+  const out = [];
+  for(let i=0;i<16;i++){
+    const g = W[i%W.length], id = 'proeve'+i, d = new Date(Date.now() - (16-i)*86400000*4).toISOString().slice(0,10);
+    out.push({ id, wineId:id, date:d, createdAt:Date.parse(d)+i, ownerName:P[i%P.length], guesserName:P[(i+1)%P.length], wineNote:g[0]+' · '+g[1], vintype:g[3],
+      truth:{land:g[2],region:g[1],drue1:g[0],aargang:String(2015+i%8)}, guess:{land:g[2],region:i%3?g[1]:'',drue1:i%4?g[0]:'',aargang:String(2014+i%8)},
+      judged:{land:'good',region:i%3?'good':'bad',drue1:i%4?'good':'bad',aargang:'mid'}, score:8+(i*5)%15 });
+  }
+  return out;
+}
+if(PROEVE) UI.tab = 'smag';
 // One entry per person per wine that has anything filled in.
 function tasteEntries(W){
-  const out = [];
-  if(!TASTE.map) return out;
-  W.forEach(w=>{ const t = TASTE.map[w.wid]; if(!t) return;
+  const out = [], map = PROEVE ? proeveMap() : TASTE.map;
+  if(!map) return out;
+  W.forEach(w=>{ const t = map[w.wid]; if(!t) return;
     Object.entries(t).forEach(([p, e])=>{ if(!e || typeof e!=='object') return;
       const tags = Array.isArray(e.tags) ? e.tags.filter(Boolean) : [], prof = e.profile || {}, note = String(e.note||'').trim();
       const has = tags.length || note || TASTE_AXES.some(a=>prof[a.k]>=1);
@@ -730,6 +793,7 @@ function axisWord(a, v){ return a.w[Math.max(0, Math.min(4, Math.round(v)-1))]; 
 
 function secTaste(B){
   const W = uniqWines(B), E = tasteEntries(W);
+  if(PROEVE) return `<div class="scope-note fade-in"><span><b>Prøvetilstand</b> – smagsnoterne er opdigtede og bliver ikke gemt.</span></div>` + (E.length ? secTasteRadar(E) + secTasteTags(E) + secTasteNotes(E) : '<div class="state">Ingen vine at vise.</div>');
   if(!TASTE.map && !TASTE.err) return `<div class="state">Henter smagsnoter…</div>`;
   if(!TASTE.map) return `<div class="state">${esc(TASTE.err)}<br><button class="btn" onclick="loadTasting()">Prøv igen</button></div>`;
   if(!E.length) return `<div class="state">Ingen smagsnoter endnu.<br><span style="color:var(--text-faint);font-size:1rem">Når I trykker “Uddyb din bedømmelse” i appen og vælger smagsnoter, profil eller skriver noter, dukker de op her.</span></div>`;
@@ -1831,6 +1895,7 @@ async function load(soft){
     document.getElementById('updated').textContent = 'Opdateret ' + hhmm(LOADED_AT);
     setPill('Opdateret', 'ok'); pillTimer = setTimeout(()=>setPill(''), 1600);
   }catch(err){
+    if(PROEVE && !ALL.length){ applyList(proeveWines()); render(); document.getElementById('updated').textContent = 'Prøvetilstand'; return; }
     if(ALL.length){ setPill('Kunne ikke hente nye vine – viser de senest hentede', 'err'); pillTimer = setTimeout(()=>setPill(''), 5000); }
     else renderError(err && err.message ? (/Failed to fetch|NetworkError|Load failed/i.test(err.message) ? 'Ingen forbindelse til regnearket. Tjek internetforbindelsen.' : err.message) : 'Ukendt fejl');
   }finally{
