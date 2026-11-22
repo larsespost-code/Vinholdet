@@ -473,6 +473,24 @@ body.psheet-open{overflow:hidden}
 .rate-fine{display:flex;gap:10px;justify-content:center;margin-top:10px}
 .rate-fine .btn{min-width:64px}
 .rate-others{margin-top:12px;font-size:.95rem;color:var(--text-dim)}
+.dial{position:relative;width:100%;max-width:360px;margin:4px auto 0;touch-action:pan-y;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;outline:none}
+.dial svg{display:block;width:100%;height:auto;overflow:visible}
+.dial-track{fill:none;stroke:var(--bg-2);stroke-width:14;stroke-linecap:round}
+.dial-fill{fill:none;stroke-width:14;stroke-linecap:butt}
+.dial-tick{stroke:var(--border-strong);stroke-width:1.4;stroke-linecap:round}
+.dial-tick.major{stroke-width:2.6;stroke:var(--text-dim)}
+.dial-tick.on{stroke:var(--accent-2)}
+.dial-num{font:600 13px var(--fb,system-ui);fill:var(--text-faint);text-anchor:middle}
+.dial-thumb{fill:var(--surface);stroke:var(--text);stroke-width:4}
+.dial:not(.set) .dial-thumb{stroke:var(--text-faint);stroke-dasharray:4 3;animation:dialWait 1.8s ease-in-out infinite}
+@keyframes dialWait{50%{stroke:var(--text)}}
+@media (prefers-reduced-motion:reduce){.dial:not(.set) .dial-thumb{animation:none}}
+.dial.drag .dial-thumb{stroke:var(--accent-2);stroke-width:6}
+.dial-mid{position:absolute;left:0;right:0;top:50%;transform:translateY(-56%);text-align:center;pointer-events:none}
+.dial-mid .rate-val{font-size:4.2rem;margin:0;line-height:1}
+.dial-of{font-size:.85rem;color:var(--text-faint);margin-top:4px}
+.dial:focus-visible{box-shadow:0 0 0 2px var(--accent-2);border-radius:50%}
+.dial + .rate-hint{margin-top:-30px;text-align:center}
 .taste-card{padding:20px 18px}
 .taste-prof{font-size:.85rem;color:var(--text-dim);margin:0 0 9px}
 .taste-prof b{color:var(--text)}
@@ -1674,6 +1692,7 @@ function setMyRating(v){
 }
 function sendRating(){
   if(!ACTIVE) return;
+  if(canRate(ACTIVE) && myRating()==null){ showToast('Drej ringen for at give vinen point først'); const d = document.getElementById('dial'); if(d) d.scrollIntoView({behavior:'smooth', block:'center'}); return; }
   if(PROEVE){ proeveSummary(); return; }
   if(canRate(ACTIVE)){
     const s = document.getElementById('rate-slider');
@@ -1704,16 +1723,10 @@ function ratingCardHtml(r){
   if(!canRate(r)) return (others ? `<div class="card rate-card"><div class="eyebrow">Vurdering af vinen</div><div class="rate-others" id="rate-others">${others}</div></div>` : '')
     + `<button class="btn btn-primary btn-block" onclick="sendRating()">Videre →</button>`;
   const mine = myRating();
-  const ticks = [1,25,50,75,100].map(v=>`<span style="left:${((v-RATE_MIN)/(RATE_MAX-RATE_MIN)*100).toFixed(2)}%">${v}</span>`).join('');
   return `<div class="card rate-card">
     <div class="eyebrow">Din vurdering af vinen</div>
-    <div class="rate-val" id="rate-val">${fmtRate(mine)}</div>
-    <div class="rate-hint" id="rate-hint">Træk for at give vinen point (1–100)</div>
-    <div class="rate-wrap">
-      <input type="range" class="rate-slider" id="rate-slider" min="${RATE_MIN}" max="${RATE_MAX}" step="1" value="${rateToPos(mine ?? 75)}" oninput="onRateInput(this.value)" aria-label="Vurdering 1 til 100">
-    </div>
-    <div class="rate-ticks">${ticks}</div>
-    <div class="rate-fine"><button class="btn btn-secondary btn-sm" onclick="nudgeRate(-1)">−1</button><button class="btn btn-secondary btn-sm" onclick="nudgeRate(1)">+1</button></div>
+    ${dialHtml(mine)}
+    <div class="rate-hint" id="rate-hint">${mine==null ? 'Træk i knappen, eller hold fingeren på ringen og træk' : 'Tryk “Send din bedømmelse”, når du er klar'}</div>
     <div class="rate-others" id="rate-others">${others}</div>
   </div>
   ${tastingHtml(r)}
@@ -1980,6 +1993,122 @@ function tastingToSave(r){
   const hadSaved = !!(r.tasting && r.tasting[MY_IDENTITY]);
   return empty && !hadSaved ? null : out;
 }
+
+/* ================= SCOREHJULET ================= */
+// A wide 270° dial: drag round the ring to set the score; one tick and one small
+// haptic bump per step. The page still scrolls when the finger starts away from the ring.
+const DIAL_S = 320, DIAL_C = 160, DIAL_R = 142, DIAL_A0 = 135, DIAL_SWEEP = 270;
+function dialT(v){ return (v - DIAL.min) / (DIAL.max - DIAL.min); }
+function dialPt(t, r){ const a = (DIAL_A0 + DIAL_SWEEP * t) * Math.PI / 180; return [DIAL_C + Math.cos(a) * r, DIAL_C + Math.sin(a) * r]; }
+function dialArc(t1, r){ // from the start of the ring to t1
+  const [x0, y0] = dialPt(0, r), [x1, y1] = dialPt(Math.max(0.0001, t1), r);
+  return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${DIAL_SWEEP * t1 > 180 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+}
+function dialSegs(t){
+  const steps = Math.round((DIAL.max - DIAL.min) / DIAL.step), n = Math.round(t * steps);
+  let h = '';
+  for(let i=0;i<n;i++){
+    const a = Math.max(0, i / steps - 0.002), b = Math.min(1, (i + 1) / steps + 0.002), [x0,y0] = dialPt(a, DIAL_R), [x1,y1] = dialPt(b, DIAL_R);
+    const k = Math.pow((i + 1) / steps, 1.1), c = DIAL.from.map((f, j)=>Math.round(f + (DIAL.to[j] - f) * k));
+    h += `<path d="M${x0.toFixed(2)} ${y0.toFixed(2)} A${DIAL_R} ${DIAL_R} 0 0 1 ${x1.toFixed(2)} ${y1.toFixed(2)}" stroke="rgb(${c.join(',')})"/>`;
+  }
+  return h;
+}
+function dialHtml(v){
+  const steps = Math.round((DIAL.max - DIAL.min) / DIAL.step);
+  let ticks = '';
+  for(let i=0;i<=steps;i++){
+    const val = DIAL.min + i * DIAL.step, t = i / steps, major = Math.abs(val / DIAL.major - Math.round(val / DIAL.major)) < 1e-6;
+    const mid = !major && DIAL.mid && Math.abs(val / DIAL.mid - Math.round(val / DIAL.mid)) < 1e-6;
+    const [x1, y1] = dialPt(t, DIAL_R - 14), [x2, y2] = dialPt(t, DIAL_R - (major ? 30 : mid ? 24 : 21));
+    ticks += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" class="dial-tick${major?' major':''}" data-i="${i}"/>`;
+    if(major || i===0){ const [lx, ly] = dialPt(t, DIAL_R - 44); ticks += `<text x="${lx.toFixed(1)}" y="${(ly+4).toFixed(1)}" class="dial-num">${DIAL.label(val)}</text>`; }
+  }
+  const set = v != null, t = set ? dialT(v) : 0, [tx, ty] = dialPt(set ? t : 0.5, DIAL_R);
+  return `<div class="dial${set ? ' set' : ''}" id="dial" role="slider" tabindex="0" aria-label="${DIAL.aria}" aria-valuemin="${DIAL.min}" aria-valuemax="${DIAL.max}" aria-valuenow="${set ? v : ''}" aria-valuetext="${set ? fmtRate(v) : 'Ikke givet'}" onkeydown="dialKey(event)">
+    <svg viewBox="0 0 ${DIAL_S} ${DIAL_S}" aria-hidden="true">
+      <path d="${dialArc(1, DIAL_R)}" class="dial-track"/>
+      <g class="dial-fill" id="dial-fill">${set ? dialSegs(t) : ''}</g>
+      ${ticks}
+      <circle cx="${tx.toFixed(1)}" cy="${ty.toFixed(1)}" r="15" class="dial-thumb" id="dial-thumb"/>
+    </svg>
+    <div class="dial-mid"><div class="rate-val" id="rate-val">${fmtRate(v)}</div><div class="dial-of">${DIAL.of}</div></div>
+  </div>`;
+}
+let DIAL_LAST = null;
+function dialRender(v){
+  const el = document.getElementById('dial'); if(!el) return;
+  const t = dialT(v), [tx, ty] = dialPt(t, DIAL_R);
+  el.classList.add('set');
+  document.getElementById('dial-fill').innerHTML = dialSegs(t);
+  const th = document.getElementById('dial-thumb'); th.setAttribute('cx', tx.toFixed(1)); th.setAttribute('cy', ty.toFixed(1));
+  const steps = Math.round((DIAL.max - DIAL.min) / DIAL.step), cur = Math.round(t * steps);
+  el.querySelectorAll('.dial-tick').forEach(l=>l.classList.toggle('on', +l.dataset.i <= cur));
+  el.setAttribute('aria-valuenow', v); el.setAttribute('aria-valuetext', fmtRate(v));
+}
+function dialFromPoint(el, x, y){
+  const b = el.querySelector('svg').getBoundingClientRect(), k = DIAL_S / b.width;
+  const px = (x - b.left) * k - DIAL_C, py = (y - b.top) * k - DIAL_C;
+  let d = (Math.atan2(py, px) * 180 / Math.PI - DIAL_A0 + 720) % 360;
+  if(d > DIAL_SWEEP) d = d > DIAL_SWEEP + (360 - DIAL_SWEEP) / 2 ? 0 : DIAL_SWEEP; // in the gap: nearest end
+  const steps = Math.round((DIAL.max - DIAL.min) / DIAL.step);
+  return { v: +(DIAL.min + Math.round(d / DIAL_SWEEP * steps) * DIAL.step).toFixed(4), dist: Math.hypot(px, py) };
+}
+function dialApply(v){
+  if(v === DIAL_LAST) return;
+  if(DIAL_LAST != null && navigator.vibrate){ try{ navigator.vibrate(6); }catch(e){} }
+  DIAL_LAST = v; dialRender(v); setMyRating(v);
+}
+// One small bump per step. Android: the vibration API. iPhone (iOS 18+): toggling a
+// hidden switch gives the system's own haptic tick; older iPhones simply stay silent.
+let HAPTIC_EL = null;
+function haptic(){
+  try{
+    if(navigator.vibrate){ navigator.vibrate(6); return; }
+    if(!HAPTIC_EL){ HAPTIC_EL = document.createElement('label'); HAPTIC_EL.setAttribute('aria-hidden','true');
+      HAPTIC_EL.style.cssText = 'position:fixed;left:-200px;top:0;width:1px;height:1px;overflow:hidden;opacity:0';
+      HAPTIC_EL.innerHTML = '<input type="checkbox" switch tabindex="-1">'; document.body.appendChild(HAPTIC_EL); }
+    HAPTIC_EL.click();
+  }catch(e){}
+}
+function dialBind(){
+  const el = document.getElementById('dial'); if(!el || el._bound) return; el._bound = true;
+  DIAL_LAST = myRating();
+  let active = false, tap = null, hold = null;
+  const near = d => d > DIAL_R - 62 && d < DIAL_R + 34;
+  // the knob: where the finger must land to turn the dial (in the svg's own units)
+  const onKnob = (x, y) => { const v = myRating();
+    const b = el.querySelector('svg').getBoundingClientRect(), k = DIAL_S / b.width, [kx, ky] = dialPt(v == null ? 0.5 : dialT(v), DIAL_R);
+    return Math.hypot((x - b.left) * k - kx, (y - b.top) * k - ky) < 40; };
+  const grab = v => { active = true; tap = null; el.classList.add('drag'); if(v != null) dialApply(v); };
+  const end = () => { clearTimeout(hold); if(active && !navigator.vibrate) haptic(); active = false; tap = null; el.classList.remove('drag'); };
+  // Touch: the knob turns at once. Anywhere else on the ring: rest the finger a moment
+  // (~0.09 s) and the dial follows it from there; a quick swipe scrolls the page instead,
+  // and a short tap jumps to that spot.
+  el.addEventListener('touchstart', e=>{ const t = e.touches[0];
+    if(onKnob(t.clientX, t.clientY)){ grab(null); if(e.cancelable) e.preventDefault(); return; }
+    const p = dialFromPoint(el, t.clientX, t.clientY);
+    if(!near(p.dist)){ tap = null; return; }
+    tap = { x:t.clientX, y:t.clientY, v:p.v };
+    clearTimeout(hold); hold = setTimeout(()=>{ if(tap) grab(tap.v); }, 90); }, { passive:false });
+  el.addEventListener('touchmove', e=>{ const t = e.touches[0];
+    if(active){ if(e.cancelable) e.preventDefault(); dialApply(dialFromPoint(el, t.clientX, t.clientY).v); return; }
+    if(tap && Math.hypot(t.clientX - tap.x, t.clientY - tap.y) > 8){ tap = null; clearTimeout(hold); } }, { passive:false });
+  el.addEventListener('touchend', e=>{ if(tap && !active){ const v = tap.v; tap = null; dialApply(v); if(!navigator.vibrate) haptic(); if(e.cancelable) e.preventDefault(); } end(); });
+  el.addEventListener('touchcancel', end);
+  const start = (x, y, e) => { const p = dialFromPoint(el, x, y); if(!near(p.dist) && !onKnob(x, y)) return false; active = true; el.classList.add('drag'); dialApply(p.v); if(e && e.cancelable) e.preventDefault(); return true; };
+  const move = (x, y, e) => { if(!active) return; if(e && e.cancelable) e.preventDefault(); dialApply(dialFromPoint(el, x, y).v); };
+  el.addEventListener('mousedown', e=>{ if(start(e.clientX, e.clientY, e)){
+    const mm = ev=>move(ev.clientX, ev.clientY, ev), mu = ()=>{ end(); removeEventListener('mousemove', mm); removeEventListener('mouseup', mu); };
+    addEventListener('mousemove', mm); addEventListener('mouseup', mu); } });
+}
+function dialKey(e){
+  const cur = myRating() ?? DIAL.start;
+  const d = (e.key==='ArrowRight'||e.key==='ArrowUp') ? DIAL.step : (e.key==='ArrowLeft'||e.key==='ArrowDown') ? -DIAL.step : 0;
+  if(!d) return; e.preventDefault();
+  dialApply(+Math.max(DIAL.min, Math.min(DIAL.max, cur + d)).toFixed(4));
+}
+const DIAL = { from:[226,232,239], to:[24,46,74], min:1, max:100, step:1, major:25, mid:5, start:75, label:v=>String(v), of:'af 100', aria:'Vurdering 1 til 100' };
 
 /* ================= RENDER: GAME ================= */
 function renderGame(){
@@ -3327,6 +3456,7 @@ function render(){
   LAST_SCREEN_KEY = screenKey;
   if(PROEVE && VIEW==='game') html = proeveBarHtml() + html;
   c.innerHTML = html;
+  dialBind();
   if(!needsIdentity && VIEW==='game' && ACTIVE && ACTIVE.phase==='result'){
     // the bottle must be in view when the result appears — wherever this phone was scrolled to
     if(RESULT_SCROLLED !== ACTIVE.id){ RESULT_SCROLLED = ACTIVE.id; window.scrollTo(0,0); }
