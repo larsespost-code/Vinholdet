@@ -776,7 +776,6 @@ function proeveWines(){
   }
   return out;
 }
-if(PROEVE) UI.tab = 'smag';
 // One entry per person per wine that has anything filled in.
 function tasteEntries(W){
   const out = [], map = PROEVE ? proeveMap() : TASTE.map;
@@ -863,11 +862,42 @@ function tasteProfileLine(e){
   const bits = TASTE_AXES.filter(a=>e.prof[a.k]>=1).map(a=>`${a.l}: ${axisWord(a, e.prof[a.k]).toLowerCase()}`);
   return bits.length ? `<span class="tn-prof">${esc(bits.join(' · '))}</span>` : '';
 }
-// In the wine's own card: everyone's notes for that wine.
+// In the wine's own card: everyone's profile (radar), tags and notes for that wine.
+function tasteRadarSVG(P, axes, valOf){
+  const S = 300, cx = S/2, cy = S/2, R = 100, n = axes.length;
+  const ang = i => -Math.PI/2 + i * 2*Math.PI/n;
+  const pt = (i, v) => [cx + Math.cos(ang(i)) * R * v/5, cy + Math.sin(ang(i)) * R * v/5];
+  const xy = q => q.map(x=>x.toFixed(1)).join(',');
+  const rings = [1,2,3,4,5].map(v=>`<polygon points="${axes.map((a,i)=>xy(pt(i,v))).join(' ')}" class="rd-ring${v===5?' out':''}"/>`).join('');
+  const spokes = axes.map((a,i)=>{ const [x,y] = pt(i,5); return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" class="rd-spoke"/>`; }).join('');
+  const labels = axes.map((a,i)=>{ const [x,y] = pt(i,6.2), c = Math.cos(ang(i)); const anchor = Math.abs(c) < .3 ? 'middle' : c > 0 ? 'start' : 'end';
+    return `<text x="${x.toFixed(1)}" y="${(y+4).toFixed(1)}" text-anchor="${anchor}" class="rd-lbl">${a.l}</text>`; }).join('');
+  const series = P.map(p=>{
+    const col = colorOf(p), pts = axes.map((a,i)=>{ const v = valOf(p, a); return { a, v, q: pt(i, v || 0) }; });
+    // only through what was answered: an untouched slider is not a zero
+    const set = pts.filter(x=>x.v);
+    const poly = set.length >= 2 ? `<polygon points="${set.map(x=>xy(x.q)).join(' ')}" fill="${col}" fill-opacity="${P.length>2 ? .06 : .14}" stroke="${col}" stroke-width="2" stroke-linejoin="round"/>` : '';
+    const dots = set.map(x=>{ const tipH = esc(`<div class='tt'>${esc(x.a.l)}</div>` + tipRow(col, axisWord(x.a, x.v), p));
+      return `<g data-tip="${tipH}"><circle cx="${x.q[0].toFixed(1)}" cy="${x.q[1].toFixed(1)}" r="12" fill="transparent"/><circle cx="${x.q[0].toFixed(1)}" cy="${x.q[1].toFixed(1)}" r="4.5" fill="${col}" stroke="var(--surface)" stroke-width="2"/></g>`; }).join('');
+    return poly + dots;
+  }).join('');
+  return `<svg class="rd-svg" viewBox="-44 -8 ${S+88} ${S+16}" role="img" aria-label="Radar over vinens profil">${rings}${spokes}${series}${labels}</svg>`;
+}
 function tasteDetailHTML(w){
   const E = tasteEntries([w]); if(!E.length) return '';
-  return `<div class="tn-detail"><div class="card-title" style="margin:16px 0 6px">Smagsnoter</div>${E.map(e=>`<div class="tn-item">
-      <div class="tn-who">${pnameHTML(e.p)}${tasteProfileLine(e)}</div>
+  const withProf = E.filter(e=>TASTE_AXES.some(a=>e.prof[a.k]>=1));
+  const axes = TASTE_AXES.filter(a=>withProf.some(e=>e.prof[a.k]>=1));
+  const P = withProf.map(e=>e.p);
+  const valOf = (p, a) => { const e = withProf.find(x=>x.p===p); const v = e && +e.prof[a.k]; return v>=1 ? v : null; };
+  const table = axes.length ? `<div class="rd-tbl" style="grid-template-columns:minmax(80px,1fr) repeat(${P.length},minmax(0,1fr))"><span></span>${P.map(p=>`<span class="rd-h">${pnameHTML(p)}</span>`).join('')}
+    ${axes.map(a=>`<span class="rd-a">${a.l}</span>${P.map(p=>{ const v = valOf(p,a); return `<span>${v ? `<b>${axisWord(a, v)}</b>` : '<small>–</small>'}</span>`; }).join('')}`).join('')}</div>` : '';
+  const prof = !axes.length ? '' : axes.length >= 3
+    ? `${tasteRadarSVG(P, axes, valOf)}${P.length>1 ? `<div class="rd-legend">${P.map(p=>pnameHTML(p)).join('')}</div>` : ''}<details class="rd-more"><summary>Se i ord</summary>${table}</details>`
+    : table;
+  return `<div class="tn-detail"><div class="card-title" style="margin:18px 0 4px">Smagsnoter${PROEVE?' <span style="text-transform:none;letter-spacing:0;font-weight:400;font-size:.8rem;color:var(--text-faint)">· opdigtede (prøvetilstand)</span>':''}</div>
+    ${prof}
+    ${E.filter(e=>e.tags.length || e.note).map(e=>`<div class="tn-item">
+      <div class="tn-who">${pnameHTML(e.p)}</div>
       ${e.tags.length ? `<div class="tn-tags">${e.tags.map(t=>`<span>${esc(t)}</span>`).join('')}</div>` : ''}
       ${e.note ? `<div class="tn-note">${esc(e.note)}</div>` : ''}</div>`).join('')}</div>`;
 }
@@ -924,7 +954,6 @@ const TABS = [
   {id:'smagninger', l:'Smagninger', i:'<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>'},
   {id:'vine',       l:'Vinene',     i:'<path d="M8 3h8l-.7 8.2c-.3 3-2.1 4.7-3.3 5.2V21M9 21h6"/>'},
   {id:'ratings',    l:'Ratings',    i:'<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>'},
-  {id:'smag',       l:'Smagsnoter', i:'<path d="M12 21c-4.4 0-7-3.4-7-7.5C5 8 12 3 12 3s7 5 7 10.5c0 4.1-2.6 7.5-7 7.5z"/><path d="M12 21V11M12 15l3-3M12 17l-3-3"/>'},
   {id:'en',         l:'Overblik',        i:'<circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M3 20c0-3 2.2-5 5-5s5 2 5 5M11 20c0-3 2.2-5 5-5s5 2 5 5"/>'},
 ];
 function renderNav(){
@@ -1750,13 +1779,13 @@ function openWine(id, from){
     <div style="color:var(--text-dim)">Gættet af ${pnameHTML(w.guesser)}${(()=>{ const sib = ALL.filter(x=>x.wid===w.wid && x.id!==w.id); return sib.length ? ` · også gættet af ${sib.map(x=>`<span class="linkish" data-wine="${esc(x.id)}">${esc(x.guesser)} ${x.score} p</span>`).join(', ')}` : ''; })()}</div>
     ${(w.vtype||ratingAvg(w)!=null)?`<div class="wmeta-row">${typeChip(w)}${ratingTxt(w)}</div>`:''}
     ${ratingBars(w)}
-    ${tasteDetailHTML(w)}
     <div class="score-big">${w.score}<small> / 24</small></div>
     <div class="bar-mini" style="max-width:none;height:8px"><i style="width:${w.score/MAX*100}%;background:linear-gradient(90deg,var(--accent),var(--accent-2))"></i></div>
     <div class="cmp"><div class="hd">Kategori</div><div class="hd">Facit</div><div class="hd">Gæt</div><div class="hd" style="text-align:right">Point</div>
       ${CATS.map(c=>{ const x = w.cats[c.id]; const cls = x.j==='good'?'good':x.j==='mid'?'mid':x.j==='na'?'na':'bad';
         return `<div class="cat">${c.label}</div><div>${x.t?esc(x.t):'<span class="dim" style="color:var(--text-faint)">–</span>'}</div><div style="color:${cls==='good'?'var(--good)':cls==='mid'?'var(--mid)':cls==='bad'?'var(--bad)':'var(--text-faint)'}">${x.g?esc(x.g):'<span style="color:var(--text-faint)">–</span>'}</div><div class="pt"><span class="pill ${cls}">${x.applicable?x.pts+'/'+c.max:'–'}</span></div>`; }).join('')}
-    </div>`;
+    </div>
+    ${tasteDetailHTML(w)}`;
   const m = document.getElementById('modal'); m.classList.add('show'); m.setAttribute('aria-hidden','false');
   body.querySelector('.close').focus();
 }
