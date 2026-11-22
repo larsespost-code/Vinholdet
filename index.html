@@ -473,6 +473,63 @@ body.psheet-open{overflow:hidden}
 .rate-fine{display:flex;gap:10px;justify-content:center;margin-top:10px}
 .rate-fine .btn{min-width:64px}
 .rate-others{margin-top:12px;font-size:.95rem;color:var(--text-dim)}
+.taste-card{padding:20px 18px}
+.taste-prof{font-size:.85rem;color:var(--text-dim);margin:0 0 9px}
+.taste-prof b{color:var(--text)}
+.taste-more{display:block;font:inherit;font-size:.88rem;font-weight:700;color:var(--text);background:none;border:0;padding:12px 0 2px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.vinlex-row{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:12px}
+.vinlex-pick{align-items:flex-start;margin-top:10px}
+.vinlex-row:empty{display:none}
+.vinlex{font-size:.85rem;color:var(--text);text-decoration:underline;text-underline-offset:3px}
+.taste-tog{display:flex;align-items:center;gap:12px;width:100%;text-align:left;font:inherit;color:var(--text);background:var(--surface);border:1.5px dashed var(--border-strong);border-radius:var(--r,10px);padding:14px 16px;margin:0 0 14px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.taste-tog.open{border-style:solid;border-color:var(--border)}
+.taste-tog-ic{flex:none;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.4rem;line-height:1;background:var(--text);color:var(--bg)}
+.taste-tog-txt{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
+.taste-tog-txt b{font-size:1rem}
+.taste-tog-txt small{font-size:.8rem;color:var(--text-faint)}
+.taste-tog-chev{flex:none;color:var(--text-faint);font-size:.9rem}
+#taste-fold.taste-in{animation:tasteIn .28s ease-out}
+@keyframes tasteIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.proeve-bar{margin:0 0 14px;padding:12px 14px;border:1.5px dashed var(--border-strong);border-radius:var(--r-sm,6px);font-size:.88rem;color:var(--text-dim);line-height:1.4}
+.proeve-bar b{color:var(--text)}
+.taste-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:4px}
+.taste-head .eyebrow{margin-bottom:0}
+.taste-opt{font-size:.72rem;color:var(--text-faint);letter-spacing:.04em;text-transform:uppercase}
+.taste-sub{font-size:.85rem;color:var(--text-faint);margin:2px 0 12px;line-height:1.4}
+.taste-seg{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px;align-items:center}
+.taste-seg .lbl{font-size:.8rem;color:var(--text-dim);margin-right:4px}
+.taste-seg button{font:inherit;font-size:.85rem;padding:7px 12px;border-radius:999px;background:var(--input,var(--bg-2));color:var(--text-dim);border:1.5px solid var(--border);cursor:pointer}
+.taste-seg button.on{background:var(--text);border-color:var(--text);color:var(--bg);font-weight:700}
+.taste-grp{margin-top:12px}
+.taste-grp-h{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--text-faint);margin-bottom:7px}
+.taste-chips{display:flex;flex-wrap:wrap;gap:7px}
+.tchip{font:inherit;font-size:.9rem;padding:8px 13px;border-radius:999px;background:var(--input,var(--bg-2));color:var(--text);border:1.5px solid var(--border);cursor:pointer;line-height:1.1;-webkit-tap-highlight-color:transparent;transition:background .12s,color .12s,border-color .12s}
+.tchip.on{background:var(--text);border-color:var(--text);color:var(--bg);font-weight:700}
+.tchip.on::before{content:'✓ ';font-weight:700}
+.taste-add{display:flex;gap:8px;margin-top:14px}
+.taste-add input{flex:1;min-width:0;font:inherit;font-size:16px;padding:9px 12px;border-radius:999px;background:transparent;color:var(--text);border:1.5px dashed var(--border-strong)}
+.taste-add input::placeholder{color:var(--text-faint)}
+.taste-add button{font:inherit;font-size:.9rem;padding:8px 14px;border-radius:999px;background:transparent;color:var(--text);border:1.5px solid var(--border-strong);cursor:pointer;white-space:nowrap}
+.tsl{padding:12px 0 6px;border-top:1px solid var(--border)}
+.tsl:first-of-type{border-top:0}
+.tsl-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px}
+.tsl-name{font-size:.95rem;color:var(--text)}
+.tsl-word{font-size:.9rem;color:var(--text-faint);font-style:italic}
+.tsl.set .tsl-word{color:var(--text);font-style:normal;font-weight:700}
+.tsl-clear{font:inherit;font-size:.75rem;color:var(--text-faint);background:none;border:0;padding:2px 0 2px 8px;cursor:pointer;text-decoration:underline;visibility:hidden}
+.tsl.set .tsl-clear{visibility:visible}
+.tsl-track{position:relative;display:flex;gap:5px;height:34px;align-items:center;touch-action:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.tsl-seg{flex:1;height:10px;border-radius:5px;background:var(--bg-2);border:1px solid var(--border);transition:background .12s,height .12s}
+.tsl.set .tsl-seg.fill{background:var(--accent);border-color:var(--accent)}
+.tsl.set .tsl-seg.cur{height:20px;background:var(--text);border-color:var(--text)}
+.tsl:not(.set) .tsl-track::after{content:'Tryk for at angive';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:.72rem;color:var(--text-faint);pointer-events:none;background:var(--surface);padding:0 8px;white-space:nowrap}
+.tsl-ends{display:flex;justify-content:space-between;font-size:.75rem;color:var(--text-faint);margin-top:4px}
+.taste-note{width:100%;box-sizing:border-box;font:inherit;font-size:16px;line-height:1.45;padding:12px 14px;min-height:96px;border-radius:var(--r-sm,var(--radius));background:var(--input,var(--bg));color:var(--text);border:1.5px solid var(--border);resize:none;overflow:hidden}
+.taste-note:focus{outline:none;border-color:var(--text)}
+.taste-note::placeholder{color:var(--text-faint)}
+.taste-count{text-align:right;font-size:.72rem;color:var(--text-faint);margin-top:4px;min-height:1em}
+.taste-sum{margin-top:10px;font-size:.85rem;color:var(--text-dim);line-height:1.5}
+.taste-sum b{color:var(--text)}
 /* --- Vinholdet: flere gættere --- */
 .status-list{text-align:left}
 .status-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px dashed var(--border);font-size:16px}
@@ -1112,6 +1169,7 @@ function visibleContent(r){
   if(r.phase==='entry'){ delete c.guesses; delete c.sent; if(!iAmOwner) delete c.guessers; }
   if(r.phase==='guessing'){ if(iAmOwner) delete c.guesses; else keepMine(); }
   if(!iAmOwner && r.phase==='review'){ delete c.truth; delete c.wineNote; delete c.judged; delete c.wineType; delete c.scores; keepMine(); }
+  delete c.tasting; // tasting notes are typed on this phone — never redraw over them
   delete c.ratings; // ratings update their own little line, never the whole screen
   return canonical(c);
 }
@@ -1475,6 +1533,7 @@ function goToGuessing(){
   render(); window.scrollTo(0,0);
 }
 function sendGuess(){
+  if(PROEVE && ACTIVE && ACTIVE.phase==='guessing'){ proeveFinish(); return; }
   if(!ACTIVE || !iGuess(ACTIVE) || ACTIVE.phase!=='guessing') return;
   const me = MY_IDENTITY, ts = Date.now(), key = ACTIVE.id+'|'+me, mine = clone(myGuessObj());
   ACTIVE.sent = ACTIVE.sent || {}; ACTIVE.sent[me] = ts;
@@ -1614,11 +1673,15 @@ function setMyRating(v){
 }
 function sendRating(){
   if(!ACTIVE) return;
+  if(PROEVE){ proeveSummary(); return; }
   if(canRate(ACTIVE)){
     const s = document.getElementById('rate-slider');
     const v = myRating() ?? (s ? clampRate(s.value) : 75);
     ACTIVE.ratings = ACTIVE.ratings || {}; ACTIVE.ratings[MY_IDENTITY] = v;
-    markDirty('ratings.'+MY_IDENTITY, v); flushPendingChanges();
+    markDirty('ratings.'+MY_IDENTITY, v);
+    const t = tastingToSave(ACTIVE);
+    if(t){ ACTIVE.tasting = ACTIVE.tasting || {}; ACTIVE.tasting[MY_IDENTITY] = t; markDirty('tasting.'+MY_IDENTITY, t); }
+    flushPendingChanges();
   }
   RATED_DONE.add(ACTIVE.id);
   if(PENDING_DAY){ PENDING_DAY = false; IGNORED_ROUNDS.add(ACTIVE.id); ACTIVE = null; VIEW = 'day'; }
@@ -1652,7 +1715,260 @@ function ratingCardHtml(r){
     <div class="rate-fine"><button class="btn btn-secondary btn-sm" onclick="nudgeRate(-1)">−1</button><button class="btn btn-secondary btn-sm" onclick="nudgeRate(1)">+1</button></div>
     <div class="rate-others" id="rate-others">${others}</div>
   </div>
+  ${tastingHtml(r)}
   <button class="btn btn-primary btn-block" onclick="sendRating()">Send din bedømmelse →</button>`;
+}
+
+/* ================= SMAGSNOTER (valgfrit) ================= */
+// Tags, profile and notes are all optional — the score alone is enough.
+// Nothing here calls render(): chips, sliders and the note update their own
+// little piece of the screen, so typing never loses focus.
+const TASTE_PROFILE = [
+  { k:'syre',       name:'Syre',       words:['Lav','Blød','Frisk','Livlig','Høj'] },
+  { k:'fylde',      name:'Fylde',      words:['Let','Let til middel','Middel','Middelfyldig','Fyldig'] },
+  { k:'sodme',      name:'Sødme',      words:['Tør','Næsten tør','Halvtør','Halvsød','Sød'], not:['Rød'] },
+  { k:'tannin',     name:'Tannin',     words:['Blød','Let','Middel','Fast','Kraftig'], only:['Rød','Orange'] },
+  { k:'bobler',     name:'Bobler',     words:['Blide','Fine','Middel','Livlige','Kraftige'], only:['Bobler'] },
+  { k:'intensitet', name:'Intensitet', words:['Diskret','Let','Middel','Udtalt','Intens'] },
+  { k:'eftersmag',  name:'Eftersmag',  words:['Kort','Kort til middel','Middel','Lang','Meget lang'] }
+];
+const TASTE_NOTE_MAX = 2000;
+const TASTE_DRAFTS = new Map(); // round id → this phone's draft (survives redraws and "Se resultatet igen")
+
+function tasteDraft(){
+  if(!ACTIVE) return null;
+  let d = TASTE_DRAFTS.get(ACTIVE.id);
+  if(!d){
+    const saved = (ACTIVE.tasting && MY_IDENTITY && ACTIVE.tasting[MY_IDENTITY]) || {};
+    d = { tags: Array.isArray(saved.tags) ? saved.tags.slice() : [], profile: Object.assign({}, saved.profile||{}),
+          note: saved.note || '', base: saved.base || '' };
+    TASTE_DRAFTS.set(ACTIVE.id, d);
+  }
+  return d;
+}
+// Smagsprofiler (vinapp_smagsprofiler_95_med_fallback.xlsx): tag suggestions per
+// grape/region/style, most typical first, with a generic list per wine type as fallback.
+const SMAG = {"groups":["Frugt","Blomster","Urter og grønt","Krydderier","Krydderier og urter","Mineralitet","Fad, gær og nødder","Udvikling og animalsk","Øvrige aromaer","Øvrige noter","Øvrige"],"profiles":{"jura_chardonnay_ouille":{"n":"Jura Chardonnay – ouillé","g":"chardonnay","r":"jura","s":"ouille","t":[["Citron",0,1],["Grønt æble",0,1],["Pære",0,1],["Flint",5,1],["Hvide blomster",1,1],["Salt",5,1],["Lime",0,1],["Kridt",5,1],["Hasselnød",6,0],["Citronskal",0,0],["Grapefrugt",0,0],["Æbleskræl",0,0],["Kvæde",0,0],["Kamille",8,0],["Fersken",0,0],["Brioche",6,0],["Smør",6,0],["Mandel",6,0],["Urter",2,0],["Røg",7,0]]},"jura_chardonnay_oxidative":{"n":"Jura Chardonnay – oxidativ","g":"chardonnay","r":"jura","s":"oxidative","t":[["Valnød",6,1],["Gule æbler",0,1],["Hasselnød",6,1],["Karry",3,1],["Tørret æble",0,1],["Svampe",7,1],["Grøn valnød",6,1],["Krydderier",3,1],["Salt",5,0],["Bivoks",8,0],["Citron",0,0],["Mandel",6,0],["Æbleskræl",0,0],["Honning",8,0],["Røg",7,0],["Brioche",6,0],["Kvæde",10,0],["Toast",6,0]]},"jura_savagnin_ouille":{"n":"Jura Savagnin – ouillé","g":"savagnin","r":"jura","s":"ouille","t":[["Citron",0,1],["Citronskal",0,1],["Grønt æble",0,1],["Grapefrugt",0,1],["Flint",5,1],["Hvide blomster",1,1],["Salt",5,1],["Pære",0,1],["Lime",0,0],["Kridt",5,0],["Urter",2,0],["Kvæde",0,0],["Æbleskræl",0,0],["Kamille",8,0],["Fersken",0,0],["Ingefær",3,0],["Bivoks",8,0],["Te",8,0],["Mandel",6,0],["Røg",7,0]]},"jura_savagnin_oxidative":{"n":"Jura Savagnin – oxidativ","g":"savagnin","r":"jura","s":"oxidative","t":[["Valnød",6,1],["Karry",3,1],["Grøn valnød",6,1],["Gule æbler",0,1],["Svampe",7,1],["Tørret æble",0,1],["Hasselnød",6,1],["Krydderier",3,1],["Salt",5,0],["Bivoks",8,0],["Æbleskræl",0,0],["Mandel",6,0],["Kvæde",10,0],["Røg",7,0],["Honning",8,0],["Citron",0,0],["Kamille",8,0],["Tørrede urter",10,0]]},"jura_savagnin_vin_jaune":{"n":"Jura Vin Jaune","g":"savagnin","r":"jura","s":"vin_jaune","t":[["Valnød",6,1],["Karry",3,1],["Grøn valnød",6,1],["Svampe",7,1],["Tørret æble",0,1],["Hasselnød",6,1],["Gule æbler",0,1],["Krydderier",3,1],["Bivoks",8,0],["Salt",5,0],["Mandel",6,0],["Røg",7,0],["Kvæde",10,0],["Æbleskræl",0,0],["Tørrede urter",10,0],["Honning",8,0],["Kamille",8,0]]},"jura_trousseau_red":{"n":"Jura Trousseau","g":"trousseau","r":"jura","s":"red","t":[["Røde kirsebær",0,1],["Hindbær",0,1],["Sort peber",3,1],["Viol",1,1],["Jordbær",0,1],["Tranebær",0,1],["Skovbund",7,1],["Urter",2,1],["Ribs",0,0],["Blomme",0,0],["Krydderier",3,0],["Te",8,0],["Roser",1,0],["Jord",7,0],["Læder",7,0],["Tørrede blomster",1,0],["Svampe",7,0],["Røg",7,0],["Lakrids",3,0]]},"jura_poulsard_red":{"n":"Jura Poulsard","g":"poulsard","r":"jura","s":"red","t":[["Jordbær",0,1],["Hindbær",0,1],["Ribs",0,1],["Tranebær",0,1],["Røde kirsebær",0,1],["Roser",1,1],["Blodappelsin",0,1],["Viol",1,1],["Granatæble",0,0],["Hvid peber",3,0],["Tørrede blomster",1,0],["Skovbund",7,0],["Urter",2,0],["Te",8,0],["Jord",7,0],["Kirsebær",0,0],["Svampe",7,0],["Krydderier",3,0],["Tørret frugt",0,0],["Røg",7,0]]},"jura_pinot_noir_red":{"n":"Jura Pinot Noir","g":"pinot_noir","r":"jura","s":"red","t":[["Røde kirsebær",0,1],["Hindbær",0,1],["Tranebær",0,1],["Jordbær",0,1],["Skovbund",7,1],["Viol",1,1],["Ribs",0,1],["Roser",1,1],["Urter",2,0],["Svampe",7,0],["Te",8,0],["Krydderier",10,0],["Jord",7,0],["Tørrede blomster",1,0],["Læder",7,0],["Røg",7,0],["Blomme",10,0],["Hvid peber",10,0]]},"region_northern_rhone_syrah_red":{"n":"Nordrhône Syrah","g":"syrah","r":"northern_rhone","s":"red","t":[["Sort peber",3,1],["Brombær",0,1],["Viol",1,1],["Solbær",0,1],["Røget kød",7,1],["Sorte oliven",8,1],["Grafit",5,1],["Lakrids",3,1],["Blåbær",0,0],["Røg",7,0],["Sorte kirsebær",0,0],["Bacon",7,0],["Blomme",0,0],["Hindbær",0,0],["Læder",7,0],["Knust sten",5,0],["Timian",2,0],["Lavendel",1,0],["Skovbund",7,0],["Vildt",7,0],["Enebær",3,0],["Rosmarin",2,0]]},"region_barossa_syrah_red":{"n":"Barossa Shiraz","g":"syrah","r":"barossa","s":"red","t":[["Brombær",0,1],["Moden blomme",0,1],["Mørk chokolade",6,1],["Solbær",0,1],["Lakrids",3,1],["Vanilje",6,1],["Sort peber",3,1],["Eukalyptus",2,1],["Viol",1,0],["Røget kød",7,0],["Sorte oliven",8,0],["Blåbær",0,0],["Røg",7,0],["Grafit",5,0],["Sorte kirsebær",0,0],["Bacon",7,0],["Blomme",0,0],["Hindbær",0,0],["Læder",7,0],["Knust sten",5,0],["Timian",2,0],["Lavendel",1,0]]},"region_mclaren_vale_syrah_red":{"n":"McLaren Vale Shiraz","g":"syrah","r":"mclaren_vale","s":"red","t":[["Brombær",0,1],["Blomme",0,1],["Mørk chokolade",6,1],["Lakrids",3,1],["Sort peber",3,1],["Mynte",2,1],["Oliven",8,1],["Krydderier",3,1],["Viol",1,0],["Solbær",0,0],["Røget kød",7,0],["Sorte oliven",8,0],["Blåbær",0,0],["Røg",7,0],["Grafit",5,0],["Sorte kirsebær",0,0],["Bacon",7,0],["Hindbær",0,0],["Læder",7,0],["Knust sten",5,0],["Timian",2,0],["Lavendel",1,0]]},"region_south_africa_syrah_red":{"n":"Sydafrikansk Syrah","g":"syrah","r":"south_africa","s":"red","t":[["Sort peber",3,1],["Brombær",0,1],["Viol",1,1],["Røg",7,1],["Solbær",0,1],["Oliven",8,1],["Lakrids",3,1],["Urter",2,1],["Røget kød",7,0],["Sorte oliven",8,0],["Blåbær",0,0],["Grafit",5,0],["Sorte kirsebær",0,0],["Bacon",7,0],["Blomme",0,0],["Hindbær",0,0],["Læder",7,0],["Knust sten",5,0],["Timian",2,0],["Lavendel",1,0],["Skovbund",7,0],["Vildt",7,0]]},"region_bourgogne_pinot_noir_red":{"n":"Bourgogne Pinot Noir","g":"pinot_noir","r":"bourgogne","s":"red","t":[["Røde kirsebær",0,1],["Hindbær",0,1],["Skovbund",7,1],["Viol",1,1],["Jordbær",0,1],["Roser",1,1],["Svampe",7,1],["Krydderier",3,1],["Tranebær",0,0],["Ribs",0,0],["Kryddernellike",3,0],["Granatæble",0,0],["Våde blade",7,0],["Te",8,0],["Blodappelsin",0,0],["Røg",7,0],["Jord",7,0],["Læder",7,0],["Kanel",3,0],["Kirsebær",0,0],["Tørret frugt",0,0],["Nellike",3,0]]},"region_oregon_pinot_noir_red":{"n":"Oregon Pinot Noir","g":"pinot_noir","r":"oregon","s":"red","t":[["Røde kirsebær",0,1],["Hindbær",0,1],["Tranebær",0,1],["Skovbund",7,1],["Viol",1,1],["Jordbær",0,1],["Urter",2,1],["Te",8,1],["Ribs",0,0],["Roser",1,0],["Svampe",7,0],["Kryddernellike",3,0],["Granatæble",0,0],["Våde blade",7,0],["Blodappelsin",0,0],["Røg",7,0],["Jord",7,0],["Læder",7,0],["Kanel",3,0],["Kirsebær",0,0],["Tørret frugt",0,0],["Nellike",3,0]]},"region_central_otago_pinot_noir_red":{"n":"Central Otago Pinot Noir","g":"pinot_noir","r":"central_otago","s":"red","t":[["Sorte kirsebær",0,1],["Blomme",0,1],["Hindbær",0,1],["Viol",1,1],["Krydderier",3,1],["Timian",2,1],["Røde kirsebær",0,1],["Skovbund",7,1],["Jordbær",0,0],["Tranebær",0,0],["Ribs",0,0],["Roser",1,0],["Svampe",7,0],["Kryddernellike",3,0],["Granatæble",0,0],["Våde blade",7,0],["Te",8,0],["Blodappelsin",0,0],["Røg",7,0],["Jord",7,0],["Læder",7,0],["Kanel",3,0]]},"region_germany_pinot_noir_red":{"n":"Tysk Spätburgunder","g":"pinot_noir","r":"germany","s":"red","t":[["Røde kirsebær",0,1],["Hindbær",0,1],["Jordbær",0,1],["Skovbund",7,1],["Ribs",0,1],["Røg",7,1],["Viol",1,1],["Urter",2,1],["Tranebær",0,0],["Roser",1,0],["Svampe",7,0],["Kryddernellike",3,0],["Granatæble",0,0],["Våde blade",7,0],["Te",8,0],["Blodappelsin",0,0],["Jord",7,0],["Læder",7,0],["Kanel",3,0],["Kirsebær",0,0],["Tørret frugt",0,0],["Nellike",3,0]]},"region_chablis_chardonnay_white":{"n":"Chablis Chardonnay","g":"chardonnay","r":"chablis","s":"white","t":[["Citron",0,1],["Grønt æble",0,1],["Kridt",5,1],["Flint",5,1],["Salt",5,1],["Østersskal",5,1],["Lime",0,1],["Hvide blomster",1,1],["Pære",0,0],["Fersken",0,0],["Hasselnød",6,0],["Smør",6,0],["Brioche",6,0],["Grapefrugt",0,0],["Abrikos",0,0],["Vanilje",6,0],["Toast",6,0],["Honning",8,0],["Mandel",6,0],["Ananas",0,0],["Kamille",8,0],["Appelsinskal",0,0]]},"region_cote_de_beaune_chardonnay_white":{"n":"Côte de Beaune Chardonnay","g":"chardonnay","r":"cote_de_beaune","s":"white","t":[["Citron",0,1],["Pære",0,1],["Hasselnød",6,1],["Smør",6,1],["Fersken",0,1],["Brioche",6,1],["Mineralsk",5,1],["Toast",6,1],["Grønt æble",0,0],["Hvide blomster",1,0],["Lime",0,0],["Flint",5,0],["Grapefrugt",0,0],["Salt",5,0],["Kridt",5,0],["Abrikos",0,0],["Vanilje",6,0],["Honning",8,0],["Mandel",6,0],["Ananas",0,0],["Kamille",8,0],["Appelsinskal",0,0]]},"region_california_chardonnay_white":{"n":"Californisk Chardonnay","g":"chardonnay","r":"california","s":"white","t":[["Fersken",0,1],["Ananas",0,1],["Vanilje",6,1],["Smør",6,1],["Pære",0,1],["Toast",6,1],["Citron",0,1],["Tropisk frugt",0,1],["Grønt æble",0,0],["Hvide blomster",1,0],["Lime",0,0],["Flint",5,0],["Hasselnød",6,0],["Brioche",6,0],["Grapefrugt",0,0],["Salt",5,0],["Kridt",5,0],["Abrikos",0,0],["Honning",8,0],["Mandel",6,0],["Kamille",8,0],["Appelsinskal",0,0]]},"region_australia_chardonnay_white":{"n":"Australsk Chardonnay","g":"chardonnay","r":"australia","s":"white","t":[["Citron",0,1],["Fersken",0,1],["Pære",0,1],["Grapefrugt",0,1],["Flint",5,1],["Hasselnød",6,1],["Toast",6,1],["Mineralsk",5,1],["Grønt æble",0,0],["Hvide blomster",1,0],["Lime",0,0],["Smør",6,0],["Brioche",6,0],["Salt",5,0],["Kridt",5,0],["Abrikos",0,0],["Vanilje",6,0],["Honning",8,0],["Mandel",6,0],["Ananas",0,0],["Kamille",8,0],["Appelsinskal",0,0]]},"region_bordeaux_cabernet_sauvignon_red":{"n":"Bordeaux Cabernet Sauvignon","g":"cabernet_sauvignon","r":"bordeaux","s":"red","t":[["Solbær",0,1],["Cedertræ",6,1],["Grafit",5,1],["Blyantspids",5,1],["Tobak",7,1],["Brombær",0,1],["Grøn peberfrugt",2,1],["Læder",7,1],["Mynte",2,0],["Sorte kirsebær",0,0],["Lakrids",3,0],["Eukalyptus",2,0],["Blomme",0,0],["Vanilje",6,0],["Mørk chokolade",6,0],["Jord",7,0],["Kirsebær",0,0],["Tørret frugt",0,0],["Nellike",3,0],["Kanel",3,0],["Skovbund",7,0],["Svampe",7,0]]},"region_napa_valley_cabernet_sauvignon_red":{"n":"Napa Cabernet Sauvignon","g":"cabernet_sauvignon","r":"napa_valley","s":"red","t":[["Solbær",0,1],["Brombær",0,1],["Mørk chokolade",6,1],["Vanilje",6,1],["Cedertræ",6,1],["Mynte",2,1],["Blomme",0,1],["Tobak",7,1],["Blyantspids",5,0],["Grøn peberfrugt",2,0],["Grafit",5,0],["Sorte kirsebær",0,0],["Lakrids",3,0],["Eukalyptus",2,0],["Læder",7,0],["Jord",7,0],["Kirsebær",0,0],["Tørret frugt",0,0],["Nellike",3,0],["Kanel",3,0],["Skovbund",7,0],["Svampe",7,0]]},"region_coonawarra_cabernet_sauvignon_red":{"n":"Coonawarra Cabernet Sauvignon","g":"cabernet_sauvignon","r":"coonawarra","s":"red","t":[["Solbær",0,1],["Mynte",2,1],["Eukalyptus",2,1],["Cedertræ",6,1],["Brombær",0,1],["Grafit",5,1],["Tobak",7,1],["Blomme",0,1],["Blyantspids",5,0],["Grøn peberfrugt",2,0],["Sorte kirsebær",0,0],["Lakrids",3,0],["Vanilje",6,0],["Læder",7,0],["Mørk chokolade",6,0],["Jord",7,0],["Kirsebær",0,0],["Tørret frugt",0,0],["Nellike",3,0],["Kanel",3,0],["Skovbund",7,0],["Svampe",7,0]]},"region_chile_cabernet_sauvignon_red":{"n":"Chilensk Cabernet Sauvignon","g":"cabernet_sauvignon","r":"chile","s":"red","t":[["Solbær",0,1],["Grøn peberfrugt",2,1],["Mynte",2,1],["Brombær",0,1],["Cedertræ",6,1],["Grafit",5,1],["Tobak",7,1],["Blomme",0,1],["Blyantspids",5,0],["Sorte kirsebær",0,0],["Lakrids",3,0],["Eukalyptus",2,0],["Vanilje",6,0],["Læder",7,0],["Mørk chokolade",6,0],["Jord",7,0],["Kirsebær",0,0],["Tørret frugt",0,0],["Nellike",3,0],["Kanel",3,0],["Skovbund",7,0],["Svampe",7,0]]},"region_mosel_riesling_white":{"n":"Mosel Riesling","g":"riesling","r":"mosel","s":"white","t":[["Lime",0,1],["Grønt æble",0,1],["Skifer",5,1],["Citron",0,1],["Fersken",0,1],["Hvide blomster",1,1],["Mineralsk",5,1],["Petroleum",7,1],["Abrikos",0,0],["Honning",8,0],["Grapefrugt",0,0],["Salt",5,0],["Ananas",0,0],["Citronskal",0,0],["Ingefær",3,0],["Appelsinskal",0,0],["Gule æbler",0,0],["Pære",0,0],["Melon",0,0],["Kamille",8,0],["Hyldeblomst",1,0],["Urter",2,0]]},"region_rheingau_riesling_white":{"n":"Rheingau Riesling","g":"riesling","r":"rheingau","s":"white","t":[["Fersken",0,1],["Abrikos",0,1],["Citron",0,1],["Lime",0,1],["Æble",0,1],["Mineralsk",5,1],["Hvide blomster",1,1],["Honning",8,1],["Grønt æble",0,0],["Petroleum",7,0],["Skifer",5,0],["Grapefrugt",0,0],["Salt",5,0],["Ananas",0,0],["Citronskal",0,0],["Ingefær",3,0],["Appelsinskal",0,0],["Gule æbler",0,0],["Pære",0,0],["Melon",0,0],["Kamille",8,0],["Hyldeblomst",1,0]]},"region_alsace_riesling_white":{"n":"Alsace Riesling","g":"riesling","r":"alsace","s":"white","t":[["Citron",0,1],["Lime",0,1],["Fersken",0,1],["Petroleum",7,1],["Mineralsk",5,1],["Grapefrugt",0,1],["Abrikos",0,1],["Hvide blomster",1,1],["Grønt æble",0,0],["Skifer",5,0],["Honning",8,0],["Salt",5,0],["Ananas",0,0],["Citronskal",0,0],["Ingefær",3,0],["Appelsinskal",0,0],["Gule æbler",0,0],["Pære",0,0],["Melon",0,0],["Kamille",8,0],["Hyldeblomst",1,0],["Urter",2,0]]},"region_clare_valley_riesling_white":{"n":"Clare Valley Riesling","g":"riesling","r":"clare_valley","s":"white","t":[["Lime",0,1],["Citronskal",0,1],["Grapefrugt",0,1],["Citron",0,1],["Mineralsk",5,1],["Grønt æble",0,1],["Hvide blomster",1,1],["Petroleum",7,1],["Fersken",0,0],["Skifer",5,0],["Abrikos",0,0],["Honning",8,0],["Salt",5,0],["Ananas",0,0],["Ingefær",3,0],["Appelsinskal",0,0],["Gule æbler",0,0],["Pære",0,0],["Melon",0,0],["Kamille",8,0],["Hyldeblomst",1,0],["Urter",2,0]]},"region_loire_sauvignon_blanc_white":{"n":"Loire Sauvignon Blanc","g":"sauvignon_blanc","r":"loire","s":"white","t":[["Grapefrugt",0,1],["Stikkelsbær",0,1],["Flint",5,1],["Græs",2,1],["Citron",0,1],["Solbærblad",2,1],["Lime",0,1],["Mineralsk",5,1],["Hyldeblomst",1,0],["Passionsfrugt",0,0],["Grøn peberfrugt",2,0],["Asparges",2,0],["Urter",2,0],["Appelsinskal",0,0],["Grønt æble",0,0],["Gule æbler",0,0],["Pære",0,0],["Fersken",0,0],["Abrikos",0,0],["Ananas",0,0],["Melon",0,0],["Hvide blomster",1,0]]},"region_marlborough_sauvignon_blanc_white":{"n":"Marlborough Sauvignon Blanc","g":"sauvignon_blanc","r":"marlborough","s":"white","t":[["Passionsfrugt",0,1],["Stikkelsbær",0,1],["Lime",0,1],["Grapefrugt",0,1],["Græs",2,1],["Hyldeblomst",1,1],["Solbærblad",2,1],["Tropisk frugt",0,1],["Grøn peberfrugt",2,0],["Citron",0,0],["Flint",5,0],["Asparges",2,0],["Urter",2,0],["Appelsinskal",0,0],["Grønt æble",0,0],["Gule æbler",0,0],["Pære",0,0],["Fersken",0,0],["Abrikos",0,0],["Ananas",0,0],["Melon",0,0],["Hvide blomster",1,0]]},"region_bordeaux_sauvignon_blanc_white":{"n":"Bordeaux Sauvignon Blanc","g":"sauvignon_blanc","r":"bordeaux","s":"white","t":[["Grapefrugt",0,1],["Citron",0,1],["Græs",2,1],["Flint",5,1],["Lime",0,1],["Hvide blomster",1,1],["Stikkelsbær",0,1],["Vanilje",6,1],["Hyldeblomst",1,0],["Passionsfrugt",0,0],["Solbærblad",2,0],["Grøn peberfrugt",2,0],["Asparges",2,0],["Urter",2,0],["Appelsinskal",0,0],["Grønt æble",0,0],["Gule æbler",0,0],["Pære",0,0],["Fersken",0,0],["Abrikos",0,0],["Ananas",0,0],["Melon",0,0]]},"region_vouvray_chenin_blanc_white":{"n":"Vouvray Chenin Blanc","g":"chenin_blanc","r":"vouvray","s":"white","t":[["Kvæde",0,1],["Grønt æble",0,1],["Honning",8,1],["Pære",0,1],["Kamille",8,1],["Bivoks",8,1],["Citron",0,1],["Mineralsk",5,1],["Abrikos",0,0],["Hvide blomster",1,0],["Uld",8,0],["Fersken",0,0],["Nødder",6,0],["Ingefær",3,0],["Lime",0,0],["Grapefrugt",0,0],["Appelsinskal",0,0],["Gule æbler",0,0],["Ananas",0,0],["Melon",0,0],["Hyldeblomst",1,0],["Urter",2,0]]},"region_savennieres_chenin_blanc_white":{"n":"Savennières Chenin Blanc","g":"chenin_blanc","r":"savennieres","s":"white","t":[["Kvæde",0,1],["Bivoks",8,1],["Kamille",8,1],["Grønt æble",0,1],["Mineralsk",5,1],["Honning",8,1],["Pære",0,1],["Urter",2,1],["Citron",0,0],["Abrikos",0,0],["Hvide blomster",1,0],["Uld",8,0],["Fersken",0,0],["Nødder",6,0],["Ingefær",3,0],["Lime",0,0],["Grapefrugt",0,0],["Appelsinskal",0,0],["Gule æbler",0,0],["Ananas",0,0],["Melon",0,0],["Hyldeblomst",1,0]]},"region_south_africa_chenin_blanc_white":{"n":"Sydafrikansk Chenin Blanc","g":"chenin_blanc","r":"south_africa","s":"white","t":[["Pære",0,1],["Kvæde",0,1],["Fersken",0,1],["Honning",8,1],["Grønt æble",0,1],["Bivoks",8,1],["Abrikos",0,1],["Citron",0,1],["Kamille",8,0],["Hvide blomster",1,0],["Uld",8,0],["Nødder",6,0],["Ingefær",3,0],["Lime",0,0],["Grapefrugt",0,0],["Appelsinskal",0,0],["Gule æbler",0,0],["Ananas",0,0],["Melon",0,0],["Hyldeblomst",1,0],["Urter",2,0],["Græs",2,0]]},"region_barolo_nebbiolo_red":{"n":"Barolo Nebbiolo","g":"nebbiolo","r":"barolo","s":"red","t":[["Roser",1,1],["Tjære",7,1],["Røde kirsebær",0,1],["Lakrids",3,1],["Tørrede roser",1,1],["Læder",7,1],["Trøffel",7,1],["Tobak",7,1],["Hindbær",0,0],["Viol",1,0],["Skovbund",7,0],["Appelsinskal",0,0],["Te",8,0],["Jord",7,0],["Kirsebær",0,0],["Tørret frugt",0,0],["Nellike",3,0],["Kanel",3,0],["Vanilje",6,0],["Cedertræ",6,0],["Svampe",7,0],["Røg",7,0]]},"region_barbaresco_nebbiolo_red":{"n":"Barbaresco Nebbiolo","g":"nebbiolo","r":"barbaresco","s":"red","t":[["Roser",1,1],["Røde kirsebær",0,1],["Viol",1,1],["Hindbær",0,1],["Lakrids",3,1],["Te",8,1],["Tjære",7,1],["Skovbund",7,1],["Tørrede roser",1,0],["Læder",7,0],["Trøffel",7,0],["Tobak",7,0],["Appelsinskal",0,0],["Jord",7,0],["Kirsebær",0,0],["Tørret frugt",0,0],["Nellike",3,0],["Kanel",3,0],["Vanilje",6,0],["Cedertræ",6,0],["Svampe",7,0],["Røg",7,0]]},"region_chianti_classico_sangiovese_red":{"n":"Chianti Classico Sangiovese","g":"sangiovese","r":"chianti_classico","s":"red","t":[["Sure kirsebær",0,1],["Viol",1,1],["Tørrede urter",2,1],["Tomatblad",2,1],["Røde kirsebær",0,1],["Læder",7,1],["Tobak",7,1],["Jord",7,1],["Ribs",0,0],["Blomme",0,0],["Te",8,0],["Cedertræ",6,0],["Appelsinskal",0,0],["Lakrids",3,0],["Kirsebær",0,0],["Tørret frugt",0,0],["Nellike",3,0],["Kanel",3,0],["Vanilje",6,0],["Skovbund",7,0],["Svampe",7,0],["Røg",7,0]]},"region_brunello_sangiovese_red":{"n":"Brunello Sangiovese","g":"sangiovese","r":"brunello","s":"red","t":[["Røde kirsebær",0,1],["Blomme",0,1],["Læder",7,1],["Tobak",7,1],["Tørrede urter",2,1],["Viol",1,1],["Jord",7,1],["Cedertræ",6,1],["Sure kirsebær",0,0],["Tomatblad",2,0],["Ribs",0,0],["Te",8,0],["Appelsinskal",0,0],["Lakrids",3,0],["Kirsebær",0,0],["Tørret frugt",0,0],["Nellike",3,0],["Kanel",3,0],["Vanilje",6,0],["Skovbund",7,0],["Svampe",7,0],["Røg",7,0]]},"region_rioja_tempranillo_red":{"n":"Rioja Tempranillo","g":"tempranillo","r":"rioja","s":"red","t":[["Røde kirsebær",0,1],["Vanilje",6,1],["Dild",3,1],["Tobak",7,1],["Blomme",0,1],["Læder",7,1],["Cedertræ",6,1],["Kokos",6,1],["Jordbær",0,0],["Lakrids",3,0],["Brombær",0,0],["Jord",7,0],["Røg",7,0],["Kaffe",6,0],["Kirsebær",0,0],["Tørret frugt",0,0],["Nellike",3,0],["Kanel",3,0],["Skovbund",7,0],["Svampe",7,0],["Chokolade",6,0],["Urter",2,0]]},"region_ribera_del_duero_tempranillo_red":{"n":"Ribera del Duero Tempranillo","g":"tempranillo","r":"ribera_del_duero","s":"red","t":[["Brombær",0,1],["Blomme",0,1],["Sorte kirsebær",0,1],["Lakrids",3,1],["Vanilje",6,1],["Tobak",7,1],["Læder",7,1],["Krydderier",3,1],["Røde kirsebær",0,0],["Jordbær",0,0],["Dild",3,0],["Cedertræ",6,0],["Kokos",6,0],["Jord",7,0],["Røg",7,0],["Kaffe",6,0],["Kirsebær",0,0],["Tørret frugt",0,0],["Nellike",3,0],["Kanel",3,0],["Skovbund",7,0],["Svampe",7,0]]},"region_toro_tempranillo_red":{"n":"Toro Tempranillo","g":"tempranillo","r":"toro","s":"red","t":[["Brombær",0,1],["Blomme",0,1],["Mørk chokolade",6,1],["Lakrids",3,1],["Sorte kirsebær",0,1],["Vanilje",6,1],["Tobak",7,1],["Krydderier",3,1],["Røde kirsebær",0,0],["Jordbær",0,0],["Læder",7,0],["Dild",3,0],["Cedertræ",6,0],["Kokos",6,0],["Jord",7,0],["Røg",7,0],["Kaffe",6,0],["Kirsebær",0,0],["Tørret frugt",0,0],["Nellike",3,0],["Kanel",3,0],["Skovbund",7,0]]},"region_southern_rhone_grenache_red":{"n":"Sydrhône Grenache","g":"grenache","r":"southern_rhone","s":"red","t":[["Jordbær",0,1],["Hindbær",0,1],["Garrigue",2,1],["Timian",2,1],["Lakrids",3,1],["Hvid peber",3,1],["Blomme",0,1],["Lavendel",1,1],["Kirsebær",0,0],["Appelsinskal",0,0],["Kanel",3,0],["Røde blomster",1,0],["Jord",7,0],["Tørret frugt",0,0],["Nellike",3,0],["Vanilje",6,0],["Cedertræ",6,0],["Tobak",7,0],["Læder",7,0],["Skovbund",7,0],["Svampe",7,0],["Røg",7,0]]},"region_priorat_grenache_red":{"n":"Priorat Garnatxa","g":"grenache","r":"priorat","s":"red","t":[["Blomme",0,1],["Brombær",0,1],["Lakrids",3,1],["Mineralsk",5,1],["Urter",2,1],["Sort peber",3,1],["Kirsebær",0,1],["Røg",7,1],["Jordbær",0,0],["Hindbær",0,0],["Hvid peber",3,0],["Timian",2,0],["Appelsinskal",0,0],["Lavendel",1,0],["Garrigue",2,0],["Kanel",3,0],["Røde blomster",1,0],["Jord",7,0],["Tørret frugt",0,0],["Nellike",3,0],["Vanilje",6,0],["Cedertræ",6,0]]},"region_beaujolais_gamay_red":{"n":"Beaujolais Gamay","g":"gamay","r":"beaujolais","s":"red","t":[["Hindbær",0,1],["Kirsebær",0,1],["Viol",1,1],["Jordbær",0,1],["Ribs",0,1],["Peber",3,1],["Granatæble",0,1],["Skovbund",7,1],["Banan",8,0],["Blåbær",0,0],["Pæon",1,0],["Urter",2,0],["Slik",0,0],["Lakrids",3,0],["Røg",7,0],["Tørret frugt",0,0],["Nellike",3,0],["Kanel",3,0],["Vanilje",6,0],["Cedertræ",6,0],["Tobak",7,0],["Læder",7,0]]},"region_chinon_cabernet_franc_red":{"n":"Chinon Cabernet Franc","g":"cabernet_franc","r":"chinon","s":"red","t":[["Hindbær",0,1],["Viol",1,1],["Grøn peberfrugt",2,1],["Grafit",5,1],["Røde kirsebær",0,1],["Urter",2,1],["Jord",7,1],["Ribs",0,1],["Blyantspids",5,0],["Solbær",0,0],["Tobak",7,0],["Lakrids",3,0],["Skovbund",7,0],["Kirsebær",0,0],["Tørret frugt",0,0],["Nellike",3,0],["Kanel",3,0],["Vanilje",6,0],["Cedertræ",6,0],["Læder",7,0],["Svampe",7,0],["Røg",7,0]]},"region_saumur_champigny_cabernet_franc_red":{"n":"Saumur-Champigny Cabernet Franc","g":"cabernet_franc","r":"saumur_champigny","s":"red","t":[["Røde kirsebær",0,1],["Hindbær",0,1],["Viol",1,1],["Grafit",5,1],["Urter",2,1],["Ribs",0,1],["Grøn peberfrugt",2,1],["Jord",7,1],["Blyantspids",5,0],["Solbær",0,0],["Tobak",7,0],["Lakrids",3,0],["Skovbund",7,0],["Kirsebær",0,0],["Tørret frugt",0,0],["Nellike",3,0],["Kanel",3,0],["Vanilje",6,0],["Cedertræ",6,0],["Læder",7,0],["Svampe",7,0],["Røg",7,0]]},"region_rias_baixas_albarino_white":{"n":"Rías Baixas Albariño","g":"albarino","r":"rias_baixas","s":"white","t":[["Citrus",0,1],["Fersken",0,1],["Salt",5,1],["Citron",0,1],["Grapefrugt",0,1],["Grønt æble",0,1],["Hvide blomster",1,1],["Mineralsk",5,1],["Lime",0,0],["Melon",0,0],["Abrikos",0,0],["Urter",2,0],["Appelsinskal",0,0],["Gule æbler",0,0],["Pære",0,0],["Ananas",0,0],["Kamille",8,0],["Hyldeblomst",1,0],["Græs",2,0],["Flint",5,0],["Kridt",5,0],["Hasselnød",6,0]]},"region_wachau_gruner_veltliner_white":{"n":"Wachau Grüner Veltliner","g":"gruner_veltliner","r":"wachau","s":"white","t":[["Hvid peber",3,1],["Grønt æble",0,1],["Citron",0,1],["Lime",0,1],["Urter",2,1],["Mineralsk",5,1],["Pære",0,1],["Stenfrugt",0,1],["Selleri",2,0],["Grapefrugt",0,0],["Røg",7,0],["Hvide blomster",1,0],["Appelsinskal",0,0],["Gule æbler",0,0],["Fersken",0,0],["Abrikos",0,0],["Ananas",0,0],["Melon",0,0],["Kamille",8,0],["Hyldeblomst",1,0],["Græs",2,0],["Flint",5,0]]},"region_condrieu_viognier_white":{"n":"Condrieu Viognier","g":"viognier","r":"condrieu","s":"white","t":[["Abrikos",0,1],["Fersken",0,1],["Kaprifolie",1,1],["Hvide blomster",1,1],["Honning",8,1],["Mango",0,1],["Ingefær",3,1],["Pære",0,1],["Appelsinblomst",1,0],["Citron",0,0],["Lime",0,0],["Grapefrugt",0,0],["Appelsinskal",0,0],["Grønt æble",0,0],["Gule æbler",0,0],["Ananas",0,0],["Melon",0,0],["Kamille",8,0],["Hyldeblomst",1,0],["Urter",2,0],["Græs",2,0],["Flint",5,0]]},"region_mendoza_malbec_red":{"n":"Mendoza Malbec","g":"malbec","r":"mendoza","s":"red","t":[["Blomme",0,1],["Brombær",0,1],["Viol",1,1],["Blåbær",0,1],["Mørk chokolade",6,1],["Vanilje",6,1],["Solbær",0,1],["Lakrids",3,1],["Sort peber",3,0],["Kaffe",6,0],["Tobak",7,0],["Kirsebær",0,0],["Tørret frugt",0,0],["Nellike",3,0],["Kanel",3,0],["Cedertræ",6,0],["Læder",7,0],["Jord",7,0],["Skovbund",7,0],["Svampe",7,0],["Røg",7,0],["Chokolade",6,0]]},"region_california_zinfandel_red":{"n":"Californisk Zinfandel","g":"zinfandel","r":"california","s":"red","t":[["Brombær",0,1],["Hindbærsyltetøj",0,1],["Blomme",0,1],["Sort peber",3,1],["Vanilje",6,1],["Kanel",3,1],["Lakrids",3,1],["Chokolade",6,1],["Rosiner",0,0],["Kirsebær",0,0],["Nellike",3,0],["Tørret frugt",0,0],["Cedertræ",6,0],["Tobak",7,0],["Læder",7,0],["Jord",7,0],["Skovbund",7,0],["Svampe",7,0],["Røg",7,0],["Kaffe",6,0],["Urter",2,0],["Mynte",2,0]]},"region_bandol_mourvedre_red":{"n":"Bandol Mourvèdre","g":"mourvedre","r":"bandol","s":"red","t":[["Brombær",0,1],["Vildt",7,1],["Læder",7,1],["Sort peber",3,1],["Urter",2,1],["Røg",7,1],["Lakrids",3,1],["Sorte oliven",8,1],["Blomme",0,0],["Jord",7,0],["Tobak",7,0],["Kød",7,0],["Kirsebær",0,0],["Tørret frugt",0,0],["Nellike",3,0],["Kanel",3,0],["Vanilje",6,0],["Cedertræ",6,0],["Skovbund",7,0],["Svampe",7,0],["Kaffe",6,0],["Chokolade",6,0]]},"region_bordeaux_blend_red_red":{"n":"Bordeaux rød blend","g":"blend_red","r":"bordeaux","s":"red","t":[["Solbær",0,1],["Cedertræ",6,1],["Grafit",5,1],["Blomme",0,1],["Brombær",0,1],["Tobak",7,1],["Læder",7,1],["Viol",1,1],["Kirsebær",0,0],["Lakrids",3,0],["Sort peber",3,0],["Jord",7,0],["Vanilje",6,0],["Tørret frugt",0,0],["Nellike",3,0],["Kanel",3,0],["Skovbund",7,0],["Svampe",7,0],["Røg",7,0],["Kaffe",6,0],["Chokolade",6,0],["Urter",2,0]]},"region_southern_rhone_blend_red_red":{"n":"Châteauneuf-du-Pape rød","g":"blend_red","r":"southern_rhone","s":"red","t":[["Jordbær",0,1],["Garrigue",2,1],["Blomme",0,1],["Lakrids",3,1],["Timian",2,1],["Hindbær",0,1],["Sort peber",3,1],["Læder",7,1],["Solbær",0,0],["Brombær",0,0],["Kirsebær",0,0],["Cedertræ",6,0],["Tobak",7,0],["Viol",1,0],["Jord",7,0],["Vanilje",6,0],["Tørret frugt",0,0],["Nellike",3,0],["Kanel",3,0],["Skovbund",7,0],["Svampe",7,0],["Røg",7,0]]},"region_bordeaux_blend_white_white":{"n":"Bordeaux hvid blend","g":"blend_white","r":"bordeaux","s":"white","t":[["Grapefrugt",0,1],["Citron",0,1],["Græs",2,1],["Pære",0,1],["Hvide blomster",1,1],["Flint",5,1],["Vanilje",6,1],["Fersken",0,1],["Grønt æble",0,0],["Lime",0,0],["Honning",8,0],["Urter",2,0],["Nødder",6,0],["Appelsinskal",0,0],["Gule æbler",0,0],["Abrikos",0,0],["Ananas",0,0],["Melon",0,0],["Kamille",8,0],["Hyldeblomst",1,0],["Kridt",5,0],["Salt",5,0]]},"region_champagne_sparkling_sparkling":{"n":"Champagne traditionel metode","g":"sparkling","r":"champagne","s":"sparkling","t":[["Citron",0,1],["Brioche",6,1],["Grønt æble",0,1],["Toast",6,1],["Kridt",5,1],["Gær",6,1],["Hasselnød",6,1],["Pære",0,1],["Hvide blomster",1,0],["Mandel",6,0],["Grapefrugt",0,0],["Salt",5,0],["Smør",6,0],["Lime",0,0],["Honning",8,0],["Fersken",0,0],["Abrikos",0,0],["Jordbær",0,0],["Hindbær",0,0],["Røde kirsebær",0,0],["Kvæde",0,0],["Æbleskræl",0,0]]},"region_prosecco_sparkling_sparkling":{"n":"Prosecco","g":"sparkling","r":"prosecco","s":"sparkling","t":[["Pære",0,1],["Grønt æble",0,1],["Hvide blomster",1,1],["Citron",0,1],["Fersken",0,1],["Melon",0,1],["Lime",0,1],["Grapefrugt",0,1],["Brioche",6,0],["Toast",6,0],["Gær",6,0],["Kridt",5,0],["Mandel",6,0],["Hasselnød",6,0],["Salt",5,0],["Smør",6,0],["Honning",8,0],["Abrikos",0,0],["Jordbær",0,0],["Hindbær",0,0],["Røde kirsebær",0,0],["Kvæde",0,0]]},"region_cava_sparkling_sparkling":{"n":"Cava","g":"sparkling","r":"cava","s":"sparkling","t":[["Citron",0,1],["Grønt æble",0,1],["Brioche",6,1],["Mandel",6,1],["Gær",6,1],["Kridt",5,1],["Pære",0,1],["Toast",6,1],["Hvide blomster",1,0],["Hasselnød",6,0],["Grapefrugt",0,0],["Salt",5,0],["Smør",6,0],["Lime",0,0],["Honning",8,0],["Fersken",0,0],["Abrikos",0,0],["Jordbær",0,0],["Hindbær",0,0],["Røde kirsebær",0,0],["Kvæde",0,0],["Æbleskræl",0,0]]},"region_georgia_orange_orange":{"n":"Georgisk qvevri-orangevin","g":"orange","r":"georgia","s":"orange","t":[["Te",8,1],["Tørret abrikos",0,1],["Appelsinskal",0,1],["Kvæde",0,1],["Æbleskræl",0,1],["Urter",2,1],["Nødder",6,1],["Krydderier",3,1],["Tørrede blomster",1,0],["Honning",8,0],["Bitter appelsin",0,0],["Kamille",8,0],["Citronskal",0,0],["Ingefær",3,0],["Mandel",6,0],["Bivoks",8,0],["Gær",6,0],["Salt",5,0],["Fersken",0,0],["Abrikos",0,0],["Pære",0,0],["Tørret frugt",0,0]]},"region_friuli_orange_orange":{"n":"Friuli orangevin","g":"orange","r":"friuli","s":"orange","t":[["Appelsinskal",0,1],["Te",8,1],["Tørret abrikos",0,1],["Kvæde",0,1],["Tørrede blomster",1,1],["Nødder",6,1],["Honning",8,1],["Urter",2,1],["Æbleskræl",0,0],["Bitter appelsin",0,0],["Kamille",8,0],["Citronskal",0,0],["Ingefær",3,0],["Mandel",6,0],["Bivoks",8,0],["Gær",6,0],["Salt",5,0],["Fersken",0,0],["Abrikos",0,0],["Pære",0,0],["Tørret frugt",0,0],["Røg",7,0]]},"region_sauternes_sweet_sweet":{"n":"Sauternes","g":"sweet","r":"sauternes","s":"sweet","t":[["Honning",8,1],["Abrikos",0,1],["Appelsinmarmelade",0,1],["Safran",3,1],["Kandiseret citrus",0,1],["Bivoks",8,1],["Fersken",0,1],["Vanilje",6,1],["Tørret abrikos",0,0],["Kvæde",0,0],["Ingefær",3,0],["Rosiner",0,0],["Ananas",0,0],["Mango",0,0],["Litchi",0,0],["Appelsinblomst",1,0],["Roser",1,0],["Citron",0,0],["Lime",0,0],["Grapefrugt",0,0],["Karamel",6,0],["Nødder",6,0]]},"grape_syrah":{"n":"Generisk Syrah","g":"syrah","r":"","s":"red","t":[["Sort peber",3,1],["Brombær",0,1],["Viol",1,1],["Solbær",0,1],["Røget kød",7,1],["Sorte oliven",8,1],["Blåbær",0,1],["Lakrids",3,1],["Røg",7,0],["Grafit",5,0],["Sorte kirsebær",0,0],["Bacon",7,0],["Blomme",0,0],["Hindbær",0,0],["Læder",7,0],["Knust sten",5,0],["Timian",2,0],["Lavendel",1,0],["Skovbund",7,0],["Vildt",7,0],["Enebær",3,0],["Rosmarin",2,0]]},"grape_pinot_noir":{"n":"Generisk Pinot Noir","g":"pinot_noir","r":"","s":"red","t":[["Røde kirsebær",0,1],["Hindbær",0,1],["Jordbær",0,1],["Viol",1,1],["Skovbund",7,1],["Tranebær",0,1],["Ribs",0,1],["Roser",1,1],["Svampe",7,0],["Kryddernellike",3,0],["Granatæble",0,0],["Våde blade",7,0],["Te",8,0],["Blodappelsin",0,0],["Røg",7,0],["Jord",7,0],["Læder",7,0],["Kanel",3,0],["Kirsebær",0,0],["Tørret frugt",0,0],["Nellike",3,0],["Vanilje",6,0]]},"grape_chardonnay":{"n":"Generisk Chardonnay","g":"chardonnay","r":"","s":"white","t":[["Citron",0,1],["Grønt æble",0,1],["Pære",0,1],["Hvide blomster",1,1],["Mineralsk",5,1],["Lime",0,1],["Fersken",0,1],["Flint",5,1],["Hasselnød",6,0],["Smør",6,0],["Brioche",6,0],["Grapefrugt",0,0],["Salt",5,0],["Kridt",5,0],["Abrikos",0,0],["Vanilje",6,0],["Toast",6,0],["Honning",8,0],["Mandel",6,0],["Ananas",0,0],["Kamille",8,0],["Appelsinskal",0,0]]},"grape_savagnin":{"n":"Generisk Savagnin","g":"savagnin","r":"","s":"white","t":[["Citron",0,1],["Grønt æble",0,1],["Salt",5,1],["Flint",5,1],["Hvide blomster",1,1],["Grapefrugt",0,1],["Pære",0,1],["Urter",2,1],["Kridt",5,0],["Nødder",6,0],["Citronskal",0,0],["Gule æbler",0,0],["Kamille",8,0],["Honning",8,0],["Mandel",6,0],["Tørret æble",0,0],["Valnød",6,0],["Karry",3,0],["Svampe",7,0],["Lime",0,0],["Appelsinskal",0,0],["Fersken",0,0]]},"grape_trousseau":{"n":"Generisk Trousseau","g":"trousseau","r":"","s":"red","t":[["Røde kirsebær",0,1],["Hindbær",0,1],["Jordbær",0,1],["Sort peber",3,1],["Viol",1,1],["Tranebær",0,1],["Ribs",0,1],["Skovbund",7,1],["Blomme",0,0],["Blodappelsin",0,0],["Jord",7,0],["Roser",1,0],["Læder",7,0],["Urter",2,0],["Røg",7,0],["Te",8,0],["Kirsebær",0,0],["Tørret frugt",0,0],["Nellike",3,0],["Kanel",3,0],["Vanilje",6,0],["Cedertræ",6,0]]},"grape_poulsard":{"n":"Generisk Poulsard","g":"poulsard","r":"","s":"red","t":[["Jordbær",0,1],["Hindbær",0,1],["Røde kirsebær",0,1],["Tranebær",0,1],["Ribs",0,1],["Roser",1,1],["Viol",1,1],["Blodappelsin",0,1],["Granatæble",0,0],["Hvid peber",3,0],["Skovbund",7,0],["Urter",2,0],["Te",8,0],["Jord",7,0],["Tørrede blomster",1,0],["Kirsebær",0,0],["Tørret frugt",0,0],["Nellike",3,0],["Kanel",3,0],["Vanilje",6,0],["Cedertræ",6,0],["Tobak",7,0]]},"grape_gamay":{"n":"Generisk Gamay","g":"gamay","r":"","s":"red","t":[["Hindbær",0,1],["Kirsebær",0,1],["Jordbær",0,1],["Viol",1,1],["Banan",8,1],["Ribs",0,1],["Peber",3,1],["Granatæble",0,1],["Blåbær",0,0],["Pæon",1,0],["Skovbund",7,0],["Urter",2,0],["Slik",0,0],["Lakrids",3,0],["Røg",7,0],["Tørret frugt",0,0],["Nellike",3,0],["Kanel",3,0],["Vanilje",6,0],["Cedertræ",6,0],["Tobak",7,0],["Læder",7,0]]},"grape_cabernet_sauvignon":{"n":"Generisk Cabernet Sauvignon","g":"cabernet_sauvignon","r":"","s":"red","t":[["Solbær",0,1],["Cedertræ",6,1],["Brombær",0,1],["Blyantspids",5,1],["Grøn peberfrugt",2,1],["Mynte",2,1],["Grafit",5,1],["Sorte kirsebær",0,1],["Tobak",7,0],["Lakrids",3,0],["Eukalyptus",2,0],["Blomme",0,0],["Vanilje",6,0],["Læder",7,0],["Mørk chokolade",6,0],["Jord",7,0],["Kirsebær",0,0],["Tørret frugt",0,0],["Nellike",3,0],["Kanel",3,0],["Skovbund",7,0],["Svampe",7,0]]},"grape_merlot":{"n":"Generisk Merlot","g":"merlot","r":"","s":"red","t":[["Blomme",0,1],["Sorte kirsebær",0,1],["Brombær",0,1],["Chokolade",6,1],["Solbær",0,1],["Viol",1,1],["Cedertræ",6,1],["Vanilje",6,1],["Lakrids",3,0],["Tobak",7,0],["Mynte",2,0],["Læder",7,0],["Kaffe",6,0],["Jord",7,0],["Kirsebær",0,0],["Tørret frugt",0,0],["Nellike",3,0],["Kanel",3,0],["Skovbund",7,0],["Svampe",7,0],["Røg",7,0],["Urter",2,0]]},"grape_cabernet_franc":{"n":"Generisk Cabernet Franc","g":"cabernet_franc","r":"","s":"red","t":[["Hindbær",0,1],["Røde kirsebær",0,1],["Viol",1,1],["Grøn peberfrugt",2,1],["Grafit",5,1],["Blyantspids",5,1],["Solbær",0,1],["Urter",2,1],["Ribs",0,0],["Tobak",7,0],["Lakrids",3,0],["Jord",7,0],["Skovbund",7,0],["Kirsebær",0,0],["Tørret frugt",0,0],["Nellike",3,0],["Kanel",3,0],["Vanilje",6,0],["Cedertræ",6,0],["Læder",7,0],["Svampe",7,0],["Røg",7,0]]},"grape_nebbiolo":{"n":"Generisk Nebbiolo","g":"nebbiolo","r":"","s":"red","t":[["Roser",1,1],["Tjære",7,1],["Røde kirsebær",0,1],["Hindbær",0,1],["Viol",1,1],["Lakrids",3,1],["Tørrede roser",1,1],["Læder",7,1],["Trøffel",7,0],["Skovbund",7,0],["Tobak",7,0],["Appelsinskal",0,0],["Te",8,0],["Jord",7,0],["Kirsebær",0,0],["Tørret frugt",0,0],["Nellike",3,0],["Kanel",3,0],["Vanilje",6,0],["Cedertræ",6,0],["Svampe",7,0],["Røg",7,0]]},"grape_sangiovese":{"n":"Generisk Sangiovese","g":"sangiovese","r":"","s":"red","t":[["Sure kirsebær",0,1],["Røde kirsebær",0,1],["Tørrede urter",2,1],["Viol",1,1],["Tomatblad",2,1],["Læder",7,1],["Tobak",7,1],["Ribs",0,1],["Blomme",0,0],["Jord",7,0],["Te",8,0],["Cedertræ",6,0],["Appelsinskal",0,0],["Lakrids",3,0],["Kirsebær",0,0],["Tørret frugt",0,0],["Nellike",3,0],["Kanel",3,0],["Vanilje",6,0],["Skovbund",7,0],["Svampe",7,0],["Røg",7,0]]},"grape_tempranillo":{"n":"Generisk Tempranillo","g":"tempranillo","r":"","s":"red","t":[["Røde kirsebær",0,1],["Blomme",0,1],["Jordbær",0,1],["Læder",7,1],["Tobak",7,1],["Vanilje",6,1],["Dild",3,1],["Cedertræ",6,1],["Kokos",6,0],["Lakrids",3,0],["Brombær",0,0],["Jord",7,0],["Røg",7,0],["Kaffe",6,0],["Kirsebær",0,0],["Tørret frugt",0,0],["Nellike",3,0],["Kanel",3,0],["Skovbund",7,0],["Svampe",7,0],["Chokolade",6,0],["Urter",2,0]]},"grape_grenache":{"n":"Generisk Grenache","g":"grenache","r":"","s":"red","t":[["Jordbær",0,1],["Hindbær",0,1],["Kirsebær",0,1],["Hvid peber",3,1],["Timian",2,1],["Lakrids",3,1],["Blomme",0,1],["Appelsinskal",0,1],["Lavendel",1,0],["Garrigue",2,0],["Kanel",3,0],["Røde blomster",1,0],["Jord",7,0],["Tørret frugt",0,0],["Nellike",3,0],["Vanilje",6,0],["Cedertræ",6,0],["Tobak",7,0],["Læder",7,0],["Skovbund",7,0],["Svampe",7,0],["Røg",7,0]]},"grape_riesling":{"n":"Generisk Riesling","g":"riesling","r":"","s":"white","t":[["Lime",0,1],["Citron",0,1],["Grønt æble",0,1],["Hvide blomster",1,1],["Fersken",0,1],["Petroleum",7,1],["Skifer",5,1],["Abrikos",0,1],["Honning",8,0],["Grapefrugt",0,0],["Salt",5,0],["Ananas",0,0],["Citronskal",0,0],["Ingefær",3,0],["Appelsinskal",0,0],["Gule æbler",0,0],["Pære",0,0],["Melon",0,0],["Kamille",8,0],["Hyldeblomst",1,0],["Urter",2,0],["Græs",2,0]]},"grape_sauvignon_blanc":{"n":"Generisk Sauvignon Blanc","g":"sauvignon_blanc","r":"","s":"white","t":[["Grapefrugt",0,1],["Stikkelsbær",0,1],["Græs",2,1],["Lime",0,1],["Hyldeblomst",1,1],["Passionsfrugt",0,1],["Solbærblad",2,1],["Grøn peberfrugt",2,1],["Citron",0,0],["Flint",5,0],["Asparges",2,0],["Urter",2,0],["Appelsinskal",0,0],["Grønt æble",0,0],["Gule æbler",0,0],["Pære",0,0],["Fersken",0,0],["Abrikos",0,0],["Ananas",0,0],["Melon",0,0],["Hvide blomster",1,0],["Kamille",8,0]]},"grape_chenin_blanc":{"n":"Generisk Chenin Blanc","g":"chenin_blanc","r":"","s":"white","t":[["Kvæde",0,1],["Grønt æble",0,1],["Pære",0,1],["Honning",8,1],["Kamille",8,1],["Voks",8,1],["Citron",0,1],["Bivoks",8,1],["Abrikos",0,0],["Hvide blomster",1,0],["Uld",8,0],["Fersken",0,0],["Nødder",6,0],["Ingefær",3,0],["Lime",0,0],["Grapefrugt",0,0],["Appelsinskal",0,0],["Gule æbler",0,0],["Ananas",0,0],["Melon",0,0],["Hyldeblomst",1,0],["Urter",2,0]]},"grape_gewurztraminer":{"n":"Generisk Gewurztraminer","g":"gewurztraminer","r":"","s":"white","t":[["Litchi",0,1],["Roser",1,1],["Ingefær",3,1],["Tropisk frugt",0,1],["Appelsinskal",0,1],["Honning",8,1],["Krydderier",3,1],["Fersken",0,1],["Abrikos",0,0],["Parfume",8,0],["Ananas",0,0],["Nellike",3,0],["Mango",0,0],["Citron",0,0],["Lime",0,0],["Grapefrugt",0,0],["Grønt æble",0,0],["Gule æbler",0,0],["Pære",0,0],["Melon",0,0],["Hvide blomster",1,0],["Kamille",8,0]]},"grape_pinot_gris":{"n":"Generisk Pinot Gris","g":"pinot_gris","r":"","s":"white","t":[["Pære",0,1],["Fersken",0,1],["Abrikos",0,1],["Honning",8,1],["Æbleskræl",0,1],["Krydderier",3,1],["Melon",0,1],["Appelsinskal",0,1],["Røg",7,0],["Nødder",6,0],["Ingefær",3,0],["Citron",0,0],["Lime",0,0],["Grapefrugt",0,0],["Grønt æble",0,0],["Gule æbler",0,0],["Ananas",0,0],["Hvide blomster",1,0],["Kamille",8,0],["Hyldeblomst",1,0],["Urter",2,0],["Græs",2,0]]},"grape_albarino":{"n":"Generisk Albarino","g":"albarino","r":"","s":"white","t":[["Citrus",0,1],["Fersken",0,1],["Salt",5,1],["Citron",0,1],["Grapefrugt",0,1],["Grønt æble",0,1],["Hvide blomster",1,1],["Lime",0,1],["Melon",0,0],["Abrikos",0,0],["Urter",2,0],["Appelsinskal",0,0],["Gule æbler",0,0],["Pære",0,0],["Ananas",0,0],["Kamille",8,0],["Hyldeblomst",1,0],["Græs",2,0],["Flint",5,0],["Kridt",5,0],["Hasselnød",6,0],["Mandel",6,0]]},"grape_gruner_veltliner":{"n":"Generisk Gruner Veltliner","g":"gruner_veltliner","r":"","s":"white","t":[["Hvid peber",3,1],["Grønt æble",0,1],["Lime",0,1],["Citron",0,1],["Urter",2,1],["Pære",0,1],["Selleri",2,1],["Grapefrugt",0,1],["Røg",7,0],["Hvide blomster",1,0],["Appelsinskal",0,0],["Gule æbler",0,0],["Fersken",0,0],["Abrikos",0,0],["Ananas",0,0],["Melon",0,0],["Kamille",8,0],["Hyldeblomst",1,0],["Græs",2,0],["Flint",5,0],["Kridt",5,0],["Salt",5,0]]},"grape_viognier":{"n":"Generisk Viognier","g":"viognier","r":"","s":"white","t":[["Abrikos",0,1],["Fersken",0,1],["Hvide blomster",1,1],["Kaprifolie",1,1],["Mango",0,1],["Honning",8,1],["Pære",0,1],["Appelsinblomst",1,1],["Ingefær",3,0],["Citron",0,0],["Lime",0,0],["Grapefrugt",0,0],["Appelsinskal",0,0],["Grønt æble",0,0],["Gule æbler",0,0],["Ananas",0,0],["Melon",0,0],["Kamille",8,0],["Hyldeblomst",1,0],["Urter",2,0],["Græs",2,0],["Flint",5,0]]},"grape_mourvedre":{"n":"Generisk Mourvedre","g":"mourvedre","r":"","s":"red","t":[["Brombær",0,1],["Vildt",7,1],["Læder",7,1],["Sort peber",3,1],["Blomme",0,1],["Lakrids",3,1],["Urter",2,1],["Røg",7,1],["Sorte oliven",8,0],["Jord",7,0],["Tobak",7,0],["Kød",7,0],["Kirsebær",0,0],["Tørret frugt",0,0],["Nellike",3,0],["Kanel",3,0],["Vanilje",6,0],["Cedertræ",6,0],["Skovbund",7,0],["Svampe",7,0],["Kaffe",6,0],["Chokolade",6,0]]},"grape_malbec":{"n":"Generisk Malbec","g":"malbec","r":"","s":"red","t":[["Blomme",0,1],["Brombær",0,1],["Viol",1,1],["Blåbær",0,1],["Mørk chokolade",6,1],["Solbær",0,1],["Lakrids",3,1],["Vanilje",6,1],["Sort peber",3,0],["Kaffe",6,0],["Tobak",7,0],["Kirsebær",0,0],["Tørret frugt",0,0],["Nellike",3,0],["Kanel",3,0],["Cedertræ",6,0],["Læder",7,0],["Jord",7,0],["Skovbund",7,0],["Svampe",7,0],["Røg",7,0],["Chokolade",6,0]]},"grape_zinfandel":{"n":"Generisk Zinfandel","g":"zinfandel","r":"","s":"red","t":[["Brombær",0,1],["Hindbærsyltetøj",0,1],["Blomme",0,1],["Sort peber",3,1],["Lakrids",3,1],["Kanel",3,1],["Vanilje",6,1],["Chokolade",6,1],["Rosiner",0,0],["Kirsebær",0,0],["Nellike",3,0],["Tørret frugt",0,0],["Cedertræ",6,0],["Tobak",7,0],["Læder",7,0],["Jord",7,0],["Skovbund",7,0],["Svampe",7,0],["Røg",7,0],["Kaffe",6,0],["Urter",2,0],["Mynte",2,0]]},"grape_muscat":{"n":"Generisk Muscat","g":"muscat","r":"","s":"white","t":[["Druer",0,1],["Appelsinblomst",1,1],["Roser",1,1],["Litchi",0,1],["Fersken",0,1],["Mandarin",0,1],["Honning",8,1],["Citrus",0,1],["Jasmin",1,0],["Abrikos",0,0],["Mango",0,0],["Citron",0,0],["Lime",0,0],["Grapefrugt",0,0],["Appelsinskal",0,0],["Grønt æble",0,0],["Gule æbler",0,0],["Pære",0,0],["Ananas",0,0],["Melon",0,0],["Hvide blomster",1,0],["Kamille",8,0]]},"color_red":{"n":"Generisk rødvin","g":"blend_red","r":"","s":"red","t":[["Solbær",0,1],["Brombær",0,1],["Blomme",0,1],["Kirsebær",0,1],["Lakrids",3,1],["Cedertræ",6,1],["Tobak",7,1],["Sort peber",3,1],["Viol",1,0],["Jord",7,0],["Læder",7,0],["Vanilje",6,0],["Tørret frugt",0,0],["Nellike",3,0],["Kanel",3,0],["Skovbund",7,0],["Svampe",7,0],["Røg",7,0],["Kaffe",6,0],["Chokolade",6,0],["Urter",2,0],["Mynte",2,0]]},"color_white":{"n":"Generisk hvidvin","g":"blend_white","r":"","s":"white","t":[["Citron",0,1],["Pære",0,1],["Grønt æble",0,1],["Hvide blomster",1,1],["Fersken",0,1],["Lime",0,1],["Mineralsk",5,1],["Honning",8,1],["Grapefrugt",0,0],["Urter",2,0],["Nødder",6,0],["Appelsinskal",0,0],["Gule æbler",0,0],["Abrikos",0,0],["Ananas",0,0],["Melon",0,0],["Kamille",8,0],["Hyldeblomst",1,0],["Græs",2,0],["Flint",5,0],["Kridt",5,0],["Salt",5,0]]},"color_sparkling":{"n":"Generisk mousserende","g":"sparkling","r":"","s":"sparkling","t":[["Citron",0,1],["Grønt æble",0,1],["Brioche",6,1],["Toast",6,1],["Gær",6,1],["Pære",0,1],["Kridt",5,1],["Hvide blomster",1,1],["Mandel",6,0],["Hasselnød",6,0],["Grapefrugt",0,0],["Salt",5,0],["Smør",6,0],["Lime",0,0],["Honning",8,0],["Fersken",0,0],["Abrikos",0,0],["Jordbær",0,0],["Hindbær",0,0],["Røde kirsebær",0,0],["Kvæde",0,0],["Æbleskræl",0,0]]},"color_orange":{"n":"Generisk orangevin","g":"orange","r":"","s":"orange","t":[["Appelsinskal",0,1],["Tørret abrikos",0,1],["Te",8,1],["Æbleskræl",0,1],["Kvæde",0,1],["Tørrede blomster",1,1],["Honning",8,1],["Urter",2,1],["Nødder",6,0],["Bitter appelsin",0,0],["Kamille",8,0],["Citronskal",0,0],["Ingefær",3,0],["Mandel",6,0],["Bivoks",8,0],["Gær",6,0],["Salt",5,0],["Fersken",0,0],["Abrikos",0,0],["Pære",0,0],["Tørret frugt",0,0],["Røg",7,0]]},"color_sweet":{"n":"Generisk sød vin","g":"sweet","r":"","s":"sweet","t":[["Honning",8,1],["Abrikos",0,1],["Tørret abrikos",0,1],["Appelsinmarmelade",0,1],["Fersken",0,1],["Kvæde",0,1],["Bivoks",8,1],["Ingefær",3,1],["Kandiseret citrus",0,0],["Safran",3,0],["Rosiner",0,0],["Ananas",0,0],["Mango",0,0],["Litchi",0,0],["Appelsinblomst",1,0],["Roser",1,0],["Citron",0,0],["Lime",0,0],["Grapefrugt",0,0],["Vanilje",6,0],["Karamel",6,0],["Nødder",6,0]]},"grape_nerello_mascalese":{"n":"Nerello Mascalese – generel","g":"nerello_mascalese","r":"","s":"red","t":[["Røde kirsebær",0,1],["Hindbær",0,1],["Jordbær",0,1],["Roser",1,1],["Blodappelsin",0,1],["Tranebær",0,1],["Tørrede urter",4,1],["Sort peber",4,1],["Granatæble",0,0],["Viol",1,0],["Rød blomme",0,0],["Te",9,0],["Lakrids",4,0],["Skovbund",9,0],["Tobak",9,0],["Læder",9,0],["Røg",9,0],["Krydderurter",4,0],["Mineralsk",9,0],["Tørrede blomster",1,0],["Ribs",0,0],["Kirsebærsten",0,0],["Jord",9,0],["Enebær",4,0]]},"etna_nerello_mascalese":{"n":"Nerello Mascalese – Etna","g":"nerello_mascalese","r":"etna","s":"red","t":[["Røde kirsebær",0,1],["Blodappelsin",0,1],["Hindbær",0,1],["Roser",1,1],["Røg",9,1],["Tørrede urter",4,1],["Jordbær",0,1],["Mineralsk",9,1],["Tranebær",0,0],["Granatæble",0,0],["Viol",1,0],["Sort peber",4,0],["Te",9,0],["Skovbund",9,0],["Flint",9,0],["Rød blomme",0,0],["Tobak",9,0],["Lakrids",4,0],["Tørrede blomster",1,0],["Vulkansk sten",9,0],["Læder",9,0],["Ribs",0,0],["Jord",9,0],["Krydderurter",4,0]]},"color_rose":{"n":"Generisk rosé","g":"blend_rose","r":"","s":"rose","t":[["Jordbær",0,1],["Hindbær",0,1],["Røde kirsebær",0,1],["Citrus",0,1],["Fersken",0,1],["Ribs",0,1],["Vandmelon",0,1],["Roser",1,1],["Grapefrugt",0,0],["Blodappelsin",0,0],["Melon",0,0],["Hvide blomster",1,0],["Granatæble",0,0],["Tranebær",0,0],["Pære",0,0],["Urter",4,0],["Mineralsk",9,0],["Salt",9,0],["Lime",0,0],["Appelsinskal",0,0],["Abrikos",0,0],["Grønt æble",0,0],["Røde bær",0,0],["Lavendel",1,0]]}},"alias":{"drue":{"syrah":"syrah","pinot_noir":"pinot_noir","chardonnay":"chardonnay","savagnin":"savagnin","trousseau":"trousseau","poulsard":"poulsard","gamay":"gamay","cabernet_sauvignon":"cabernet_sauvignon","merlot":"merlot","cabernet_franc":"cabernet_franc","nebbiolo":"nebbiolo","sangiovese":"sangiovese","tempranillo":"tempranillo","grenache":"grenache","riesling":"riesling","sauvignon_blanc":"sauvignon_blanc","chenin_blanc":"chenin_blanc","gewurztraminer":"gewurztraminer","pinot_gris":"pinot_gris","albarino":"albarino","gruner_veltliner":"gruner_veltliner","viognier":"viognier","mourvedre":"mourvedre","malbec":"malbec","zinfandel":"zinfandel","muscat":"muscat","shiraz":"syrah","spatburgunder":"pinot_noir","pinot_nero":"pinot_noir","nature":"savagnin","bastardo":"trousseau","ploussard":"poulsard","garnacha":"grenache","garnatxa":"grenache","tinto_fino":"tempranillo","tinta_del_pais":"tempranillo","cab_franc":"cabernet_franc","nerello_mascalese":"nerello_mascalese","nerello_mascalese_rosso":"nerello_mascalese"},"region":{"jura":"jura","arbois":"jura","cotes_du_jura":"jura","l_etoile":"jura","chateau_chalon":"jura","northern_rhone":"northern_rhone","nordrhone":"northern_rhone","nordlige_rhone":"northern_rhone","cote_rotie":"northern_rhone","hermitage":"northern_rhone","cornas":"northern_rhone","saint_joseph":"northern_rhone","crozes_hermitage":"northern_rhone","barossa":"barossa","barossa_valley":"barossa","mclaren_vale":"mclaren_vale","south_africa":"south_africa","sydafrika":"south_africa","bourgogne":"bourgogne","burgundy":"bourgogne","burgund":"bourgogne","oregon":"oregon","central_otago":"central_otago","germany":"germany","tyskland":"germany","deutschland":"germany","chablis":"chablis","cote_de_beaune":"cote_de_beaune","meursault":"cote_de_beaune","puligny_montrachet":"cote_de_beaune","chassagne_montrachet":"cote_de_beaune","california":"california","californien":"california","australia":"australia","australien":"australia","bordeaux":"bordeaux","napa_valley":"napa_valley","napa":"napa_valley","coonawarra":"coonawarra","chile":"chile","chili":"chile","mosel":"mosel","moselle":"mosel","rheingau":"rheingau","alsace":"alsace","clare_valley":"clare_valley","clare":"clare_valley","loire":"loire","loiredalen":"loire","loire_valley":"loire","sancerre":"loire","pouilly_fume":"loire","marlborough":"marlborough","vouvray":"vouvray","savennieres":"savennieres","barolo":"barolo","barbaresco":"barbaresco","chianti_classico":"chianti_classico","brunello":"brunello","brunello_di_montalcino":"brunello","rioja":"rioja","ribera_del_duero":"ribera_del_duero","toro":"toro","southern_rhone":"southern_rhone","sydrhone":"southern_rhone","chateauneuf_du_pape":"southern_rhone","priorat":"priorat","beaujolais":"beaujolais","chinon":"chinon","saumur_champigny":"saumur_champigny","rias_baixas":"rias_baixas","wachau":"wachau","condrieu":"condrieu","mendoza":"mendoza","bandol":"bandol","champagne":"champagne","prosecco":"prosecco","cava":"cava","georgia":"georgia","georgien":"georgia","qvevri":"georgia","friuli":"friuli","friuli_venezia_giulia":"friuli","sauternes":"sauternes","etna":"etna","etna_doc":"etna","mount_etna":"etna","sicilia":"sicilien","sicily":"sicilien","sicilien":"sicilien"},"land":{"france":"france","frankrig":"france","italy":"italy","italien":"italy","germany":"germany","tyskland":"germany","australia":"australia","australien":"australia","new_zealand":"new_zealand","newzealand":"new_zealand","usa":"usa","united_states":"usa","forenede_stater":"usa","spain":"spain","spanien":"spain","austria":"austria","strig":"austria","osterreich":"austria","south_africa":"south_africa","sydafrika":"south_africa","georgia":"georgia","georgien":"georgia","chile":"chile","chili":"chile","argentina":"argentina"}},"natur":[["Reduktion / tændstik","Reduktiv"],["Gummi","Reduktiv"],["Kål","Reduktiv"],["Cideræble","Oxidation / udvikling"],["Sherry","Oxidation / udvikling"],["Eddike","Flygtig syre"],["Neglelak","Flygtig syre"],["Stald","Brettanomyces"],["Læder / animalsk","Brettanomyces / udvikling"],["Musetone","Musetone"],["Gær","Gærkontakt"],["Kombucha","Fermentativ"],["Uklar / grumset","Udseende"]]};
+const TASTE_FIRST = 8; // shown straight away; the rest under "Vis flere"
+function smagKey(s){
+  return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/ß/g,'ss').replace(/æ/g,'ae').replace(/ø/g,'o').replace(/å/g,'a')
+    .replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').replace(/_(aoc|aop|doc|docg|do|doca|dop|ava|igp|igt|g_u|county)$/,'');
+}
+// The app's names (incl. its synonyms and aliases) → the profile sheet's ids.
+function smagGrapeId(name){
+  const k = smagKey(name); if(!k) return '';
+  if(SMAG.alias.drue[k]) return SMAG.alias.drue[k];
+  const row = (typeof VINDATA!=='undefined' && VINDATA.druer || []).find(d=>smagKey(d[0])===k || (d[2]||[]).some(x=>smagKey(x)===k));
+  if(row) for(const n of [row[0]].concat(row[2]||[])){ const id = SMAG.alias.drue[smagKey(n)]; if(id) return id; }
+  return k;
+}
+function smagPlaceIds(t){
+  const out = [];
+  [t.appellation, t.region, t.land].forEach(n=>{
+    const names = [n].concat((typeof VINDATA!=='undefined' && VINDATA.alias && VINDATA.alias[n]) || []);
+    names.forEach(x=>{ const k = smagKey(x), id = SMAG.alias.region[k] || SMAG.alias.land[k]; if(id && !out.includes(id)) out.push(id); });
+  });
+  return out;
+}
+const SMAG_COLOR = { 'Rød':'red', 'Hvid':'white', 'Rosé':'rose', 'Orange':'orange', 'Bobler':'sparkling', 'Restsød/Sød':'sweet' };
+// Match order (sheet "Matchregler"): grape+region+known style > grape+region > grape > wine type.
+// Ouillé/oxidative are never guessed; Vin Jaune only when the label says so.
+function smagProfileId(r, d){
+  const t = r.truth || {};
+  const color = SMAG_COLOR[r.wineType] || (r.wineType ? '' : ({'Rød':'red','Hvid':'white','Rosé':'rose','Bobler':'sparkling'})[d.base] || '');
+  const places = smagPlaceIds(t);
+  const style = /vin_jaune|chateau_chalon/.test(smagKey([t.type, t.appellation, r.wineNote].join(' '))) ? 'vin_jaune' : '';
+  const P = SMAG.profiles, ids = Object.keys(P);
+  const colorOf = id => { const s = P[id].s; return s==='ouille'||s==='oxidative'||s==='vin_jaune' ? 'white' : s; };
+  const byPlace = list => { for(const pl of places){ const hit = list.find(id=>P[id].r===pl); if(hit) return hit; } return ''; };
+  if(color==='rose') return 'color_rose';
+  if(color==='sparkling' || color==='orange') return byPlace(ids.filter(id=>P[id].s===color && P[id].r)) || 'color_'+color;
+  for(const g of [t.drue1, t.drue2].map(smagGrapeId).filter(Boolean)){
+    const mine = ids.filter(id=>P[id].g===g && (!color || color==='sweet' || colorOf(id)===color));
+    const regional = byPlace(mine.filter(id=>P[id].r && (P[id].s===style || P[id].s==='red' || P[id].s==='white')));
+    if(regional) return regional;
+    if(P['grape_'+g] && mine.includes('grape_'+g)) return 'grape_'+g;
+  }
+  if(color==='sweet') return byPlace(ids.filter(id=>P[id].s==='sweet' && P[id].r)) || 'color_sweet';
+  if(color==='red' || color==='white') return byPlace(ids.filter(id=>P[id].g==='blend_'+color && P[id].r)) || 'color_'+color;
+  return ''; // unknown type and no known grape: ask (rule 13), never pick red or white at random
+}
+function vinlexUrl(grape){
+  const slug = String(grape||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+  return slug ? 'https://www.vinlex.dk/Druesorter/' + slug : '';
+}
+function vinlexLinks(r){
+  const t = r.truth || {};
+  return [t.drue1, t.drue2].map(x=>String(x||'').trim()).filter((x,i,a)=>x && a.indexOf(x)===i)
+    .map(g=>`<a class="vinlex" href="${vinlexUrl(g)}" target="_blank" rel="noopener">Læs om ${esc(g)} på Vinlex ↗</a>`).join('');
+}
+function tasteKind(r, d){
+  const t = r && r.wineType;
+  const k = { id: smagProfileId(r, d) };
+  if(t==='Bobler'){ k.baseChoice = ['Hvid','Rosé','Rød']; k.base = d.base || 'Hvid'; }
+  if(!t && (!k.id || d.base)){ k.typeChoice = ['Rød','Hvid','Rosé','Bobler']; k.base = d.base; }
+  return k;
+}
+// [first 8, the rest grouped]; sparkling rosé/red also gets the tags of its base colour.
+function tasteLists(r, d){
+  const k = tasteKind(r, d), P = SMAG.profiles, seen = new Set(), first = [], rest = {};
+  const add = (tag, g, top) => { const key = tag.toLowerCase(); if(seen.has(key)) return; seen.add(key);
+    if(top && first.length < TASTE_FIRST) first.push(tag); else (rest[g] = rest[g] || []).push(tag); };
+  if(k.id) P[k.id].t.forEach(([tag, g, top])=>add(tag, g, top));
+  if(k.base==='Rosé' || k.base==='Rød') P[k.base==='Rosé' ? 'color_rose' : 'color_red'].t.forEach(([tag, g])=>add(tag, g, 0));
+  const groups = SMAG.groups.map((g,i)=>[g, rest[i]||[]]).filter(x=>x[1].length);
+  if(k.id) groups.push(['Naturvin og særlige noter', SMAG.natur.map(x=>x[0]).filter(tag=>!seen.has(tag.toLowerCase()))]);
+  SMAG.natur.forEach(x=>seen.add(x[0].toLowerCase()));
+  const own = d.tags.filter(t=>!seen.has(t.toLowerCase()));
+  return { k, first, groups, own };
+}
+function tasteTagsInner(r){
+  const d = tasteDraft(), L = tasteLists(r, d), on = new Set(d.tags.map(t=>t.toLowerCase()));
+  const chip = t => `<button type="button" class="tchip${on.has(t.toLowerCase())?' on':''}" aria-pressed="${on.has(t.toLowerCase())}" data-tag="${esc(t)}" onclick="toggleTasteTag(this)">${esc(t)}</button>`;
+  const seg = (lbl, opts, cur) => `<div class="taste-seg"><span class="lbl">${lbl}</span>${opts.map(o=>`<button type="button" class="${o===cur?'on':''}" onclick="setTasteBase('${o}')">${o==='Bobler'?'Mousserende':esc(o)}</button>`).join('')}</div>`;
+  let h = '';
+  if(L.k.baseChoice) h += seg('Grundfarve:', L.k.baseChoice, L.k.base);
+  if(L.k.typeChoice) h += seg('Hvilken slags vin?', L.k.typeChoice, L.k.base);
+  if(!L.k.id){
+    h += `<div class="taste-sub">Vælg vintypen, så kommer der forslag.</div>`;
+  } else {
+    const P = SMAG.profiles[L.k.id];
+    h += `<div class="taste-prof">Typisk for <b>${esc(P.n.replace(/^Generisk /,'').replace(/^(.)/,c=>c.toUpperCase()))}</b></div>`;
+    h += `<div class="taste-chips">${L.first.map(chip).join('')}</div>`;
+    if(d.more == null) d.more = L.groups.some(([,tags])=>tags.some(t=>on.has(t.toLowerCase())));
+    const n = L.groups.reduce((s,[,tags])=>s+tags.length, 0);
+    h += `<button type="button" class="taste-more" onclick="toggleTasteMore()" aria-expanded="${d.more}">${d.more ? 'Vis færre ▴' : `Vis flere (${n}) ▾`}</button>`;
+    if(d.more) h += L.groups.map(([g, tags])=>`<div class="taste-grp"><div class="taste-grp-h">${esc(g)}</div><div class="taste-chips">${tags.map(chip).join('')}</div></div>`).join('');
+  }
+  if(L.own.length) h += `<div class="taste-grp"><div class="taste-grp-h">Dine egne</div><div class="taste-chips">${L.own.map(chip).join('')}</div></div>`;
+  h += `<div class="taste-add"><input id="taste-new" type="text" maxlength="30" placeholder="+ Tilføj dit eget, fx “peberrod”" enterkeyhint="done" onkeydown="if(event.key==='Enter'){event.preventDefault();addTasteTag();}"><button type="button" onclick="addTasteTag()">Tilføj</button></div>`;
+  return h;
+}
+function toggleTasteMore(){ const d = tasteDraft(); if(!d) return; d.more = !d.more; redrawTasteTags(); }
+function redrawTasteTags(){ const el = document.getElementById('taste-tags'); if(el && ACTIVE) el.innerHTML = tasteTagsInner(ACTIVE); }
+function setTasteBase(b){ const d = tasteDraft(); if(!d) return; d.base = b; redrawTasteTags(); redrawTasteProfile(); }
+function toggleTasteTag(btn){
+  const d = tasteDraft(); if(!d) return;
+  const t = btn.getAttribute('data-tag'), i = d.tags.findIndex(x=>x.toLowerCase()===t.toLowerCase());
+  if(i>=0) d.tags.splice(i,1); else d.tags.push(t);
+  const on = i<0; btn.classList.toggle('on', on); btn.setAttribute('aria-pressed', on);
+  if(!on && btn.closest('.taste-grp') && btn.closest('.taste-grp').querySelector('.taste-grp-h').textContent==='Dine egne') redrawTasteTags();
+}
+function addTasteTag(){
+  const d = tasteDraft(), inp = document.getElementById('taste-new'); if(!d || !inp) return;
+  let t = inp.value.replace(/\s+/g,' ').trim().slice(0,30); if(!t) return;
+  t = t.charAt(0).toUpperCase() + t.slice(1);
+  if(!d.tags.some(x=>x.toLowerCase()===t.toLowerCase())) d.tags.push(t);
+  redrawTasteTags();
+  const n = document.getElementById('taste-new'); if(n) n.focus();
+}
+function tasteSliders(r, d){
+  // no wine type set: the taster's own choice, else the grape's colour (Poulsard → red)
+  const kind = r.wineType || (d.base==='Bobler' ? 'Bobler' : d.base) || grapeWineType(r);
+  return TASTE_PROFILE.filter(p=>(!p.only || p.only.includes(kind)) && !(p.not && p.not.includes(kind)));
+}
+function tasteProfileInner(r){
+  const d = tasteDraft();
+  return tasteSliders(r, d).map(p=>{
+    const v = d.profile[p.k];
+    const set = v>=1 && v<=5;
+    const segs = p.words.map((w,i)=>`<span class="tsl-seg${set && i<v?' fill':''}${set && i===v-1?' cur':''}"></span>`).join('');
+    return `<div class="tsl${set?' set':''}" id="tsl-${p.k}">
+      <div class="tsl-top"><span class="tsl-name">${p.name}</span><span><span class="tsl-word" id="tslw-${p.k}">${set ? p.words[v-1] : 'Ikke angivet'}</span><button type="button" class="tsl-clear" onclick="setTasteProfile('${p.k}',null)" aria-label="Nulstil ${p.name}">nulstil</button></span></div>
+      <div class="tsl-track" role="slider" tabindex="0" aria-label="${p.name}" aria-valuemin="1" aria-valuemax="5" aria-valuenow="${set?v:''}" aria-valuetext="${set?p.words[v-1]:'Ikke angivet'}" data-k="${p.k}" onpointerdown="tslDown(event,this)" onkeydown="tslKey(event,this)">${segs}</div>
+      <div class="tsl-ends"><span>${p.words[0]}</span><span>${p.words[4]}</span></div>
+    </div>`;
+  }).join('');
+}
+function redrawTasteProfile(){ const el = document.getElementById('taste-profile'); if(el && ACTIVE) el.innerHTML = tasteProfileInner(ACTIVE); }
+function setTasteProfile(k, v){
+  const d = tasteDraft(); if(!d) return;
+  const p = TASTE_PROFILE.find(x=>x.k===k); if(!p) return;
+  if(v==null) delete d.profile[k]; else d.profile[k] = v;
+  const box = document.getElementById('tsl-'+k); if(!box) return;
+  const set = v!=null;
+  box.classList.toggle('set', set);
+  box.querySelectorAll('.tsl-seg').forEach((s,i)=>{ s.classList.toggle('fill', set && i<v); s.classList.toggle('cur', set && i===v-1); });
+  document.getElementById('tslw-'+k).textContent = set ? p.words[v-1] : 'Ikke angivet';
+  const tr = box.querySelector('.tsl-track'); tr.setAttribute('aria-valuenow', set?v:''); tr.setAttribute('aria-valuetext', set ? p.words[v-1] : 'Ikke angivet');
+}
+// Tap a step, or drag along the track; a slider stays unanswered until it is touched.
+function tslAt(tr, x){ const b = tr.getBoundingClientRect(); return Math.max(1, Math.min(5, Math.floor((x - b.left) / b.width * 5) + 1)); }
+function tslDown(e, tr){
+  e.preventDefault();
+  const k = tr.getAttribute('data-k');
+  setTasteProfile(k, tslAt(tr, e.clientX));
+  try{ tr.setPointerCapture(e.pointerId); }catch(_){}
+  tr.onpointermove = ev => setTasteProfile(k, tslAt(tr, ev.clientX));
+  tr.onpointerup = tr.onpointercancel = () => { tr.onpointermove = null; };
+}
+function tslKey(e, tr){
+  const k = tr.getAttribute('data-k'), d = tasteDraft(), cur = d.profile[k] || 0;
+  if(e.key==='ArrowRight' || e.key==='ArrowUp'){ e.preventDefault(); setTasteProfile(k, cur ? Math.min(5, cur+1) : 3); }
+  else if(e.key==='ArrowLeft' || e.key==='ArrowDown'){ e.preventDefault(); setTasteProfile(k, cur ? Math.max(1, cur-1) : 3); }
+  else if(e.key==='Backspace' || e.key==='Delete'){ e.preventDefault(); setTasteProfile(k, null); }
+}
+function onTasteNote(el){
+  const d = tasteDraft(); if(!d) return;
+  d.note = el.value.slice(0, TASTE_NOTE_MAX);
+  el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px';
+  const c = document.getElementById('taste-count'); if(c) c.textContent = d.note.length > TASTE_NOTE_MAX - 300 ? `${d.note.length} / ${TASTE_NOTE_MAX}` : '';
+}
+// Folded away by default: one tap on the button opens the three optional cards.
+function tasteHasContent(d){ return !!(d && (d.tags.length || d.note.trim() || Object.values(d.profile).some(v=>v))); }
+function tasteSummaryText(d){
+  const n = Object.values(d.profile).filter(v=>v).length, parts = [];
+  if(d.tags.length) parts.push(d.tags.length + (d.tags.length===1 ? ' smagsnote' : ' smagsnoter'));
+  if(n) parts.push(n + (n===1 ? ' profilnote' : ' profilnoter'));
+  if(d.note.trim()) parts.push('egne noter');
+  return parts.join(' · ');
+}
+function tasteToggleHtml(d){
+  const sum = tasteHasContent(d) ? tasteSummaryText(d) : 'Smag, duft, profil og egne noter';
+  return `<span class="taste-tog-ic" aria-hidden="true">${d.open ? '−' : '+'}</span>
+    <span class="taste-tog-txt"><b>${d.open ? 'Skjul smagsnoter' : 'Uddyb din bedømmelse'}</b><small>${d.open ? 'Det udfyldte bliver ikke slettet' : esc(sum) + ' · valgfrit'}</small></span>
+    <span class="taste-tog-chev" aria-hidden="true">${d.open ? '▴' : '▾'}</span>`;
+}
+function toggleTasting(){
+  const d = tasteDraft(); if(!d) return;
+  d.open = !d.open;
+  const box = document.getElementById('taste-fold'), btn = document.getElementById('taste-tog');
+  if(box) box.hidden = !d.open;
+  if(btn){ btn.innerHTML = tasteToggleHtml(d); btn.setAttribute('aria-expanded', d.open); btn.classList.toggle('open', d.open); }
+  if(d.open && box){ box.classList.remove('taste-in'); void box.offsetWidth; box.classList.add('taste-in'); setTimeout(()=>box.scrollIntoView({behavior:'smooth', block:'start'}), 60); }
+}
+function tastingHtml(r){
+  const d = tasteDraft();
+  if(d.open == null) d.open = tasteHasContent(d); // reopened with saved notes → already unfolded
+  return `<button type="button" class="taste-tog${d.open?' open':''}" id="taste-tog" aria-expanded="${d.open}" aria-controls="taste-fold" onclick="toggleTasting()">${tasteToggleHtml(d)}</button>
+  <div id="taste-fold" ${d.open ? '' : 'hidden'}>
+  <div class="card taste-card">
+    <div class="taste-head"><div class="eyebrow">Hvad smager og dufter vinen af?</div><span class="taste-opt">Valgfrit</span></div>
+    <div class="taste-sub">Tryk på det, du kan genkende – vælg gerne flere.</div>
+    <div id="taste-tags">${tasteTagsInner(r)}</div>
+  </div>
+  <div class="card taste-card">
+    <div class="taste-head"><div class="eyebrow">Vinens profil</div><span class="taste-opt">Valgfrit</span></div>
+    <div class="taste-sub">Tryk eller træk. Det du ikke rører, gemmes ikke.</div>
+    <div id="taste-profile">${tasteProfileInner(r)}</div>
+  </div>
+  <div class="card taste-card">
+    <div class="taste-head"><div class="eyebrow">Dine egne noter</div><span class="taste-opt">Valgfrit</span></div>
+    <textarea class="taste-note" id="taste-note" rows="3" maxlength="${TASTE_NOTE_MAX}" placeholder="Hvad lagde du mærke til? Hvordan udviklede vinen sig i glasset? Hvad kunne du særligt godt lide?" oninput="onTasteNote(this)">${esc(d.note)}</textarea>
+    <div class="taste-count" id="taste-count"></div>
+  </div>
+  </div>`;
+}
+// What gets saved: only what was actually filled in (sliders not touched are left out).
+function tastingToSave(r){
+  const d = tasteDraft(); if(!d) return null;
+  const allowed = new Set(tasteSliders(r, d).map(p=>p.k));
+  const profile = {};
+  TASTE_PROFILE.forEach(p=>{ const v = d.profile[p.k]; profile[p.k] = allowed.has(p.k) && v>=1 && v<=5 ? v : null; }); // null clears an earlier answer
+  const out = { tags: d.tags.slice(), profile, note: d.note.trim(), base: d.base || '', profil: tasteKind(r, d).id || '' };
+  const empty = !out.tags.length && !out.note && !Object.values(profile).some(v=>v!=null);
+  const hadSaved = !!(r.tasting && r.tasting[MY_IDENTITY]);
+  return empty && !hadSaved ? null : out;
 }
 
 /* ================= RENDER: GAME ================= */
@@ -2012,6 +2328,12 @@ function chipBtn(kind, id, v, on, extra){
 const PICK_MORE = {}; // "guess.region" → true when "Flere" has been opened inline
 let PICK_ROUND = null;
 function pickerHtml(kind, id){
+  const html = pickerHtmlBase(kind, id);
+  if(id!=='drue1' && id!=='drue2') return html;
+  const grapes = splitMulti(ansObj(kind)[id] || '').map(g=>GRAPE_BY.get(vkey(g)) ? GRAPE_BY.get(vkey(g))[0] : g).filter(Boolean);
+  return html + (grapes.length ? `<div class="vinlex-row vinlex-pick">${grapes.map(g=>`<a class="vinlex" href="${vinlexUrl(g)}" target="_blank" rel="noopener">Læs om ${esc(g)} på Vinlex ↗</a>`).join('')}</div>` : '');
+}
+function pickerHtmlBase(kind, id){
   if(ACTIVE && PICK_ROUND !== ACTIVE.id){ PICK_ROUND = ACTIVE.id; [PICK_CUSTOM, PICK_OPEN, PICK_MORE].forEach(m=>Object.keys(m).forEach(k=>delete m[k])); }
   const o = ansObj(kind), v = o[id] || '', c = pickChoices(kind, id), key = kind+'.'+id;
   const custom = PICK_CUSTOM[key] || (v && !isKnownValue(id, v));
@@ -2348,8 +2670,12 @@ function bottleLevelY(score){ return BOTTLE.bottom - (BOTTLE.bottom - BOTTLE.nec
 // The wine in the bottle has the colour of the wine in the glass (the host's Vintype): [top, bottom, surface].
 const LIQUID = { 'Rød':['#A3283A','#5C1020','#C9586A'], 'Hvid':['#F2E3A4','#D6BE62','#FBF4D2'], 'Orange':['#D8A677','#9C6B4A','#F1CFA6'],
   'Rosé':['#F6B3BF','#DD7A8A','#FCD9DF'], 'Bobler':['#F2E3A4','#D6BE62','#FFFBEA'], 'Restsød/Sød':['#E8B23A','#A8700F','#F7D57A'] };
+function grapeWineType(r){
+  const g = r && r.truth && GRAPE_BY.get(vkey(String(r.truth.drue1||'').split(',')[0].trim()));
+  return g ? (g[1]==='rød' ? 'Rød' : g[1]==='hvid' ? 'Hvid' : '') : '';
+}
 function bottleSvg(k, count, name, me){
-  const wt = (ACTIVE && ACTIVE.wineType) || '', liq = LIQUID[wt] || ['#BFD0E2','#6F8FB0','#E6EEF6'];
+  const wt = (ACTIVE && (ACTIVE.wineType || grapeWineType(ACTIVE))) || '', liq = LIQUID[wt] || ['#BFD0E2','#6F8FB0','#E6EEF6'];
   // sparkling wine: bubbles rise through the liquid only (clipped to the current fill level)
   const bubbles = wt==='Bobler' ? `<g clip-path="url(#level-clip-${k})">${[[34,2.2,2.4,0],[46,1.6,3.1,1.1],[58,2.6,2.7,0.5],[70,1.8,3.4,1.9],[82,2.3,2.9,0.8],[94,1.7,3.2,2.3],[40,1.9,3.6,2.8],[64,1.5,2.5,1.5],[88,2.1,3.8,0.2],[52,1.8,3.3,2.6]]
       .map(([x,r,d,b],i)=>`<circle cx="${x}" cy="${150 + (i*29)%140}" r="${r}" fill="#FFFFFF" fill-opacity="0.85"><animate attributeName="cy" from="300" to="96" dur="${d}s" begin="-${b}s" repeatCount="indefinite"/></circle>`).join('')}</g>` : '';
@@ -2950,6 +3276,7 @@ function render(){
     : VIEW+'|'+(ACTIVE ? ACTIVE.id+'|'+ACTIVE.phase : 'idle')+'|'+myRole();
   if(screenKey === LAST_SCREEN_KEY) html = html.replace(/\bfade-in\b/g, '');
   LAST_SCREEN_KEY = screenKey;
+  if(PROEVE && VIEW==='game') html = proeveBarHtml() + html;
   c.innerHTML = html;
   if(!needsIdentity && VIEW==='game' && ACTIVE && ACTIVE.phase==='result'){
     // the bottle must be in view when the result appears — wherever this phone was scrolled to
@@ -2960,7 +3287,84 @@ function render(){
 }
 
 document.getElementById('content').innerHTML = `<div class="empty">Henter Vinholdet…</div>`;
-initBackend();
+/* ================= PRØVETILSTAND ================= */
+// ?proeve (evt. ?proeve=bobler) opens the rating screen with a made-up wine,
+// without connecting to anything — nothing is saved, nothing reaches the other phone.
+const PROEVE = (()=>{ try{ return new URLSearchParams(location.search).has('proeve'); }catch(e){ return false; } })();
+const PROEVE_WINES = [
+  { k:'pinot',    lbl:'Pinot Noir',   type:'Rød',  t:{ land:'Frankrig', region:'Bourgogne', appellation:'Gevrey-Chambertin', drue1:'Pinot Noir', aargang:'2019' } },
+  { k:'syrah',    lbl:'Barossa Shiraz', type:'Rød', t:{ land:'Australien', region:'South Australia', appellation:'Barossa Valley', drue1:'Syrah', aargang:'2018' } },
+  { k:'savagnin', lbl:'Jura Savagnin', type:'Hvid', t:{ land:'Frankrig', region:'Jura', appellation:'Arbois', drue1:'Savagnin', aargang:'2020' } },
+  { k:'vinjaune', lbl:'Vin Jaune',    type:'Hvid', t:{ land:'Frankrig', region:'Jura', appellation:'Château-Chalon', drue1:'Savagnin', aargang:'2015' } },
+  { k:'riesling', lbl:'Mosel Riesling', type:'Hvid', t:{ land:'Tyskland', region:'Mosel', drue1:'Riesling', aargang:'2021' } },
+  { k:'rose',     lbl:'Rosé',         type:'Rosé', t:{ land:'Frankrig', region:'Provence', drue1:'Grenache', aargang:'2023' } },
+  { k:'bobler',   lbl:'Champagne',    type:'Bobler', t:{ land:'Frankrig', region:'Champagne', drue1:'Chardonnay', aargang:'2016' } },
+  { k:'orange',   lbl:'Orange',       type:'Orange', t:{ land:'Italien', region:'Friuli Venezia Giulia', drue1:'Ribolla Gialla', aargang:'2020' } },
+  { k:'sod',      lbl:'Sauternes',    type:'Restsød/Sød', t:{ land:'Frankrig', region:'Bordeaux', appellation:'Sauternes', drue1:'Sémillon', aargang:'2017' } },
+  { k:'ukendt',   lbl:'Rød, ukendt drue', type:'Rød', t:{ land:'Portugal', region:'Douro', drue1:'Touriga Nacional', aargang:'2019' } },
+  { k:'ingen',    lbl:'Ingen vintype', type:'', t:{ land:'Frankrig', aargang:'2020' } }
+];
+// Test mode never stores anything: not in the database, not in this browser.
+function proeveOffline(){
+  NEEDS_SETUP = false; INITIAL_LOADED = true; USE_DB = false; DB = null;
+  patchRoundNow = async()=>{}; pushActiveNow = async()=>{}; flushPendingChanges = async()=>{ pendingPatch = {}; }; queueSave = ()=>{};
+}
+// "Gæt selv": fill in the guess yourself, then jump straight to the result.
+// There is no correct answer: your guess counts as the answer (so the tag
+// suggestions follow what you guessed) and the score is always 12.
+function startProeveSelv(){
+  proeveOffline();
+  if(!MY_IDENTITY) MY_IDENTITY = CONFIG.participants[0];
+  const other = CONFIG.participants.find(p=>p!==MY_IDENTITY) || 'Værten';
+  const blank = ()=>({land:'',region:'',appellation:'',drue1:'',drue2:'',aargang:'',type:''});
+  ACTIVE = { id:'proeve-selv-'+Date.now(), phase:'guessing', date: todayISO(), createdAt: Date.now(), ownerName:other, guessers:[MY_IDENTITY],
+    wineNote:'', wineType:'', truth:blank(), guesses:{ [MY_IDENTITY]:blank() }, judged:{}, sent:{}, proeveKey:'selv' };
+  WAITING_TO_GUESS = false; VIEW = 'game'; RULES_OPEN = false;
+  render(); window.scrollTo(0,0);
+}
+function proeveFinish(){
+  const me = MY_IDENTITY;
+  ACTIVE.truth = Object.assign({}, myGuessObj());
+  ACTIVE.judged = { [me]: Object.fromEntries(ALL_CATS.map(c=>[c.id, answered(ACTIVE,me,c.id) ? 'good' : 'bad'])) };
+  ACTIVE.scores = { [me]: 12 };
+  ACTIVE.finishedAt = Date.now();
+  ACTIVE.phase = 'result';
+  render(); window.scrollTo(0,0);
+}
+function startProeve(k){
+  proeveOffline();
+  if(!MY_IDENTITY){ let n = null; try{ n = new URLSearchParams(location.search).get('navn'); }catch(e){}
+    MY_IDENTITY = CONFIG.participants.find(p=>n && p.toLowerCase()===n.toLowerCase()) || CONFIG.participants[0]; }
+  if(k==null){ try{ k = (new URLSearchParams(location.search).get('proeve')||'').toLowerCase(); }catch(e){ k = ''; } }
+  if(k==='selv') return startProeveSelv();
+  const w = PROEVE_WINES.find(x=>x.k===k) || PROEVE_WINES[0];
+  const other = CONFIG.participants.find(p=>p!==MY_IDENTITY) || 'Værten';
+  ACTIVE = { id:'proeve-'+w.k+'-'+Date.now(), phase:'result', ownerName:other, guessers:[MY_IDENTITY], wineType:w.type,
+    truth:Object.assign({}, w.t), guesses:{ [MY_IDENTITY]:Object.assign(emptyAnswers(), { land:w.t.land, aargang:'2018' }) },
+    judged:{ [MY_IDENTITY]:{} }, scores:{ [MY_IDENTITY]:12 }, ratings:{ [other]:82 }, proeveKey:w.k };
+  VIEW = 'game'; render(); window.scrollTo(0,0);
+}
+function proeveBarHtml(){
+  if(!PROEVE) return '';
+  const cur = ACTIVE && ACTIVE.proeveKey;
+  if(ACTIVE && ACTIVE.phase==='guessing') return `<div class="proeve-bar"><b>Prøvetilstand</b> – udfyld dit gæt og tryk send. Der er intet facit; du får 12 point uanset hvad. Vintype (styrer druer og smagsforslag):
+    <div class="taste-seg" style="margin:8px 0 0">${WINE_TYPES.map(t=>`<button type="button" class="${ACTIVE.wineType===t?'on':''}" onclick="setWineType('${t}')">${t==='Bobler'?'Mousserende':esc(t)}</button>`).join('')}</div>
+    <button type="button" class="taste-more" onclick="startProeve('pinot')">← Tilbage til eksempelvinene</button></div>`;
+  return `<div class="proeve-bar"><b>Prøvetilstand</b> – intet bliver gemt. Prøv en anden vin:
+    <div class="taste-seg" style="margin:8px 0 0"><button type="button" class="${cur==='selv'?'on':''}" onclick="startProeveSelv()">✎ Gæt selv en vin</button>${PROEVE_WINES.map(w=>`<button type="button" class="${w.k===cur?'on':''}" onclick="startProeve('${w.k}')">${esc(w.lbl)}</button>`).join('')}</div></div>`;
+}
+function proeveSummary(){
+  const t = tastingToSave(ACTIVE), lines = [];
+  lines.push('Vurdering: ' + fmtRate(myRating() ?? 75));
+  if(t && t.tags.length) lines.push('Tags: ' + t.tags.join(', '));
+  if(t){ const pr = TASTE_PROFILE.filter(p=>t.profile[p.k]).map(p=>p.name+': '+p.words[t.profile[p.k]-1]); if(pr.length) lines.push(pr.join(' · ')); }
+  if(t && t.note) lines.push('Noter: ' + t.note);
+  if(t && t.profil) lines.push('Profil: ' + t.profil);
+  if(lines.length===1) lines.push('(kun scoren – helt fint)');
+  alert('Prøvetilstand – dette ville blive gemt:\n\n' + lines.join('\n'));
+}
+
+if(PROEVE) startProeve(); else initBackend();
 </script>
 
 
