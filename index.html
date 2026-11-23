@@ -536,11 +536,19 @@ body.psheet-open{overflow:hidden}
 .tsl.set .tsl-word{color:var(--text);font-style:normal;font-weight:700}
 .tsl-clear{font:inherit;font-size:.75rem;color:var(--text-faint);background:none;border:0;padding:2px 0 2px 8px;cursor:pointer;text-decoration:underline;visibility:hidden}
 .tsl.set .tsl-clear{visibility:visible}
-.tsl-track{position:relative;display:flex;gap:5px;height:34px;align-items:center;touch-action:pan-y;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.tsl-seg{flex:1;height:10px;border-radius:5px;background:var(--bg-2);border:1px solid var(--border);transition:background .12s,height .12s}
-.tsl.set .tsl-seg.fill{background:var(--accent);border-color:var(--accent)}
-.tsl.set .tsl-seg.cur{height:20px;background:var(--text);border-color:var(--text)}
-.tsl:not(.set) .tsl-track::after{content:'Tryk for at angive';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:.72rem;color:var(--text-faint);pointer-events:none;background:var(--surface);padding:0 8px;white-space:nowrap}
+.tsl{--tsl-from:#E2E8EF;--tsl-to:#182E4A}
+.tsl-track{position:relative;height:40px;padding:0 15px;touch-action:pan-y;cursor:pointer;-webkit-tap-highlight-color:transparent;outline:none}
+.tsl-in{position:relative;height:100%}
+.tsl-rail{position:absolute;left:0;right:0;top:50%;height:10px;margin-top:-5px;border-radius:5px;background:var(--bg-2);overflow:hidden}
+.tsl-fill{position:absolute;left:0;top:0;bottom:0;width:0;background:linear-gradient(90deg,var(--tsl-from),var(--tsl-to));transition:width .18s ease}
+.tsl-dot{position:absolute;top:50%;width:4px;height:4px;margin:-2px 0 0 -2px;border-radius:50%;background:var(--text-faint);opacity:.55;pointer-events:none}
+.tsl-dot.on{background:var(--surface);opacity:.9}
+.tsl-ball{position:absolute;top:50%;width:28px;height:28px;margin:-14px 0 0 -14px;border-radius:50%;background:var(--surface);border:3.5px solid var(--text);box-shadow:0 2px 6px rgba(0,0,0,.18);transition:left .18s ease,transform .12s;pointer-events:none}
+.tsl:not(.set) .tsl-ball{border-style:dashed;border-color:var(--text-faint);box-shadow:none;animation:dialWait 1.8s ease-in-out infinite}
+.tsl-track.drag .tsl-ball{transition:none;transform:scale(1.12)}
+.tsl-track.drag .tsl-fill{transition:none}
+.tsl-track:focus-visible .tsl-ball{box-shadow:0 0 0 3px var(--accent-2)}
+@media (prefers-reduced-motion:reduce){.tsl:not(.set) .tsl-ball{animation:none}}
 .tsl-ends{display:flex;justify-content:space-between;font-size:.75rem;color:var(--text-faint);margin-top:4px}
 .taste-note{width:100%;box-sizing:border-box;font:inherit;font-size:16px;line-height:1.45;padding:12px 14px;min-height:96px;border-radius:var(--r-sm,var(--radius));background:var(--input,var(--bg));color:var(--text);border:1.5px solid var(--border);resize:none;overflow:hidden}
 .taste-note:focus{outline:none;border-color:var(--text)}
@@ -1888,7 +1896,8 @@ function tasteProfileInner(r){
   return tasteSliders(r, d).map(p=>{
     const v = d.profile[p.k];
     const set = v>=1 && v<=5;
-    const segs = p.words.map((w,i)=>`<span class="tsl-seg${set && i<v?' fill':''}${set && i===v-1?' cur':''}"></span>`).join('');
+    const f = set ? (v - 1) / 4 : 0.5;
+    const segs = `<div class="tsl-in"><div class="tsl-rail"><div class="tsl-fill" style="${set ? tslFillStyle(f) : ''}"></div></div>${[0,1,2,3,4].map(i=>`<span class="tsl-dot${set && i < v ? ' on' : ''}" style="left:${i*25}%"></span>`).join('')}<span class="tsl-ball" style="left:${f*100}%"></span></div>`;
     return `<div class="tsl${set?' set':''}" id="tsl-${p.k}">
       <div class="tsl-top"><span class="tsl-name">${p.name}</span><span><span class="tsl-word" id="tslw-${p.k}">${set ? p.words[v-1] : 'Ikke angivet'}</span><button type="button" class="tsl-clear" onclick="setTasteProfile('${p.k}',null)" aria-label="Nulstil ${p.name}">nulstil</button></span></div>
       <div class="tsl-track" role="slider" tabindex="0" aria-label="${p.name}" aria-valuemin="1" aria-valuemax="5" aria-valuenow="${set?v:''}" aria-valuetext="${set?p.words[v-1]:'Ikke angivet'}" data-k="${p.k}" onpointerdown="tslDown(event,this)" onkeydown="tslKey(event,this)">${segs}</div>
@@ -1904,26 +1913,41 @@ function setTasteProfile(k, v){
   const box = document.getElementById('tsl-'+k); if(!box) return;
   const set = v!=null;
   box.classList.toggle('set', set);
-  box.querySelectorAll('.tsl-seg').forEach((s,i)=>{ s.classList.toggle('fill', set && i<v); s.classList.toggle('cur', set && i===v-1); });
+  tslShow(box, set ? (v - 1) / 4 : 0.5, set ? v : 0);
   document.getElementById('tslw-'+k).textContent = set ? p.words[v-1] : 'Ikke angivet';
   const tr = box.querySelector('.tsl-track'); tr.setAttribute('aria-valuenow', set?v:''); tr.setAttribute('aria-valuetext', set ? p.words[v-1] : 'Ikke angivet');
 }
-// Tap a step, or drag sideways along the track; a slider stays unanswered until then.
+function tslFillStyle(f){ return f > 0 ? `width:${(f*100).toFixed(2)}%;background-size:${(100/f).toFixed(2)}% 100%` : 'width:0'; }
+function tslShow(box, f, v){
+  const fill = box.querySelector('.tsl-fill'), ball = box.querySelector('.tsl-ball');
+  if(fill) fill.setAttribute('style', v ? tslFillStyle(f) : '');
+  if(ball) ball.style.left = (f*100) + '%';
+  box.querySelectorAll('.tsl-dot').forEach((d,i)=>d.classList.toggle('on', !!v && i < v));
+}
+// Grab the ball and drag it; or tap a spot, or drag sideways along the rail.
 // A finger that moves up or down is scrolling the page and changes nothing.
-function tslAt(tr, x){ const b = tr.getBoundingClientRect(); return Math.max(1, Math.min(5, Math.floor((x - b.left) / b.width * 5) + 1)); }
+function tslFrac(tr, x){ const b = tr.querySelector('.tsl-in').getBoundingClientRect(); return Math.max(0, Math.min(1, (x - b.left) / b.width)); }
+function tslAt(tr, x){ return Math.round(tslFrac(tr, x) * 4) + 1; }
 function tslDown(e, tr){
-  const k = tr.getAttribute('data-k'), x0 = e.clientX, y0 = e.clientY;
-  if(e.pointerType==='mouse'){ e.preventDefault(); setTasteProfile(k, tslAt(tr, x0)); }
-  let drag = e.pointerType==='mouse', moved = false;
+  const k = tr.getAttribute('data-k'), x0 = e.clientX, y0 = e.clientY, box = tr.closest('.tsl'), p = TASTE_PROFILE.find(x=>x.k===k);
+  const ball = tr.querySelector('.tsl-ball').getBoundingClientRect(), onBall = Math.abs(x0 - (ball.left + ball.width/2)) < 26;
+  let drag = false, moved = false;
+  const follow = x => { const f = tslFrac(tr, x), v = Math.round(f * 4) + 1;
+    box.classList.add('set'); tslShow(box, f, v); document.getElementById('tslw-'+k).textContent = p.words[v-1]; };
+  const begin = id => { drag = true; tr.classList.add('drag'); try{ tr.setPointerCapture(id); }catch(_){} };
+  if(e.pointerType==='mouse' || onBall){ if(e.pointerType==='mouse') e.preventDefault(); begin(e.pointerId); follow(x0); }
   tr.onpointermove = ev => {
     const dx = ev.clientX - x0, dy = ev.clientY - y0;
     if(!drag){ if(Math.abs(dy) > 8 && Math.abs(dy) >= Math.abs(dx)){ moved = true; return; } // scrolling
-      if(Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)){ drag = true; try{ tr.setPointerCapture(ev.pointerId); }catch(_){} } else return; }
-    setTasteProfile(k, tslAt(tr, ev.clientX));
+      if(Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) begin(ev.pointerId); else return; }
+    follow(ev.clientX);
   };
-  tr.onpointerup = ev => { if(!drag && !moved && Math.abs(ev.clientX-x0) < 10 && Math.abs(ev.clientY-y0) < 10) setTasteProfile(k, tslAt(tr, ev.clientX)); end(); };
-  tr.onpointercancel = () => end(); // the browser took over to scroll
-  const end = () => { tr.onpointermove = tr.onpointerup = tr.onpointercancel = null; };
+  tr.onpointerup = ev => {
+    if(drag) setTasteProfile(k, tslAt(tr, ev.clientX));
+    else if(!moved && Math.abs(ev.clientX-x0) < 10 && Math.abs(ev.clientY-y0) < 10) setTasteProfile(k, tslAt(tr, ev.clientX));
+    end(); };
+  tr.onpointercancel = () => { if(drag){ const v = tasteDraft().profile[k]; setTasteProfile(k, v || null); } end(); }; // the browser took over to scroll
+  const end = () => { tr.classList.remove('drag'); tr.onpointermove = tr.onpointerup = tr.onpointercancel = null; };
 }
 function tslKey(e, tr){
   const k = tr.getAttribute('data-k'), d = tasteDraft(), cur = d.profile[k] || 0;
@@ -1972,7 +1996,7 @@ function tastingHtml(r){
   </div>
   <div class="card taste-card">
     <div class="taste-head"><div class="eyebrow">Vinens profil</div><span class="taste-opt">Valgfrit</span></div>
-    <div class="taste-sub">Tryk eller træk. Det du ikke rører, gemmes ikke.</div>
+    <div class="taste-sub">Træk i kuglen, eller tryk på linjen. Det du ikke rører, gemmes ikke.</div>
     <div id="taste-profile">${tasteProfileInner(r)}</div>
   </div>
   <div class="card taste-card">
