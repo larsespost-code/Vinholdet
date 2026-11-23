@@ -473,7 +473,7 @@ body.psheet-open{overflow:hidden}
 .rate-fine{display:flex;gap:10px;justify-content:center;margin-top:10px}
 .rate-fine .btn{min-width:64px}
 .rate-others{margin-top:12px;font-size:.95rem;color:var(--text-dim)}
-.dial{position:relative;width:100%;max-width:360px;margin:4px auto 0;touch-action:pan-y;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;outline:none}
+.dial{position:relative;width:100%;max-width:360px;margin:-26px auto 0;touch-action:pan-y;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;outline:none}
 .dial svg{display:block;width:100%;height:auto;overflow:visible}
 .dial-track{fill:none;stroke:var(--bg-2);stroke-width:14;stroke-linecap:round}
 .dial-fill{fill:none;stroke-width:14;stroke-linecap:butt}
@@ -486,11 +486,11 @@ body.psheet-open{overflow:hidden}
 @keyframes dialWait{50%{stroke:var(--text)}}
 @media (prefers-reduced-motion:reduce){.dial:not(.set) .dial-thumb{animation:none}}
 .dial.drag .dial-thumb{stroke:var(--accent-2);stroke-width:6}
-.dial-mid{position:absolute;left:0;right:0;top:50%;transform:translateY(-56%);text-align:center;pointer-events:none}
+.dial-mid{position:absolute;left:0;right:0;top:50%;transform:translateY(-62%);text-align:center;pointer-events:none}
 .dial-mid .rate-val{font-size:4.2rem;margin:0;line-height:1}
 .dial-of{font-size:.85rem;color:var(--text-faint);margin-top:4px}
 .dial:focus-visible{box-shadow:0 0 0 2px var(--accent-2);border-radius:50%}
-.dial + .rate-hint{margin-top:-30px;text-align:center}
+.dial + .rate-hint{margin-top:6px;text-align:center}
 .taste-card{padding:20px 18px}
 .taste-prof{font-size:.85rem;color:var(--text-dim);margin:0 0 9px}
 .taste-prof b{color:var(--text)}
@@ -1997,12 +1997,12 @@ function tastingToSave(r){
 /* ================= SCOREHJULET ================= */
 // A wide 270° dial: drag round the ring to set the score; one tick and one small
 // haptic bump per step. The page still scrolls when the finger starts away from the ring.
-const DIAL_S = 320, DIAL_C = 160, DIAL_R = 142, DIAL_A0 = 135, DIAL_SWEEP = 270;
+const DIAL_S = 320, DIAL_C = 160, DIAL_R = 142, DIAL_A0 = 225, DIAL_SWEEP = 270, DIAL_DIR = -1;
 function dialT(v){ return (v - DIAL.min) / (DIAL.max - DIAL.min); }
-function dialPt(t, r){ const a = (DIAL_A0 + DIAL_SWEEP * t) * Math.PI / 180; return [DIAL_C + Math.cos(a) * r, DIAL_C + Math.sin(a) * r]; }
+function dialPt(t, r){ const a = (DIAL_A0 + DIAL_DIR * DIAL_SWEEP * t) * Math.PI / 180; return [DIAL_C + Math.cos(a) * r, DIAL_C + Math.sin(a) * r]; }
 function dialArc(t1, r){ // from the start of the ring to t1
   const [x0, y0] = dialPt(0, r), [x1, y1] = dialPt(Math.max(0.0001, t1), r);
-  return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${DIAL_SWEEP * t1 > 180 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+  return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${DIAL_SWEEP * t1 > 180 ? 1 : 0} ${DIAL_DIR > 0 ? 1 : 0} ${x1.toFixed(2)} ${y1.toFixed(2)}`;
 }
 function dialSegs(t){
   const steps = Math.round((DIAL.max - DIAL.min) / DIAL.step), n = Math.round(t * steps);
@@ -2010,7 +2010,7 @@ function dialSegs(t){
   for(let i=0;i<n;i++){
     const a = Math.max(0, i / steps - 0.002), b = Math.min(1, (i + 1) / steps + 0.002), [x0,y0] = dialPt(a, DIAL_R), [x1,y1] = dialPt(b, DIAL_R);
     const k = Math.pow((i + 1) / steps, 1.1), c = DIAL.from.map((f, j)=>Math.round(f + (DIAL.to[j] - f) * k));
-    h += `<path d="M${x0.toFixed(2)} ${y0.toFixed(2)} A${DIAL_R} ${DIAL_R} 0 0 1 ${x1.toFixed(2)} ${y1.toFixed(2)}" stroke="rgb(${c.join(',')})"/>`;
+    h += `<path d="M${x0.toFixed(2)} ${y0.toFixed(2)} A${DIAL_R} ${DIAL_R} 0 0 ${DIAL_DIR > 0 ? 1 : 0} ${x1.toFixed(2)} ${y1.toFixed(2)}" stroke="rgb(${c.join(',')})"/>`;
   }
   return h;
 }
@@ -2049,7 +2049,7 @@ function dialRender(v){
 function dialFromPoint(el, x, y){
   const b = el.querySelector('svg').getBoundingClientRect(), k = DIAL_S / b.width;
   const px = (x - b.left) * k - DIAL_C, py = (y - b.top) * k - DIAL_C;
-  let d = (Math.atan2(py, px) * 180 / Math.PI - DIAL_A0 + 720) % 360;
+  let d = (DIAL_DIR * (Math.atan2(py, px) * 180 / Math.PI - DIAL_A0) + 720) % 360;
   if(d > DIAL_SWEEP) d = d > DIAL_SWEEP + (360 - DIAL_SWEEP) / 2 ? 0 : DIAL_SWEEP; // in the gap: nearest end
   const steps = Math.round((DIAL.max - DIAL.min) / DIAL.step);
   return { v: +(DIAL.min + Math.round(d / DIAL_SWEEP * steps) * DIAL.step).toFixed(4), dist: Math.hypot(px, py) };
