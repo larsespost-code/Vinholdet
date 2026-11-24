@@ -499,6 +499,22 @@ body.psheet-open{overflow:hidden}
 .vinlex-pick{align-items:flex-start;margin-top:10px}
 .vinlex-row:empty{display:none}
 .vinlex{font-size:.85rem;color:var(--text);text-decoration:underline;text-underline-offset:3px}
+#vinlex-sheet{position:fixed;inset:0;z-index:300;pointer-events:none}
+#vinlex-sheet.show{pointer-events:auto}
+.vx-bg{position:absolute;inset:0;background:var(--scrim,rgba(0,0,0,.45));opacity:0;transition:opacity .22s}
+#vinlex-sheet.show .vx-bg{opacity:1}
+.vx{position:absolute;left:0;right:0;bottom:0;top:calc(env(safe-area-inset-top,0px) + 28px);display:flex;flex-direction:column;background:var(--surface);border-radius:16px 16px 0 0;overflow:hidden;transform:translateY(100%);transition:transform .25s ease;box-shadow:0 -8px 30px rgba(0,0,0,.2)}
+#vinlex-sheet.show .vx{transform:none}
+.vx-bar{display:flex;align-items:center;gap:12px;padding:12px max(14px,env(safe-area-inset-right,0px)) 12px max(14px,env(safe-area-inset-left,0px));border-bottom:1px solid var(--border)}
+.vx-bar b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.vx-bar a{font-size:.85rem;color:var(--text-dim);white-space:nowrap}
+.vx-x{font:inherit;font-size:1.1rem;width:34px;height:34px;border-radius:50%;border:1px solid var(--border-strong);background:transparent;color:var(--text);cursor:pointer}
+.vx-body{position:relative;flex:1;background:#fff}
+.vx-body iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#fff;opacity:0;transition:opacity .2s}
+.vx-body iframe.ok{opacity:1}
+.vx-wait{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;color:#556;gap:6px}
+.vx-wait small{color:#889}
+body.vx-open{overflow:hidden}
 .taste-tog{display:flex;align-items:center;gap:12px;width:100%;text-align:left;font:inherit;color:var(--text);background:var(--surface);border:1.5px dashed var(--border-strong);border-radius:var(--r,10px);padding:14px 16px;margin:0 0 14px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .taste-tog.open{border-style:solid;border-color:var(--border)}
 .taste-tog-ic{flex:none;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.4rem;line-height:1;background:var(--text);color:var(--bg)}
@@ -1819,6 +1835,29 @@ function smagProfileId(r, d){
   if(color==='red' || color==='white') return byPlace(ids.filter(id=>P[id].g==='blend_'+color && P[id].r)) || 'color_'+color;
   return ''; // unknown type and no known grape: ask (rule 13), never pick red or white at random
 }
+
+/* ---- Vinlex inside the app: a sheet with the page in a frame, so nobody leaves the app.
+   If vinlex.dk refuses to be shown in a frame, "Åbn i browser" still works. */
+function openVinlex(a){
+  const url = a.href, g = a.getAttribute('data-g') || '';
+  let el = document.getElementById('vinlex-sheet');
+  if(!el){ el = document.createElement('div'); el.id = 'vinlex-sheet'; document.body.appendChild(el); }
+  el.innerHTML = `<div class="vx-bg" onclick="closeVinlex()"></div>
+    <div class="vx" role="dialog" aria-modal="true" aria-label="Vinlex: ${esc(g)}">
+      <div class="vx-bar"><b>Vinlex · ${esc(g)}</b><a href="${esc(url)}" target="_blank" rel="noopener">Åbn i browser ↗</a><button type="button" class="vx-x" onclick="closeVinlex()" aria-label="Luk">✕</button></div>
+      <div class="vx-body"><div class="vx-wait">Henter Vinlex …<br><small>Kommer siden ikke frem, så brug “Åbn i browser”.</small></div>
+        <iframe src="${esc(url)}" title="Vinlex: ${esc(g)}" referrerpolicy="no-referrer" onload="this.classList.add('ok')"></iframe></div>
+    </div>`;
+  document.body.classList.add('vx-open');
+  requestAnimationFrame(()=>el.classList.add('show'));
+  return false; // stay in the app
+}
+function closeVinlex(){
+  const el = document.getElementById('vinlex-sheet'); if(!el) return;
+  el.classList.remove('show'); document.body.classList.remove('vx-open');
+  setTimeout(()=>{ if(!el.classList.contains('show')) el.innerHTML = ''; }, 250);
+}
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeVinlex(); });
 function vinlexUrl(grape){
   const slug = String(grape||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
   return slug ? 'https://www.vinlex.dk/Druesorter/' + slug : '';
@@ -2536,7 +2575,7 @@ function pickerHtml(kind, id){
   const html = pickerHtmlBase(kind, id);
   if(kind!=='guess' || (id!=='drue1' && id!=='drue2')) return html; // a help for the guesser only
   const grapes = splitMulti(ansObj(kind)[id] || '').map(g=>GRAPE_BY.get(vkey(g)) ? GRAPE_BY.get(vkey(g))[0] : g).filter(Boolean);
-  return html + (grapes.length ? `<div class="vinlex-row vinlex-pick">${grapes.map(g=>`<a class="vinlex" href="${vinlexUrl(g)}" target="_blank" rel="noopener">Læs om ${esc(g)} på Vinlex ↗</a>`).join('')}</div>` : '');
+  return html + (grapes.length ? `<div class="vinlex-row vinlex-pick">${grapes.map(g=>`<a class="vinlex" href="${vinlexUrl(g)}" target="_blank" rel="noopener" data-g="${esc(g)}" onclick="return openVinlex(this)">Læs om ${esc(g)} på Vinlex</a>`).join('')}</div>` : '');
 }
 function pickerHtmlBase(kind, id){
   if(ACTIVE && PICK_ROUND !== ACTIVE.id){ PICK_ROUND = ACTIVE.id; [PICK_CUSTOM, PICK_OPEN, PICK_MORE].forEach(m=>Object.keys(m).forEach(k=>delete m[k])); }
