@@ -11,7 +11,7 @@ U.resetReg = function () { U._reg = []; };
 const PALETTE = ['--s1', '--s2', '--s3', '--s4', '--s5', '--s6', '--s7', '--s8'];
 const FIXED = {
   color: { Hvid: '--c-hvid', Rød: '--c-rod', Orange: '--c-orange', Rosé: '--c-rose' },
-  cls: { Mousserende: '--c-mouss', Hvid: '--c-hvid', 'Hvid, off-dry': '--s5', Orange: '--c-orange', Rosé: '--c-rose', Rød: '--c-rod', Sød: '--s4', Hedvin: '--s8' }
+  cls: { Mousserende: '--c-mouss', Hvid: '--c-hvid', 'Hvid, off-dry': '--c-offdry', Orange: '--c-orange', Rosé: '--c-rose', Rød: '--c-rod', Sød: '--c-sweet', Hedvin: '--c-fort', Øvrige: '--c-other' }
 };
 U.color = function (dim, key, i) {
   const f = FIXED[dim] && FIXED[dim][key];

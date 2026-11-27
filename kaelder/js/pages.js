@@ -773,7 +773,7 @@ P.data = function () {
   h += '<div class="grid g2 section">' + panel('Indstillinger', '<div style="display:grid;gap:12px">' +
     '<label>Weekendlokation<br>' + (db.hasLoc ? U.select('cfg-weekend', [['', '(ikke valgt)']].concat(db.locations.filter(Boolean).map(function (l) { return [l, l]; })), s.weekendLocation, ' data-act="cfg-weekend"') : '<span class="faint">Kræver lokationsdata fra CellarTracker (Individual Bottles eller List med lokation).</span>') + '</label>' +
     '<label>Visningsvaluta<br>' + U.select('cfg-cur', [['EUR', 'EUR (kildens valuta)'], ['DKK', 'DKK']], s.currency, ' data-act="cfg-cur"') + (s.currency === 'DKK' ? ' kurs <input type="number" step="0.01" value="' + s.dkkRate + '" data-act="cfg-rate" style="width:90px"> kr. pr. € <span class="faint">(fast kurs du selv angiver)</span>' : '') + '</label>' +
-    '<label>Tema<br>' + U.seg('theme', [['', 'Følg system'], ['light', 'Lyst'], ['dark', 'Mørkt']], document.documentElement.getAttribute('data-theme') || '') + '</label></div>') +
+    '</div>') +
     panel('Producentgrupper', P.aliasEditor(), { def: 'Rå navne fra CellarTracker samlet under ét gruppenavn i ranglister og analyser. Vinkortet bruger altid det oprindelige navn. Ingen automatiske sammenlægninger.' }) + '</div>';
   // log
   h += '<div class="section">' + panel('Importlog', (A.log || []).length ? '<div class="tw"><table><thead><tr><th>Tidspunkt</th><th>Resultat</th><th>Detaljer</th></tr></thead><tbody>' + A.log.slice(0, 20).map(function (l) {
@@ -919,7 +919,4 @@ P.after = function () {
       await A.load(); A.refresh();
     } catch (err) { A.notice = 'Gendannelsen fejlede: ' + err.message; A.render(); }
   });
-  const theme = document.querySelectorAll('[data-seg="theme"]');
-  theme.forEach(function (b) { b.addEventListener('click', function (ev) { ev.stopPropagation(); const v = b.dataset.val; if (v) document.documentElement.setAttribute('data-theme', v); else document.documentElement.removeAttribute('data-theme'); K.store.set('theme', v); A.render(); }, true); });
 };
-(function () { const t = K.store.get('theme', ''); if (t) document.documentElement.setAttribute('data-theme', t); })();
