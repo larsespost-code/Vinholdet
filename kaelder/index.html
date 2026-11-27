@@ -12,17 +12,16 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Figtree:wght@400;500;600;700;800&display=swap">
 <style>
-/* Samme udtryk som Vinholdet Stats (Blindervenner · Sten): lys skifer, Archivo + Figtree, vinmarkskort i baggrunden.
+/* Samme udtryk som Vinholdet Stats (Blindervenner · Sten): lys skifer, Archivo + Figtree.
    Layout: topbjælke med faner, fast filterlinje, kort i gitter; én kolonne på mobil. */
 :root{
-  --bg:#EEF2F6; --paper:#F8FAFC; --card:rgba(248,250,252,.86); --input:#FFFFFF;
+  --bg:#EEF2F6; --paper:#F8FAFC; --card:#F8FAFC; --input:#FFFFFF;
   --ink:#1F2A37; --ink-2:#4F5D6E; --ink-3:#66727F;
   --line:rgba(31,42,55,.14); --line-2:rgba(31,42,55,.45); --line-strong:1.5px solid #1F2A37; --wash:rgba(31,42,55,.06);
   --accent:#4A6A8C; --accent-2:#9DB4CC; --accent-wash:rgba(74,106,140,.14); --on-dark:#EEF2F6;
   --c-hvid:#D8C77E; --c-rod:#7B2433; --c-orange:#D88A3C; --c-rose:#E6A3A8; --c-mouss:#9DB4CC; --c-offdry:#F1E6B2; --c-sweet:#8A6FA3; --c-fort:#A86F2A; --c-other:#C9C1B6;
   --s1:#4A6A8C; --s2:#7B2433; --s3:#B07D1E; --s4:#5E7A3A; --s5:#8A6FA3; --s6:#B5643A; --s7:#9DB4CC; --s8:#1F2A37;
   --good:#5E7A3A; --warn:#B07D1E; --bad:#A0472E;
-  --k-s1:#F3F6F9; --k-s2:#EBF0F5; --k-s3:#DCE5EE; --k-s4:#C9D6E3; --k-s5:#B3C4D6; --k-l:#5F7389; --k-o:.2;
   --f-display:'Archivo', 'Arial Narrow', sans-serif;
   --f-body:'Figtree', -apple-system, 'Segoe UI', sans-serif;
   --f-mono:'Figtree', -apple-system, sans-serif;
@@ -32,7 +31,7 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0}
 html{overflow-x:clip}
-body{background:var(--k-s1);color:var(--ink);font:17px/1.5 var(--f-body);-webkit-font-smoothing:antialiased}
+body{background:var(--bg);color:var(--ink);font:17px/1.5 var(--f-body);-webkit-font-smoothing:antialiased}
 button,input,select,textarea{font:inherit;color:inherit}
 a{color:var(--ink);text-underline-offset:3px}
 h1,h2,h3{font-family:var(--f-display);font-weight:800;font-stretch:112%;letter-spacing:-.03em;margin:0;text-wrap:balance;color:var(--ink)}
@@ -44,11 +43,6 @@ h3{font-size:20px;line-height:1.1;letter-spacing:-.02em}
 .muted{color:var(--ink-2)} .faint{color:var(--ink-3)}
 .eyebrow{font-size:12px;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);font-weight:700}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-
-/* vinmarkskort i baggrunden */
-#vinkort{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;background:var(--k-s1)}
-#vinkort>div{position:absolute;top:0;will-change:transform;background:linear-gradient(180deg,var(--k-s1) 0%,var(--k-s2) 25%,var(--k-s3) 50%,var(--k-s4) 75%,var(--k-s5) 100%)}
-#vinkort>div>i{position:absolute;inset:0;opacity:var(--k-o);background:var(--k-l);-webkit-mask:url(kort.svg) center/100% 100% no-repeat;mask:url(kort.svg) center/100% 100% no-repeat}
 
 .app{max-width:1240px;margin:0 auto;padding:env(safe-area-inset-top,0px) max(16px, env(safe-area-inset-right,0px)) 80px max(16px, env(safe-area-inset-left,0px))}
 .side{display:flex;flex-direction:column;gap:10px;padding:16px 0 12px;border-bottom:1px solid var(--line)}
@@ -157,6 +151,16 @@ th.s{cursor:pointer} th.s:hover{color:var(--ink)} th.on{color:var(--ink)}
 td.r,th.r{text-align:right;white-space:nowrap}
 tr.click{cursor:pointer} tr.click:hover td{background:rgba(31,42,55,.05)}
 tbody tr:last-child td{border-bottom:0}
+table.wt tbody.grp tr.gd{display:none}
+table.wt tbody.grp.open tr.gd{display:table-row}
+table.wt tr.gh{cursor:pointer}
+table.wt tr.gh:hover td{background:rgba(31,42,55,.05)}
+table.wt tbody.grp.open tr.gh td{border-bottom-color:transparent;background:rgba(31,42,55,.04)}
+table.wt tr.gd td{background:rgba(31,42,55,.02)}
+table.wt tr.gd td:first-child{padding-left:32px}
+table.wt tbody.grp:not(:last-child) tr:last-child td{border-bottom:1px solid var(--line)}
+.chev{display:inline-block;width:8px;height:8px;border-right:2px solid #1F2A37;border-bottom:2px solid #1F2A37;transform:rotate(-45deg);margin:0 10px 1px 2px;transition:transform .15s}
+tbody.grp.open .chev{transform:rotate(45deg)}
 .hm td.c{text-align:right;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;cursor:pointer;min-width:46px}
 .hm td.c:hover{outline:2px solid #1F2A37;outline-offset:-2px}
 .hm td.z{color:var(--ink-3);cursor:default;font-weight:400}
@@ -241,7 +245,7 @@ dl.kv dt{color:var(--ink-3);font-weight:600} dl.kv dd{margin:0}
 @media print{
   @page{size:A4;margin:18mm 16mm 18mm}
   body{background:#fff;color:#111}
-  #vinkort,.side,.fbar,.noprint,.tip,.drawer,.scrim{display:none!important}
+  .side,.fbar,.noprint,.tip,.drawer,.scrim{display:none!important}
   .app{max-width:none;padding:0}
   .wl{border:0;padding:0;max-width:none;background:#fff;backdrop-filter:none}
   a{color:#111;text-decoration:none}
@@ -250,7 +254,6 @@ dl.kv dt{color:var(--ink-3);font-weight:600} dl.kv dd{margin:0}
 </style>
 </head>
 <body>
-<div id="vinkort" aria-hidden="true"><div><i></i></div></div>
 <div class="app">
   <header class="side noprint">
     <div class="brand"><img src="logo.svg" alt=""><b>Vinholdet<span>KÆLDER</span></b><span class="upd" id="src-line">Indlæser …</span></div>
@@ -266,16 +269,6 @@ dl.kv dt{color:var(--ink-3);font-weight:600} dl.kv dd{margin:0}
 <div class="scrim" id="scrim"></div>
 <aside class="drawer" id="drawer" aria-modal="true" role="dialog"><button class="x" id="drawer-x" aria-label="Luk">×</button><div id="drawer-body"></div></aside>
 <div class="pop" id="pop"></div>
-<script>
-/* Kortet glider langsomt med, når man scroller (som i Vinholdet Stats). */
-(function(){var AR=850/450, L=document.getElementById('vinkort').firstElementChild;
-function f(){var vw=innerWidth,vh=innerHeight,w=Math.max(vw,vh/AR),h=w*AR;
-L.style.width=w+'px';L.style.height=h+'px';L.style.left=((vw-w)*.5)+'px';
-var max=document.documentElement.scrollHeight-vh,p=max>0?Math.min(1,scrollY/max):0;
-L.style.transform='translate3d(0,'+(-((h-vh)*p))+'px,0)'}
-addEventListener('scroll',f,{passive:true});addEventListener('resize',f);
-if(window.ResizeObserver)new ResizeObserver(f).observe(document.body);f()})();
-</script>
 <script src="js/core.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/pages.js"></script>

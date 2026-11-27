@@ -281,26 +281,67 @@ U.wineTable = function (items, opts) {
   opts = opts || {};
   const rows = U.wineRows(items);
   const sort = opts.sort || 'producer';
-  const S = {
-    producer: function (a, b) { return a.w.producer.localeCompare(b.w.producer, 'da') || a.w.name.localeCompare(b.w.name, 'da') || (a.w.vintage || 0) - (b.w.vintage || 0); },
-    vintage: function (a, b) { return (a.w.vintage || 0) - (b.w.vintage || 0); },
-    qty: function (a, b) { return b.qty - a.qty; },
-    price: function (a, b) { return b.price - a.price; },
-    value: function (a, b) { return b.price * b.qty - a.price * a.qty; }
-  };
-  rows.sort(S[sort] || S.producer);
-  const limit = opts.limit || 400;
   const showLoc = rows.some(function (r) { return Object.keys(r.locs).length; });
-  let h = '<div class="tw"><table><thead><tr><th>Vin</th><th class="r">Årgang</th><th class="r">Antal</th><th>Type</th><th>Drue</th><th>Oprindelse</th>' + (showLoc ? '<th>Lokation</th>' : '') + '<th class="r">Pris/fl.</th></tr></thead><tbody>';
-  rows.slice(0, limit).forEach(function (r) {
-    h += '<tr class="click" data-wine="' + esc(r.w.id) + '"><td><b>' + esc(r.w.producerRaw) + '</b> <span class="muted">' + esc(r.w.label) + '</span>' + (r.ml !== 750 ? ' <span class="tag">' + K.sizeLabel(r.ml) + '</span>' : '') + '</td>' +
-      '<td class="r num">' + (r.w.nv ? 'NV' : r.w.vintage) + '</td><td class="r num">' + r.qty + '</td><td><span class="dot" style="background:' + U.color('color', r.w.color) + '"></span>' + esc(r.w.cls) + '</td>' +
-      '<td>' + esc(r.w.master) + '</td><td>' + esc(r.w.countryDa) + ', ' + esc(r.w.regionDa) + (r.w.appellation && r.w.appellation !== r.w.region ? ' · <span class="muted">' + esc(r.w.appellation) + '</span>' : '') + '</td>' +
-      (showLoc ? '<td>' + esc(Object.keys(r.locs).map(function (l) { return l + ' (' + r.locs[l] + ')'; }).join(', ')) + '</td>' : '') +
-      '<td class="r num">' + (r.price > 0 ? K.money(r.price, 2) : '<span class="faint">ukendt</span>') + '</td></tr>';
+  const byLabel = function (a, b) { return a.w.producerRaw.localeCompare(b.w.producerRaw, 'da') || a.w.label.localeCompare(b.w.label, 'da') || (a.w.nv ? -1 : b.w.nv ? 1 : a.w.vintage - b.w.vintage) || a.ml - b.ml; };
+  const within = {
+    producer: byLabel, vintage: function (a, b) { return (a.w.vintage || 0) - (b.w.vintage || 0) || byLabel(a, b); },
+    qty: function (a, b) { return b.qty - a.qty || byLabel(a, b); }, price: function (a, b) { return b.price - a.price || byLabel(a, b); },
+    value: function (a, b) { return b.price * b.qty - a.price * a.qty || byLabel(a, b); }
+  };
+  // Én linje pr. producent(gruppe), som kan foldes ud til vinene.
+  const gm = new Map();
+  rows.forEach(function (r) { const k = r.w.producer; if (!gm.has(k)) gm.set(k, []); gm.get(k).push(r); });
+  const groups = Array.from(gm).map(function (g) {
+    const rs = g[1].sort(within[sort] || byLabel);
+    let q = 0, v = 0, pq = 0; rs.forEach(function (r) { q += r.qty; if (r.price > 0) { v += r.qty * r.price; pq += r.qty; } });
+    return { name: g[0], rows: rs, qty: q, value: v, avg: pq ? v / pq : 0, maxPrice: Math.max.apply(null, rs.map(function (r) { return r.price; })),
+      minV: Math.min.apply(null, rs.map(function (r) { return r.w.nv ? 9999 : r.w.vintage; })), raws: new Set(rs.map(function (r) { return r.w.producerRaw; })).size };
   });
-  h += '</tbody></table></div>';
-  if (rows.length > limit) h += '<div class="faint" style="margin-top:6px">Viser ' + limit + ' af ' + rows.length + ' vinposter.</div>';
+  const gs = {
+    producer: function (a, b) { return a.name.localeCompare(b.name, 'da'); }, qty: function (a, b) { return b.qty - a.qty || a.name.localeCompare(b.name, 'da'); },
+    value: function (a, b) { return b.value - a.value; }, price: function (a, b) { return b.maxPrice - a.maxPrice; }, vintage: function (a, b) { return a.minV - b.minV; }
+  };
+  groups.sort(gs[sort] || gs.producer);
+  const single = groups.length === 1;
+  const open = single || opts.open;
+  const uniq = function (arr) { return Array.from(new Set(arr)); };
+  const vrange = function (rs) {
+    const ys = rs.filter(function (r) { return !r.w.nv; }).map(function (r) { return r.w.vintage; });
+    const nv = rs.some(function (r) { return r.w.nv; });
+    if (!ys.length) return 'NV';
+    const lo = Math.min.apply(null, ys), hi = Math.max.apply(null, ys);
+    return (lo === hi ? lo : lo + '–' + String(hi).slice(2)) + (nv ? ', NV' : '');
+  };
+  const short = function (list, n) { return list.length > n ? list.slice(0, n).join(', ') + ' +' + (list.length - n) : list.join(', '); };
+  const limit = opts.limit || 300;
+  let h = '';
+  if (!single && groups.length > 1) h += '<div class="toolbar" style="margin-bottom:8px"><span class="faint">' + groups.length + ' producenter · ' + rows.length + ' vinposter</span><button class="link" data-act="tg-all" data-open="1">Fold alle ud</button><button class="link" data-act="tg-all" data-open="0">Fold alle sammen</button></div>';
+  h += '<div class="tw"><table class="wt"><thead><tr><th>' + (single ? 'Vin' : 'Producent / vin') + '</th><th class="r">Årgang</th><th class="r">Antal</th><th>Type</th><th>Drue</th><th>Oprindelse</th>' + (showLoc ? '<th>Lokation</th>' : '') + '<th class="r">Pris/fl.</th></tr></thead>';
+  groups.slice(0, limit).forEach(function (g) {
+    h += '<tbody class="grp' + (open ? ' open' : '') + '">';
+    if (!single) {
+      const locs = {}; g.rows.forEach(function (r) { Object.keys(r.locs).forEach(function (l) { locs[l] = (locs[l] || 0) + r.locs[l]; }); });
+      const cls = uniq(g.rows.map(function (r) { return r.w.cls; }));
+      h += '<tr class="gh" data-act="tg"><td><span class="chev" aria-hidden="true"></span><b>' + esc(g.name) + '</b> <span class="faint">' + g.rows.length + (g.rows.length === 1 ? ' vin' : ' vine') + '</span></td>' +
+        '<td class="r num">' + vrange(g.rows) + '</td><td class="r num"><b>' + g.qty + '</b></td>' +
+        '<td>' + cls.map(function (c) { return '<span class="dot" title="' + esc(c) + '" style="background:' + U.color('cls', c) + '"></span>'; }).join('') + (cls.length === 1 ? esc(cls[0]) : '') + '</td>' +
+        '<td>' + esc(short(uniq(g.rows.map(function (r) { return r.w.master; })), 2)) + '</td>' +
+        '<td>' + esc(short(uniq(g.rows.map(function (r) { return r.w.region ? r.w.regionDa : r.w.countryDa; })), 3)) + '</td>' +
+        (showLoc ? '<td>' + esc(Object.keys(locs).map(function (l) { return l + ' (' + locs[l] + ')'; }).join(', ')) + '</td>' : '') +
+        '<td class="r num">' + (g.avg ? (g.rows.length > 1 ? '<span class="faint">gns.</span> ' : '') + K.money(g.avg, 2) : '<span class="faint">ukendt</span>') + '</td></tr>';
+    }
+    g.rows.forEach(function (r) {
+      const lbl = single || g.raws > 1 ? (single ? '<b>' + esc(r.w.producerRaw) + '</b> ' : esc(r.w.producerRaw) + ' ') + '<span class="muted">' + esc(r.w.label) + '</span>' : esc(r.w.label);
+      h += '<tr class="click gd" data-wine="' + esc(r.w.id) + '"><td>' + lbl + (r.ml !== 750 ? ' <span class="tag">' + K.sizeLabel(r.ml) + '</span>' : '') + '</td>' +
+        '<td class="r num">' + (r.w.nv ? 'NV' : r.w.vintage) + '</td><td class="r num">' + r.qty + '</td><td><span class="dot" style="background:' + U.color('cls', r.w.cls) + '"></span>' + esc(r.w.cls) + '</td>' +
+        '<td>' + esc(r.w.master) + '</td><td>' + esc(r.w.countryDa) + ', ' + esc(r.w.regionDa) + (r.w.appellation && r.w.appellation !== r.w.region ? ' · <span class="muted">' + esc(r.w.appellation) + '</span>' : '') + '</td>' +
+        (showLoc ? '<td>' + esc(Object.keys(r.locs).map(function (l) { return l + ' (' + r.locs[l] + ')'; }).join(', ')) + '</td>' : '') +
+        '<td class="r num">' + (r.price > 0 ? K.money(r.price, 2) : '<span class="faint">ukendt</span>') + '</td></tr>';
+    });
+    h += '</tbody>';
+  });
+  h += '</table></div>';
+  if (groups.length > limit) h += '<div class="faint" style="margin-top:6px">Viser ' + limit + ' af ' + groups.length + ' producenter.</div>';
   return h;
 };
 

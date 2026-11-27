@@ -91,7 +91,7 @@ P.samling = function () {
   let h = head('Min samling', filterNote() + ' Søg på navn, producent, mark, appellation, drue eller årgang – accenter er ligegyldige.',
     '<button class="btn" data-act="csv-view">Hent udsnit som CSV</button><button class="btn" data-act="wl-view">Vinkort af udsnittet</button>');
   h += '<div class="toolbar"><input type="search" id="samling-q" placeholder="Søg i ' + K.n0(U.wineRows(A.view).length) + ' vinposter …" value="' + e(ui('q', '')) + '" style="flex:1;min-width:200px;max-width:420px">' +
-    '<label class="inl">Gruppér ' + U.select('grp', [['', 'ingen'], ['producer', 'producent'], ['region', 'region'], ['country', 'land'], ['cls', 'vintype'], ['grape', 'drue'], ['location', 'lokation']].filter(function (o) { return o[0] !== 'location' || A.db.hasLoc; }), ui('grp', '')) + '</label>' +
+    '<label class="inl">Gruppér ' + U.select('grp', [['', 'ingen'], ['region', 'region'], ['country', 'land'], ['cls', 'vintype'], ['grape', 'drue'], ['location', 'lokation']].filter(function (o) { return o[0] !== 'location' || A.db.hasLoc; }), ui('grp', '')) + '</label>' +
     '<label class="inl">Sortér ' + U.select('srt', [['producer', 'producent'], ['vintage', 'årgang'], ['qty', 'antal'], ['price', 'pris'], ['value', 'samlet værdi']], ui('srt', 'producer')) + '</label></div>';
   h += '<div id="samling-tbl">' + P.samlingTable() + '</div>';
   return h;
@@ -102,10 +102,10 @@ P.samlingTable = function () {
   const it = words.length ? A.view.filter(function (i) { return words.every(function (w) { return i.w.search.indexOf(w) >= 0; }); }) : A.view;
   if (!it.length) return A.view.length ? '<div class="empty">Ingen vine matcher »' + e(ui('q', '')) + '«.</div>' : noData();
   const grp = ui('grp', '');
-  if (!grp) return U.wineTable(it, { sort: ui('srt', 'producer'), limit: 500 });
+  if (!grp) return U.wineTable(it, { sort: ui('srt', 'producer'), limit: 500, open: words.length > 0 });
   const r = K.rank(it, grp, 'bottles', { natural: !!K.DIMS[grp].order });
   return r.map(function (g) {
-    return '<div style="margin:20px 0 8px;display:flex;gap:12px;align-items:baseline"><h3><button class="link" style="font:inherit"' + U.act(grp, g.key, g.items, g.name) + '>' + e(g.name) + '</button></h3><span class="muted num">' + K.n0(g.v) + ' fl. · ' + K.money(K.value(g.items)) + '</span></div>' + U.wineTable(g.items, { sort: ui('srt', 'producer') });
+    return '<div style="margin:20px 0 8px;display:flex;gap:12px;align-items:baseline"><h3><button class="link" style="font:inherit"' + U.act(grp, g.key, g.items, g.name) + '>' + e(g.name) + '</button></h3><span class="muted num">' + K.n0(g.v) + ' fl. · ' + K.money(K.value(g.items)) + '</span></div>' + U.wineTable(g.items, { sort: ui('srt', 'producer'), open: words.length > 0 });
   }).join('');
 };
 
@@ -832,6 +832,8 @@ P.act = function (act, t, ev) {
   const s = K.settings();
   switch (act) {
     case 'back': A.goBack(); break;
+    case 'tg': t.closest('tbody').classList.toggle('open'); break;
+    case 'tg-all': { const tw = t.closest('.toolbar').nextElementSibling; tw.querySelectorAll('tbody.grp').forEach(function (b) { b.classList.toggle('open', t.dataset.open === '1'); }); } break;
     case 'jump': ev.preventDefault(); { const el = document.getElementById(t.dataset.to); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } break;
     case 'wl-jump': ev.preventDefault(); { const el = document.getElementById(t.dataset.to); if (el) el.scrollIntoView({ behavior: 'smooth' }); } break;
     case 'prof-filter': A.addFilter(A.route.dim, A.route.key); A.go(A.profileSection() || 'overblik'); break;
