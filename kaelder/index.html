@@ -114,6 +114,7 @@ label.inl{display:inline-flex;gap:6px;align-items:center;font-size:15px}
 .section>h2{margin-bottom:14px}
 
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:14px}
+@media (max-width:560px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.kpis .kpi{padding:14px}.kpis .kpi .v{font-size:24px}}
 .kpi{background:var(--card);border:1px solid rgba(31,42,55,.16);border-radius:var(--r);padding:18px 18px 16px;min-width:0;text-align:left}
 .kpi .v{font-family:var(--f-display);font-weight:900;font-stretch:112%;font-size:clamp(28px,3.1vw,42px);letter-spacing:-.05em;line-height:1;white-space:nowrap;font-variant-numeric:tabular-nums;margin-top:10px;order:2}
 .kpi{display:flex;flex-direction:column}

@@ -5,10 +5,10 @@ const A = window.A = { db: null, all: [], view: [], route: { page: 'overblik' },
 const $ = function (id) { return document.getElementById(id); };
 
 const PAGES = [
-  ['overblik', 'Overblik'], ['samling', 'Samling'], ['udforsk', 'Udforsk'], ['udvikling', 'Udvikling & værdi'], ['lab', 'Cellar Lab'], '-', ['vinkort', 'Vinkort'], ['mad', 'Mad og vin']
+  ['overblik', 'Overblik'], ['samling', 'Samling'], ['udforsk', 'Udforsk'], ['udvikling', 'Udvikling & værdi'], ['lab', 'Cellar Lab'], '-', ['vinkort', 'Vinkort'], ['ai', 'Sommelier']
 ];
 /* Undersider samlet under én fane: side → [fane, ui-nøgle] */
-const SUB = { geografi: ['udforsk', 'uf'], druer: ['udforsk', 'uf'], producenter: ['udforsk', 'uf'], vaerdi: ['udvikling', 'udv'] };
+const SUB = { geografi: ['udforsk', 'uf'], druer: ['udforsk', 'uf'], producenter: ['udforsk', 'uf'], vaerdi: ['udvikling', 'udv'], mad: ['ai', 'ai_v'], spoerg: ['ai', 'ai_v'], analyse: ['ai', 'ai_v'], aar: ['ai', 'ai_v'] };
 
 /* ---------------------------------------------------------------- datakilder */
 

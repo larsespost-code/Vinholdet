@@ -6,20 +6,16 @@ Et privat dashboard over vinsamlingen, bygget på dine data fra CellarTracker. D
 
 ## Indhold
 
-| Side | Hvad den gør |
+| Fane | Hvad den gør |
 |---|---|
-| Overblik | Nøgletal, farve, vintype, regioner, druer, producenter, årgange og beregnede observationer |
-| Min samling | Søgbar beholdning (accenter er ligegyldige), gruppering, sortering, CSV-eksport |
-| Geografi | Lande, regioner, appellationer, marker, geografisk fingeraftryk og sammenligning side om side |
-| Druer & vintyper | Druer (MasterVarietal eller detaljeret), heatmap drue × geografi med række- og kolonneprocent |
-| Producenter | Fuld rangliste: flasker, vine, cuvéer, årgange, værdi, gennemsnitspris |
-| Profiler | Klik på et land, en region, en producent, en drue osv. for et fuldt dashboard over netop den |
-| Trends & historik | Købspræferencer over tid, forskydninger, køb mod drukket (kræver køb/forbrug fra CT) og observeret beholdning |
-| Værdi & priser | Registreret indkøbsværdi, prisfordeling, dyreste vine, prisniveau pr. region |
+| Overblik | Nøgletal, vintype, regioner, druer, producenter, årgange og beregnede observationer |
+| Samling | Søgbar beholdning grupperet pr. producent (fold ud for detaljer) |
+| Udforsk | Geografi, druer (inkl. drue › regioner og region › druer) og producenter; klik på alt for en profil |
+| Udvikling & værdi | Andele og antal over årene (farve, vintype, druer m.m.), lagkage for et valgt år, gennemsnitspris pr. købt flaske, priser og værdi i € eller kr. |
 | Cellar Lab | Fri analysebygger, bredde/dybde, vertikaler, horisontaler, årgangsunivers, diversitet, sjældne kombinationer |
-| Vinkort | Klassisk restaurantvinkort (vintype › land › område › vin) med antal; udskriv eller gem som PDF |
-| Mad og vin | Madmatch med Claude, kun blandt dine egne vine (valgfrit, kræver API-nøgle) |
-| Data & synk | Status, import, importlog, producentgrupper, weekendlokation, valuta, sikkerhedskopi, kontroltal |
+| Vinkort | Overskueligt vinkort (land › region › producent › vin) med antal; udskriv eller gem som PDF |
+| Sommelier | AI-funktioner: Spørg kælderen, Mad og vin, Analyse og Dit vinår (valgfrit, kræver API-nøgle) |
+| Data & synk (tandhjulet) | Status, import, importlog, producentgrupper, weekendlokationer, valuta, sikkerhedskopi, kontroltal |
 
 Globale filtre (lokation, land, region, producent, drue, farve, vintype, årgang, pris, størrelse, forhandler m.fl.) gælder på alle sider. Flere valg inden for samme filter er »eller«, på tværs er »og«, og hvert filter kan vendes til »udelad valgte«.
 
@@ -69,9 +65,18 @@ I CellarTracker: **My Cellar › Wines › Export › CSV** (desktop-browser). V
 
 Ved hver import eller synkronisering, hvor beholdningen har ændret sig, gemmes en dateret observation. Dermed bygges udviklingen op fra første import. Forskellen mellem to observationer er en nettoændring (køber du tre og drikker to, ses +1), så den præsenteres aldrig som køb eller forbrug. Rigtige købs- og forbrugstrends kommer fra CellarTrackers `Purchase`- og `Consumed`-tabeller.
 
-## Mad og vin (valgfrit)
+## Sommelier: AI-funktioner (valgfrit)
 
-Mad og vin kan køre på **Gemini (gratis)** eller **Claude (betalt)**. Dashboardet sender retten og ID'erne på vinene i det aktuelle filterudsnit til dit script. Scriptet slår vinene op i den seneste beholdning og sender kun navn, årgang, type, drue, oprindelse, antal og størrelse til modellen. Det afviser ethvert forslag, der ikke er en vin med flasker tilbage i udsnittet.
+Fire funktioner under fanen Sommelier. I alle fire beregner dashboardet tallene på dine egne data; sprogmodellen fortolker eller formulerer kun.
+
+- **Spørg kælderen**: skriv et spørgsmål med dine egne ord, fx »Hvor mange Jura-hvide under 40 € har jeg i Køleskabet?«. Modellen oversætter spørgsmålet til filtre (land, region, producent, drue, lokation, årgang, pris, købsår m.m.), og dashboardet regner svaret ud. »Brug som filter« overfører udsnittet til resten af dashboardet.
+- **Mad og vin**: forslag til vine fra dine valgte lokationer til en ret.
+- **Analyse**: dashboardet beregner tendenser år for år (andele af farver, druer, regioner og lande, gennemsnitspris, producentkoncentration, nye producenter, alder ved køb og drik, forhandlere, sæson). Modellen finder både åbenlyse og mere skjulte mønstre og angiver de tal, de bygger på. Analysen følger de globale filtre.
+- **Dit vinår**: en opsummering af et valgt år: køb, opdagelser, forskydninger og hvad du drak.
+
+Der sendes kun aggregerede tal og vinnavne, aldrig adgangskoder eller personoplysninger.
+
+Funktionerne kan køre på **Gemini (gratis)** eller **Claude (betalt)**. Dashboardet sender retten og ID'erne på vinene i det aktuelle filterudsnit til dit script. Scriptet slår vinene op i den seneste beholdning og sender kun navn, årgang, type, drue, oprindelse, antal og størrelse til modellen. Det afviser ethvert forslag, der ikke er en vin med flasker tilbage i udsnittet.
 
 **Gratis med Gemini**
 

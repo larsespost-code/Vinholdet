@@ -418,7 +418,7 @@ P.consumption = function (con, pur) {
   const nowY = new Date().getFullYear();
   const drunk = con.filter(function (c) { return c.drunk; });
   const reasons = new Map(); con.forEach(function (c) { reasons.set(c.reason, (reasons.get(c.reason) || 0) + c.qty); });
-  let h = '<div class="section"><h2>Forbrug</h2></div><div class="grid g2">' + panel('Drukne flasker pr. år', U.columns(years.map(function (y) {
+  let h = '<div class="section"><h2>Forbrug</h2></div><div class="grid g2">' + panel('Drukket pr. år', U.columns(years.map(function (y) {
     const d = drunk.filter(function (c) { return yearOf(c.date) === y; }).reduce(function (a, c) { return a + c.qty; }, 0);
     return { label: "'" + String(y).slice(2) + (y === nowY ? '*' : ''), v: d, tip: y + ': ' + d + ' fl. drukket' };
   }), { h: 180 }), { def: 'Kun afgang registreret som drukket. Anden afgang: ' + Array.from(reasons).filter(function (r) { return !/drank|drunk|drukket|consumed|ukendt/i.test(r[0]); }).map(function (r) { return r[0] + ' ' + r[1]; }).join(', ') });
@@ -644,7 +644,7 @@ P.udvMain = function () {
     const recon = ytot(nowY), actual = K.sum(A.view);
     h += '<div class="note" style="margin-top:14px">Beholdningen er regnet ud som køb minus afgang år for år. ' + (Math.abs(recon - actual) > 2 ? 'Udregningen giver ' + K.n0(recon) + ' fl. i dag, mens kælderen faktisk har ' + K.n0(actual) + ' fl. Forskellen skyldes typisk flasker uden registreret køb eller afgang.' : 'Den stemmer med den faktiske beholdning i dag (' + K.n0(actual) + ' fl.).') + '</div>';
   } else if (pv === 'have') {
-    h += '<div class="note" style="margin-top:14px">Viser kun de flasker, du har nu, fordelt på det år de blev købt. Drukne flasker indgår ikke. Med CellarTrackers forbrugsdata (Consumed) kan dashboardet vise den faktiske beholdning år for år.</div>';
+    h += '<div class="note" style="margin-top:14px">Viser kun de flasker, du har nu, fordelt på det år de blev købt. Drukket indgår ikke. Med CellarTrackers forbrugsdata (Consumed) kan dashboardet vise den faktiske beholdning år for år.</div>';
   }
   return h;
 };
@@ -1035,6 +1035,12 @@ P.act = function (act, t, ev) {
     }
     case 'mad-send': P.madSend(); break;
     case 'pr-tog': { const key = 'pr_sel_' + t.dataset.dim; const cur = (A.ui[key] || []).slice(); const k = t.dataset.k; const i = cur.indexOf(k); if (i >= 0) cur.splice(i, 1); else cur.push(k); A.ui[key] = cur; A.render(); } break;
+    case 'ask-send': P.askSend(document.getElementById('ask-q').value); break;
+    case 'ask-ex': P.askSend(t.dataset.q); break;
+    case 'ask-clear': A.askLog = []; A.render(); break;
+    case 'ask-apply': { const q = A.askLog[+t.dataset.i]; if (q && q.f) { K.filters = K.cloneFilters(q.f); A.go('samling'); A.refresh(); } } break;
+    case 'ins-run': P.insRun(); break;
+    case 'yr-run': P.yrRun(+t.dataset.y); break;
     case 'mad-reset': A.chat = []; A.render(); break;
   }
 };
@@ -1081,4 +1087,255 @@ P.after = function () {
       await A.load(); A.refresh();
     } catch (err) { A.notice = 'Gendannelsen fejlede: ' + err.message; A.render(); }
   });
+};
+
+/* ================================================================ AI: Spørg kælderen, Analyse, Dit vinår */
+
+const aiReady = function () { const s = K.settings(); return !!(s.syncUrl && s.syncKey && A.src.mode === 'sync' && A.src.ai); };
+const aiGate = function () {
+  if (aiReady()) return '';
+  const s = K.settings();
+  if (!s.syncUrl || A.src.mode !== 'sync') return '<div class="note">Denne funktion bruger en sprogmodel (Gemini eller Claude) via dit eget Apps Script. Sæt synkroniseringen op under tandhjulet (Data & synk) og tilføj <span class="mono">GEMINI_API_KEY</span> som scriptegenskab.</div>';
+  return '<div class="note">Synkroniseringen kører, men der er ingen API-nøgle. Tilføj scriptegenskaben <span class="mono">GEMINI_API_KEY</span> i dit Apps Script-projekt og genindlæs siden.</div>';
+};
+const isRest = function (p) { return /^restaurant$/i.test(p.store || ''); };
+const evItem = function (e) { return { w: e.w, qty: e.qty, price: e.price || 0, ml: 750, loc: '', store: e.store || '' }; };
+const usageLine = function (u) { return u ? '<div class="faint" style="font-size:.75rem;margin-top:8px">' + e((u.provider || '') + ' · ' + (u.model || '')) + ' · ' + K.n0(u.input) + ' input- og ' + K.n0(u.output) + ' output-tokens</div>' : ''; };
+const r1 = function (v) { return Math.round(v * 10) / 10; };
+
+P.ai = function () {
+  const v = ui('ai_v', 'spoerg');
+  const body = v === 'mad' ? P.mad() : v === 'analyse' ? P.analyse() : v === 'aar' ? P.vinaar() : P.spoerg();
+  return subnav('ai_v', [['spoerg', 'Spørg kælderen'], ['mad', 'Mad og vin'], ['analyse', 'Analyse'], ['aar', 'Dit vinår']], 'spoerg') + body;
+};
+
+/* ---------- Spørg kælderen ---------- */
+P.askCatalog = function () {
+  const db = A.db;
+  const dims = ['country', 'region', 'subregion', 'appellation', 'producer', 'grape', 'color', 'cls', 'size'].concat(db.hasLoc ? ['location'] : []).concat(db.hasStore ? ['store'] : []);
+  const pool = A.all.concat(db.purchases.map(evItem), db.consumed.map(evItem));
+  const values = {}, labels = {};
+  P._askKeys = {};
+  dims.forEach(function (d) {
+    const m = new Set();
+    pool.forEach(function (i) { const k = K.DIMS[d].get(i); if (k && k !== K.UNKNOWN && !/^Ukendt/.test(k)) m.add(k); });
+    P._askKeys[d] = Array.from(m).sort();
+    labels[d] = K.DIMS[d].label;
+    values[d] = P._askKeys[d].map(function (k) { const n = K.dimName(d, k); return n !== k ? k + ' = ' + n : k; });
+  });
+  const ys = db.purchases.map(function (p) { return p.date.getFullYear(); });
+  return { dimensioner: labels, vaerdier: values, koebsaar: ys.length ? [Math.min.apply(null, ys), Math.max.apply(null, ys)] : null, harForbrug: db.hasConsumed, iAar: new Date().getFullYear() };
+};
+P.askApply = function (out) {
+  const f = K.blankFilters();
+  (out.filters || []).forEach(function (fl) {
+    const d = fl.dim; if (!K.DIMS[d] || !P._askKeys || !P._askKeys[d]) return;
+    const keys = new Set();
+    (fl.values || []).forEach(function (v) {
+      const vv = K.fold(String(v).split(' = ')[0].trim());
+      const hit = P._askKeys[d].find(function (k) { return K.fold(k) === vv || K.fold(K.dimName(d, k)) === vv; });
+      if (hit) keys.add(hit);
+    });
+    if (keys.size) f.dims[d] = { mode: fl.exclude ? 'out' : 'in', vals: keys };
+  });
+  if (out.vintageFrom || out.vintageTo) { f.vintage = [out.vintageFrom || 1900, out.vintageTo || 2100]; f.nv = false; }
+  if (out.priceFrom || out.priceTo) f.price = [out.priceFrom || 0, out.priceTo || 1e9];
+  return f;
+};
+P.askResult = function (q, idx) {
+  if (q.error) return '<div class="msg u">' + e(q.question) + '</div><div class="note bad">' + e(q.error) + '</div>';
+  const out = q.out; const f = q.f;
+  const basis = out.basis || 'beholdning';
+  const g = K.DIMS[out.groupBy] ? out.groupBy : '';
+  const meas = ['bottles', 'wines', 'value', 'avgPrice'].indexOf(out.measure) >= 0 ? out.measure : 'bottles';
+  let items;
+  if (basis === 'beholdning') items = K.apply(A.all, f);
+  else {
+    const src = basis === 'koeb' ? A.db.purchases.filter(function (p) { return !isRest(p); }) : A.db.consumed;
+    const ef = K.eventFilter(f);
+    items = src.filter(function (x) { const y = x.date.getFullYear(); return (!out.yearFrom || y >= out.yearFrom) && (!out.yearTo || y <= out.yearTo); }).filter(ef).map(evItem);
+  }
+  const chips = [];
+  Object.keys(f.dims).forEach(function (d) { chips.push(K.DIMS[d].label + (f.dims[d].mode === 'out' ? ' undtagen' : '') + ': ' + Array.from(f.dims[d].vals).map(function (k) { return K.dimName(d, k); }).join(', ')); });
+  if (f.vintage) chips.push('Årgang ' + (out.vintageFrom || '') + '–' + (out.vintageTo || ''));
+  if (f.price) chips.push('Pris ' + (out.priceFrom || 0) + '–' + (out.priceTo ? out.priceTo : '') + ' €');
+  chips.push({ beholdning: 'I kælderen nu', koeb: 'Køb', forbrug: 'Drukket' }[basis] + (out.yearFrom || out.yearTo ? ' ' + (out.yearFrom || '') + '–' + (out.yearTo || '') : ''));
+  const st = K.stats(items);
+  const noData = basis === 'koeb' && !A.db.hasPurchases ? 'Købshistorikken er ikke indlæst.' : basis === 'forbrug' && !A.db.hasConsumed ? 'Forbrugsdata er ikke indlæst.' : '';
+  let h = '<div class="msg u">' + e(q.question) + '</div><section class="panel"><div class="ph"><h3>' + e(out.title || 'Svar') + '</h3>' +
+    (basis === 'beholdning' && items.length ? '<button class="btn sm" data-act="ask-apply" data-i="' + idx + '">Brug som filter</button>' : '') + '</div>' +
+    '<div class="chips" style="margin:0 0 12px">' + chips.map(function (c) { return '<span class="chip" style="padding-right:12px">' + e(c) + '</span>'; }).join('') + '</div>';
+  if (noData) h += '<div class="note warn">' + noData + '</div>';
+  else if (!items.length) h += '<div class="empty">Ingen flasker matcher.</div>';
+  else {
+    h += U.kpis([{ v: K.n0(st.bottles), l: basis === 'koeb' ? 'Købte flasker' : basis === 'forbrug' ? 'Drukket' : 'Flasker' }, { v: K.n0(st.wines), l: 'Forskellige vine' }, { v: K.money(st.value), l: basis === 'beholdning' ? 'Indkøbsværdi' : 'Værdi' }, { v: st.avg ? K.money(st.avg) : '–', l: 'Gns. pris' }]);
+    if (g) h += '<div style="margin-top:16px">' + U.bars(items, g, { measure: meas, top: 12 }) + '</div>';
+    h += '<details style="margin-top:14px"' + (g ? '' : ' open') + '><summary class="link" style="cursor:pointer">Vis vinene (' + U.wineRows(items).length + ')</summary><div style="margin-top:8px">' + U.wineTable(items, { limit: 60 }) + '</div></details>';
+  }
+  if (out.note) h += '<div class="note" style="margin-top:12px">' + e(out.note) + '</div>';
+  return h + usageLine(q.usage) + '</section>';
+};
+P.spoerg = function () {
+  let h = head('Spørg kælderen', 'Stil et spørgsmål med dine egne ord. Sprogmodellen forstår spørgsmålet, men alle tal regnes ud af dashboardet på dine egne data.');
+  const gate = aiGate(); if (gate) return h + gate;
+  const log = A.askLog = A.askLog || [];
+  const ex = ['Hvor mange Jura-hvide under 40 € har jeg i Køleskabet?', 'Hvilke producenter har jeg købt mest af siden 2024?', 'Vis mine Barolo og Barbaresco fra før 2019', 'Hvilke druer har jeg drukket mest af i år?', 'Hvad har jeg bundet flest penge i fra Bourgogne?'];
+  h += '<div style="display:grid;gap:8px;margin-bottom:18px"><textarea id="ask-q" rows="2" placeholder="Fx »' + e(ex[0]) + '«"></textarea><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn pri" data-act="ask-send"' + (A.askBusy ? ' disabled' : '') + '>' + (A.askBusy ? 'Tænker …' : 'Spørg') + '</button>' +
+    (log.length ? '<button class="link" data-act="ask-clear">Ryd</button>' : '') + '</div>' +
+    (log.length ? '' : '<div class="toolbar" style="gap:6px;margin-top:4px">' + ex.map(function (x) { return '<button type="button" class="chip" style="cursor:pointer;padding-right:12px" data-act="ask-ex" data-q="' + e(x) + '">' + e(x) + '</button>'; }).join('') + '</div>') + '</div>';
+  h += '<div class="chat">' + log.map(function (q, i) { return P.askResult(q, i); }).reverse().join('') + '</div>';
+  return h;
+};
+P.askSend = async function (q) {
+  q = String(q || '').trim(); if (!q || A.askBusy) return;
+  A.askBusy = true; A.render();
+  try {
+    const r = await A.post({ action: 'ai', task: 'ask', question: q, payload: P.askCatalog() });
+    if (!r.ok) A.askLog.push({ question: q, error: r.error });
+    else A.askLog.push({ question: q, out: r.out, usage: r.usage, f: P.askApply(r.out) });
+  } catch (err) { A.askLog.push({ question: q, error: 'Kunne ikke kontakte AI-tjenesten: ' + (err.message || err) }); }
+  A.askBusy = false; A.render();
+};
+
+/* ---------- Analyse ---------- */
+P.trendData = function () {
+  const db = A.db; const ef = K.eventFilter(K.filters);
+  const pur = db.purchases.filter(ef).filter(function (p) { return !isRest(p); });
+  const con = db.consumed.filter(ef).filter(function (c) { return c.drunk; });
+  const nowY = new Date().getFullYear();
+  const share = function (list, dim, keys) {
+    const t = list.reduce(function (a, p) { return a + p.qty; }, 0) || 1; const o = {};
+    keys.forEach(function (k) { o[K.dimName(dim, k)] = r1(100 * list.filter(function (p) { return K.DIMS[dim].get(evItem(p)) === k; }).reduce(function (a, p) { return a + p.qty; }, 0) / t); });
+    return o;
+  };
+  const topKeys = function (dim, n) { return K.rank(pur.map(evItem), dim).slice(0, n).map(function (r) { return r.key; }); };
+  const kG = topKeys('grape', 8), kR = topKeys('region', 8), kC = topKeys('country', 6), kCol = topKeys('color', 4), kCls = topKeys('cls', 6);
+  const firstY = {}; pur.slice().sort(function (a, b) { return a.date - b.date; }).forEach(function (p) { if (firstY[p.w.producer] === undefined) firstY[p.w.producer] = p.date.getFullYear(); });
+  const years = Array.from(new Set(pur.map(function (p) { return p.date.getFullYear(); }))).sort();
+  const perYear = years.map(function (y) {
+    const l = pur.filter(function (p) { return p.date.getFullYear() === y; });
+    const q = l.reduce(function (a, p) { return a + p.qty; }, 0);
+    const priced = l.filter(function (p) { return p.price > 0; }); const pq = priced.reduce(function (a, p) { return a + p.qty; }, 0);
+    const prodQ = {}; l.forEach(function (p) { prodQ[p.w.producer] = (prodQ[p.w.producer] || 0) + p.qty; });
+    const top5 = Object.values(prodQ).sort(function (a, b) { return b - a; }).slice(0, 5).reduce(function (a, b) { return a + b; }, 0);
+    const storeQ = {}; l.forEach(function (p) { const s = p.store || 'ukendt'; storeQ[s] = (storeQ[s] || 0) + p.qty; });
+    const ages = []; l.forEach(function (p) { if (!p.w.nv) for (let i = 0; i < p.qty; i++) ages.push(y - p.w.vintage); });
+    const c = con.filter(function (x) { return x.date.getFullYear() === y; });
+    const cAges = []; c.forEach(function (x) { if (!x.w.nv) for (let i = 0; i < x.qty; i++) cAges.push(y - x.w.vintage); });
+    const avg = function (a) { return a.length ? r1(a.reduce(function (s, v) { return s + v; }, 0) / a.length) : null; };
+    return {
+      aar: y, ufuldstaendigt: y === nowY, koebte_flasker: q, koebslinjer: l.length, koebsvaerdi_eur: Math.round(l.reduce(function (a, p) { return a + p.qty * (p.price || 0); }, 0)),
+      gns_pris_eur: pq ? r1(priced.reduce(function (a, p) { return a + p.qty * p.price; }, 0) / pq) : null,
+      farver_pct: share(l, 'color', kCol), vintyper_pct: share(l, 'cls', kCls), druer_pct: share(l, 'grape', kG), regioner_pct: share(l, 'region', kR), lande_pct: share(l, 'country', kC),
+      forskellige_producenter: Object.keys(prodQ).length, top5_producenter_pct: q ? r1(100 * top5 / q) : null,
+      nye_producenter_pct: q ? r1(100 * l.filter(function (p) { return firstY[p.w.producer] === y; }).reduce(function (a, p) { return a + p.qty; }, 0) / q) : null,
+      gns_alder_ved_koeb_aar: avg(ages), nv_pct: q ? r1(100 * l.filter(function (p) { return p.w.nv; }).reduce(function (a, p) { return a + p.qty; }, 0) / q) : null,
+      enkeltflaske_koeb_pct: l.length ? r1(100 * l.filter(function (p) { return p.qty === 1; }).length / l.length) : null,
+      forhandlere: Object.keys(storeQ).length, top_forhandler_pct: q ? r1(100 * Math.max.apply(null, Object.values(storeQ)) / q) : null,
+      drukne_flasker: c.reduce(function (a, x) { return a + x.qty; }, 0), gns_alder_ved_drik_aar: avg(cAges)
+    };
+  });
+  const months = new Array(12).fill(0); pur.forEach(function (p) { months[p.date.getMonth()] += p.qty; });
+  const now = A.view; const tn = K.sum(now) || 1;
+  const nowShare = function (dim, n) { const o = {}; K.rank(now, dim).slice(0, n).forEach(function (r) { o[r.name] = r1(100 * r.v / tn); }); return o; };
+  const per = Array.from(K.group(now, function (i) { return i.w.id; }).values());
+  return {
+    note: 'Køb uden »Restaurant«. Procenter er andel af årets købte flasker. Aktive filtre: ' + (K.activeFilterCount() ? P.filterDesc() : 'ingen') + '.',
+    pr_aar: perYear, koeb_pr_maaned_alle_aar: months,
+    beholdning_nu: { flasker: K.sum(now), gns_pris_eur: r1(K.MEASURES.avgPrice.fn(now)), farver_pct: nowShare('color', 4), vintyper_pct: nowShare('cls', 6), regioner_pct: nowShare('region', 8), druer_pct: nowShare('grape', 8), enkeltflaske_vine_pct: per.length ? r1(100 * per.filter(function (x) { return K.sum(x) === 1; }).length / per.length) : null }
+  };
+};
+P.analyse = function () {
+  let h = head('Analyse', 'En skarp gennemgang af hvordan din samling har udviklet sig, med både de åbenlyse og de mere skjulte tendenser. Tallene beregnes af dashboardet; sprogmodellen fortolker dem.');
+  if (!A.db.hasPurchases) return h + '<div class="note">Analysen kræver købshistorikken fra CellarTracker (Purchase), og gerne forbrug (Consumed).</div>';
+  const gate = aiGate();
+  const sig = JSON.stringify([P.filterDesc(), A.db.purchases.length, A.db.consumed.length]);
+  const res = A.insight && A.insight.sig === sig ? A.insight : null;
+  h += '<div class="toolbar"><button class="btn pri" data-act="ins-run"' + (gate || A.insBusy ? ' disabled' : '') + '>' + (A.insBusy ? 'Analyserer …' : res ? 'Analysér igen' : 'Lav analysen') + '</button><span class="faint">' + (K.activeFilterCount() ? 'Gælder dine aktive filtre: ' + e(P.filterDesc()) : 'Hele samlingen. Brug filtrene foroven for at analysere fx kun Jura eller kun rødvin.') + '</span></div>';
+  if (gate) return h + gate;
+  if (!res) return h + '<div class="empty">Tryk »Lav analysen«. Det tager typisk 10–30 sekunder.</div>';
+  if (res.error) return h + '<div class="note bad">' + e(res.error) + '</div>';
+  const o = res.out;
+  const card = function (x) { return '<div class="pickc"><b style="font-size:16px">' + e(x.title) + '</b><span>' + e(x.text) + '</span>' + (x.evidence ? '<span class="faint" style="font-size:13px">' + e(x.evidence) + '</span>' : '') + '</div>'; };
+  h += '<section class="panel" style="background:#1F2A37;border-color:#1F2A37;color:var(--on-dark)"><div class="eyebrow" style="color:var(--accent-2)">Kort fortalt</div><p style="margin:8px 0 0;font-size:18px;line-height:1.45">' + e(o.summary) + '</p></section>';
+  h += '<div class="grid g2 section" style="margin-top:14px"><div><h2 style="margin-bottom:12px">Det åbenlyse</h2><div class="grid" style="gap:10px">' + (o.obvious || []).map(card).join('') + '</div></div>' +
+    '<div><h2 style="margin-bottom:12px">Det skjulte</h2><div class="grid" style="gap:10px">' + (o.hidden || []).map(card).join('') + '</div></div></div>';
+  if ((o.questions || []).length) h += '<div class="section">' + panel('Til eftertanke', '<ul style="margin:0;padding-left:20px;display:grid;gap:6px">' + o.questions.map(function (q) { return '<li>' + e(q) + '</li>'; }).join('') + '</ul>') + '</div>';
+  return h + '<div class="faint" style="font-size:.78rem;margin-top:10px">AI-fortolkning af dine tal. Tjek gerne pointerne under Udvikling, før du lægger vægt på dem.</div>' + usageLine(res.usage);
+};
+P.insRun = async function () {
+  if (A.insBusy) return;
+  const sig = JSON.stringify([P.filterDesc(), A.db.purchases.length, A.db.consumed.length]);
+  A.insBusy = true; A.render();
+  try { const r = await A.post({ action: 'ai', task: 'insight', payload: P.trendData() }); A.insight = r.ok ? { sig: sig, out: r.out, usage: r.usage } : { sig: sig, error: r.error }; }
+  catch (err) { A.insight = { sig: sig, error: 'Kunne ikke kontakte AI-tjenesten: ' + (err.message || err) }; }
+  A.insBusy = false; A.render();
+};
+
+/* ---------- Dit vinår ---------- */
+P.yearStats = function (y) {
+  const db = A.db; const ef = K.eventFilter(K.filters);
+  const pur = db.purchases.filter(ef).filter(function (p) { return !isRest(p); });
+  const con = db.consumed.filter(ef).filter(function (c) { return c.drunk; });
+  const py = pur.filter(function (p) { return p.date.getFullYear() === y; }), prev = pur.filter(function (p) { return p.date.getFullYear() === y - 1; });
+  const cy = con.filter(function (c) { return c.date.getFullYear() === y; });
+  const qty = function (l) { return l.reduce(function (a, p) { return a + p.qty; }, 0); };
+  const val = function (l) { return Math.round(l.reduce(function (a, p) { return a + p.qty * (p.price || 0); }, 0)); };
+  const avgP = function (l) { const pr = l.filter(function (p) { return p.price > 0; }); const q = qty(pr); return q ? r1(pr.reduce(function (a, p) { return a + p.qty * p.price; }, 0) / q) : null; };
+  const top = function (l, dim, n) { return K.rank(l.map(evItem), dim).slice(0, n).map(function (r) { return { navn: r.name, flasker: r.v }; }); };
+  const first = function (dim) { const m = {}; pur.slice().sort(function (a, b) { return a.date - b.date; }).forEach(function (p) { const k = K.DIMS[dim].get(evItem(p)); if (m[k] === undefined) m[k] = p.date.getFullYear(); }); return Object.keys(m).filter(function (k) { return m[k] === y; }).map(function (k) { return K.dimName(dim, k); }); };
+  const sh = function (l) { const t = qty(l) || 1; const o = {}; K.rank(l.map(evItem), 'region').forEach(function (r) { o[r.name] = 100 * r.v / t; }); return o; };
+  const a = sh(py), b = sh(prev);
+  const shifts = Object.keys(Object.assign({}, a, b)).map(function (k) { return { region: k, aendring_pp: r1((a[k] || 0) - (b[k] || 0)) }; }).filter(function (x) { return Math.abs(x.aendring_pp) >= 3; }).sort(function (x, y2) { return y2.aendring_pp - x.aendring_pp; });
+  const dyr = py.filter(function (p) { return p.price > 0; }).sort(function (x, y2) { return y2.price - x.price; })[0];
+  const ages = []; py.forEach(function (p) { if (!p.w.nv) for (let i = 0; i < p.qty; i++) ages.push(y - p.w.vintage); });
+  const months = new Array(12).fill(0); py.forEach(function (p) { months[p.date.getMonth()] += p.qty; });
+  const mi = months.indexOf(Math.max.apply(null, months));
+  const cAges = cy.filter(function (c) { return !c.w.nv; });
+  const oldest = cAges.slice().sort(function (x, y2) { return x.w.vintage - y2.w.vintage; })[0];
+  const np = first('producer');
+  return {
+    aar: y, ufuldstaendigt: y === new Date().getFullYear(),
+    koebt: { flasker: qty(py), vaerdi_eur: val(py), gns_pris_eur: avgP(py), koebslinjer: py.length, top_regioner: top(py, 'region', 5), top_druer: top(py, 'grape', 5), top_producenter: top(py, 'producer', 5), farver: top(py, 'color', 4), forhandlere: top(py, 'store', 3),
+      nye_producenter_antal: np.length, nye_producenter: np.slice(0, 12), nye_regioner: first('region'), nye_druer: first('grape'),
+      dyreste: dyr ? { vin: dyr.w.name + ' ' + (dyr.w.nv ? 'NV' : dyr.w.vintage), pris_eur: Math.round(dyr.price) } : null,
+      gns_alder_ved_koeb_aar: ages.length ? r1(ages.reduce(function (s, v) { return s + v; }, 0) / ages.length) : null,
+      travleste_maaned: months[mi] ? ['januar', 'februar', 'marts', 'april', 'maj', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'december'][mi] : null },
+    sidste_aar: { flasker: qty(prev), vaerdi_eur: val(prev), gns_pris_eur: avgP(prev) },
+    regionsforskydninger_mod_sidste_aar: shifts.slice(0, 6),
+    drukket: A.db.hasConsumed ? { flasker: qty(cy), top_regioner: top(cy, 'region', 4), top_druer: top(cy, 'grape', 4), aeldste: oldest ? oldest.w.name + ' ' + oldest.w.vintage : null,
+      gns_alder_aar: cAges.length ? r1(cAges.reduce(function (s, c) { return s + (y - c.w.vintage) * c.qty; }, 0) / qty(cAges)) : null } : 'ikke registreret'
+  };
+};
+P.vinaar = function () {
+  let h = head('Dit vinår', 'Året der gik i kælderen: hvad du købte, opdagede og drak.');
+  if (!A.db.hasPurchases) return h + '<div class="note">Dit vinår kræver købshistorikken fra CellarTracker (Purchase), og gerne forbrug (Consumed).</div>';
+  const years = Array.from(new Set(A.db.purchases.map(function (p) { return p.date.getFullYear(); }))).sort(function (a, b) { return b - a; });
+  const y = +ui('yr_y', years[0]);
+  const s = P.yearStats(y);
+  h += '<div class="toolbar"><label class="inl">År ' + U.select('yr_y', years.map(function (v) { return [String(v), String(v)]; }), String(y)) + '</label>' + (s.ufuldstaendigt ? '<span class="tag">året er ikke slut</span>' : '') + '</div>';
+  h += U.kpis([
+    { v: K.n0(s.koebt.flasker), l: 'Købte flasker', s: s.sidste_aar.flasker ? (s.koebt.flasker >= s.sidste_aar.flasker ? '+' : '') + K.n0(s.koebt.flasker - s.sidste_aar.flasker) + ' mod ' + (y - 1) : '' },
+    { v: K.money(s.koebt.vaerdi_eur), l: 'Brugt', s: s.koebt.gns_pris_eur ? 'gns. ' + K.money(s.koebt.gns_pris_eur) + ' pr. flaske' : '' },
+    { v: K.n0(s.koebt.nye_producenter_antal), l: 'Nye producenter' },
+    { v: typeof s.drukket === 'object' ? K.n0(s.drukket.flasker) : '–', l: 'Drukket' }
+  ]);
+  const gate = aiGate();
+  const res = A.ui['yr_res_' + y];
+  h += '<div class="toolbar" style="margin-top:16px"><button class="btn pri" data-act="yr-run" data-y="' + y + '"' + (gate || A.yrBusy ? ' disabled' : '') + '>' + (A.yrBusy ? 'Skriver …' : res && !res.error ? 'Skriv igen' : 'Fortæl mit vinår') + '</button></div>';
+  if (gate) return h + gate;
+  if (!res) return h + '<div class="empty">Tryk »Fortæl mit vinår«, så skriver sprogmodellen historien ud fra tallene.</div>';
+  if (res.error) return h + '<div class="note bad">' + e(res.error) + '</div>';
+  const o = res.out;
+  h += '<section class="panel" style="background:#1F2A37;border-color:#1F2A37;color:var(--on-dark);padding:28px 24px"><div class="eyebrow" style="color:var(--accent-2)">Vinåret ' + y + '</div><h1 style="color:var(--on-dark);margin:10px 0 12px;font-size:clamp(30px,6vw,44px)">' + e(o.headline) + '</h1><p style="margin:0;font-size:17px;line-height:1.5">' + e(o.intro) + '</p></section>';
+  h += '<div class="grid g2 section" style="margin-top:14px">' + (o.chapters || []).map(function (c) { return panel(e(c.title), '<p style="margin:0;line-height:1.55">' + e(c.text) + '</p>'); }).join('') + '</div>';
+  if ((o.facts || []).length) h += '<div class="facts section">' + o.facts.map(function (f) { return '<div class="fact" style="cursor:default"><span style="font-size:15px;color:var(--ink)">' + e(f) + '</span></div>'; }).join('') + '</div>';
+  return h + usageLine(res.usage);
+};
+P.yrRun = async function (y) {
+  if (A.yrBusy) return;
+  A.yrBusy = true; A.render();
+  try { const r = await A.post({ action: 'ai', task: 'year', payload: P.yearStats(y) }); A.ui['yr_res_' + y] = r.ok ? { out: r.out, usage: r.usage } : { error: r.error }; }
+  catch (err) { A.ui['yr_res_' + y] = { error: 'Kunne ikke kontakte AI-tjenesten: ' + (err.message || err) }; }
+  A.yrBusy = false; A.render();
 };

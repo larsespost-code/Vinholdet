@@ -87,6 +87,7 @@ function doPost(e) {
   if (!authorized_(req.key)) return json_({ ok: false, error: 'Forkert eller manglende nøgle.' });
   try {
     if (req.action === 'pair') return json_(pair_(req));
+    if (req.action === 'ai') return json_(ai_(req));
     if (req.action === 'aliases') { saveJson_('aliases.json', req.aliases || {}); return json_({ ok: true }); }
     if (req.action === 'settings') { saveJson_('settings.json', req.settings || {}); return json_({ ok: true }); }
     return json_({ ok: false, error: 'Ukendt handling.' });
@@ -405,11 +406,11 @@ function parseJson_(txt) {
   }
 }
 
-function callClaude_(system, messages) {
+function callClaude_(system, messages, schema) {
   const apiKey = PropertiesService.getScriptProperties().getProperty('ANTHROPIC_API_KEY');
   const body = {
     model: AI_MODEL, max_tokens: 16000, system: system, messages: messages, fallbacks: 'default',
-    output_config: { effort: 'medium', format: { type: 'json_schema', schema: PICK_SCHEMA } }
+    output_config: { effort: 'medium', format: { type: 'json_schema', schema: schema || PICK_SCHEMA } }
   };
   const res = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
     method: 'post', contentType: 'application/json', muteHttpExceptions: true,
@@ -427,12 +428,12 @@ function callClaude_(system, messages) {
 }
 
 /** Gemini via Google AI Studio. Gratisudgaven har dagskvoter og kan ændres af Google uden varsel. */
-function callGemini_(system, messages) {
+function callGemini_(system, messages, shape) {
   const p = PropertiesService.getScriptProperties();
   const apiKey = p.getProperty('GEMINI_API_KEY');
   const model = p.getProperty('GEMINI_MODEL') || GEMINI_DEFAULT;
   const body = {
-    systemInstruction: { parts: [{ text: system + ' Svar KUN med JSON på formen {"picks":[{"id":"…","role":"klassisk|alternativ|utraditionel|andet","why":"…","caveat":"…"}],"note":"…"}.' }] },
+    systemInstruction: { parts: [{ text: system + ' Svar KUN med JSON på formen ' + (shape || '{"picks":[{"id":"…","role":"klassisk|alternativ|utraditionel|andet","why":"…","caveat":"…"}],"note":"…"}') + '.' }] },
     contents: messages.map(function (m) { return { role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }; }),
     generationConfig: { responseMimeType: 'application/json', temperature: 0.4 }
   };
@@ -450,4 +451,69 @@ function callGemini_(system, messages) {
   if (!out) return { ok: false, error: 'Gemini-svaret kunne ikke læses. Prøv igen.' };
   const u = data.usageMetadata || {};
   return { ok: true, out: out, usage: { input: u.promptTokenCount || 0, output: u.candidatesTokenCount || 0, model: data.modelVersion || model, provider: 'Gemini' } };
+}
+
+
+/* ------------------------------------------------------------ Spørg kælderen, Analyse og Dit vinår */
+
+/**
+ * Dashboardet beregner alle tal selv og sender kun sammenfattede data (ingen
+ * adresser, logins eller noter). Modellen fortolker spørgsmål eller skriver
+ * tekst ud fra de tal, den får – den må ikke finde på nye.
+ */
+const AI_TASKS = {
+  ask: {
+    system: 'Du oversætter et spørgsmål på dansk om en privat vinkælder til en struktureret forespørgsel. ' +
+      'Brug KUN dimensioner og værdier fra kataloget, og skriv værdierne præcis som i kataloget (brug nøglen, ikke visningsnavnet). ' +
+      'basis er "beholdning" for spørgsmål om hvad der står i kælderen nu, "koeb" for køb og "forbrug" for drukne flasker. ' +
+      'groupBy er en dimension, hvis svaret bør fordeles (fx "hvilke producenter …"), ellers tom streng. ' +
+      'Brug 0 for årgang, pris og år, der ikke er angivet. Priser er pr. flaske i euro. title er en kort dansk overskrift for svaret. ' +
+      'note bruges kun til at sige, hvis noget i spørgsmålet ikke kan besvares med de tilgængelige data.',
+    schema: { type: 'object', properties: {
+      title: { type: 'string' },
+      filters: { type: 'array', items: { type: 'object', properties: { dim: { type: 'string' }, values: { type: 'array', items: { type: 'string' } }, exclude: { type: 'boolean' } }, required: ['dim', 'values', 'exclude'], additionalProperties: false } },
+      vintageFrom: { type: 'integer' }, vintageTo: { type: 'integer' }, priceFrom: { type: 'number' }, priceTo: { type: 'number' },
+      basis: { type: 'string', enum: ['beholdning', 'koeb', 'forbrug'] }, yearFrom: { type: 'integer' }, yearTo: { type: 'integer' },
+      groupBy: { type: 'string' }, measure: { type: 'string', enum: ['bottles', 'wines', 'value', 'avgPrice'] }, note: { type: 'string' }
+    }, required: ['title', 'filters', 'vintageFrom', 'vintageTo', 'priceFrom', 'priceTo', 'basis', 'yearFrom', 'yearTo', 'groupBy', 'measure', 'note'], additionalProperties: false },
+    shape: '{"title":"…","filters":[{"dim":"region","values":["France›Jura"],"exclude":false}],"vintageFrom":0,"vintageTo":0,"priceFrom":0,"priceTo":40,"basis":"beholdning|koeb|forbrug","yearFrom":0,"yearTo":0,"groupBy":"","measure":"bottles|wines|value|avgPrice","note":""}'
+  },
+  insight: {
+    system: 'Du er en skarp, nysgerrig dataanalytiker med stor vinviden. Du får nøgletal år for år om en privat vinsamlings køb, forbrug og sammensætning. ' +
+      'Find både de åbenlyse tendenser og de mere skjulte mønstre, som ejeren næppe selv har bemærket (fx at vinene købes yngre eller ældre, prisglidning, koncentration eller spredning på producenter, færre eller flere enkeltflasker, sæsonmønstre, loyalitet over for forhandlere, forskel på hvad der købes og drikkes). ' +
+      'Hver pointe SKAL bygge på tallene i data, og evidence skal nævne de konkrete tal (år og værdier). Opfind ingen tal. Vær præcis og konkret, ikke generisk. ' +
+      'Beskriv og fortolk, men giv ikke købsråd. Tag forbehold, hvor datagrundlaget er tyndt (få flasker i et år, ufuldstændigt år). Skriv på dansk, kort og levende. ' +
+      'questions er 2-3 nysgerrige spørgsmål, ejeren kunne reflektere over.',
+    schema: { type: 'object', properties: {
+      summary: { type: 'string' },
+      obvious: { type: 'array', items: { type: 'object', properties: { title: { type: 'string' }, text: { type: 'string' }, evidence: { type: 'string' } }, required: ['title', 'text', 'evidence'], additionalProperties: false } },
+      hidden: { type: 'array', items: { type: 'object', properties: { title: { type: 'string' }, text: { type: 'string' }, evidence: { type: 'string' } }, required: ['title', 'text', 'evidence'], additionalProperties: false } },
+      questions: { type: 'array', items: { type: 'string' } }
+    }, required: ['summary', 'obvious', 'hidden', 'questions'], additionalProperties: false },
+    shape: '{"summary":"…","obvious":[{"title":"…","text":"…","evidence":"…"}],"hidden":[{"title":"…","text":"…","evidence":"…"}],"questions":["…"]}'
+  },
+  year: {
+    system: 'Du skriver en personlig, varm og vittig årsopsummering af et vinår på dansk, i stil med en "året der gik"-rapport. ' +
+      'Brug KUN tallene i data, og opfind ingen fakta om vinene. Fremhæv det overraskende og det personlige. ' +
+      'headline er en kort, fængende overskrift. intro er 2-3 sætninger. chapters er 3-5 korte kapitler med hver sin vinkel (fx køb, smag/stil, producenter og opdagelser, det drukne, rekorder). facts er 3-6 korte, sjove fakta.',
+    schema: { type: 'object', properties: {
+      headline: { type: 'string' }, intro: { type: 'string' },
+      chapters: { type: 'array', items: { type: 'object', properties: { title: { type: 'string' }, text: { type: 'string' } }, required: ['title', 'text'], additionalProperties: false } },
+      facts: { type: 'array', items: { type: 'string' } }
+    }, required: ['headline', 'intro', 'chapters', 'facts'], additionalProperties: false },
+    shape: '{"headline":"…","intro":"…","chapters":[{"title":"…","text":"…"}],"facts":["…"]}'
+  }
+};
+
+function ai_(req) {
+  const provider = aiProvider_();
+  if (!provider) return { ok: false, error: 'AI er ikke slået til: GEMINI_API_KEY eller ANTHROPIC_API_KEY mangler i Scriptegenskaber.' };
+  const t = AI_TASKS[req.task];
+  if (!t) return { ok: false, error: 'Ukendt AI-opgave.' };
+  const data = JSON.stringify(req.payload || {});
+  if (data.length > 120000) return { ok: false, error: 'For meget data til én forespørgsel. Afgræns med filtrene.' };
+  const messages = [{ role: 'user', content: (req.question ? 'Spørgsmål: ' + String(req.question).slice(0, 1000) + '\n\n' : '') + 'Data (JSON):\n' + data }];
+  const r = provider === 'gemini' ? callGemini_(t.system, messages, t.shape) : callClaude_(t.system, messages, t.schema);
+  if (!r.ok) return r;
+  return { ok: true, out: r.out, usage: r.usage };
 }
