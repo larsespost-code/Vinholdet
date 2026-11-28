@@ -276,6 +276,13 @@ P.druer = function () {
   const m = ui('dr_m', 'bottles');
   h += '<div class="grid g2">' + panel('Druer', U.bars(it, 'grape', { measure: m, top: 15 }), { tools: U.measureSeg('dr_m', m), def: 'Blends tælles som deres registrerede blendkategori. De enkelte druers andele i en blend er ikke registreret og opfindes ikke.' }) +
     '<div class="grid" style="gap:14px">' + panel('Farve', U.stack(it, 'color')) + panel('Vintype', U.stack(it, 'cls')) + panel('Flaskestørrelse', U.bars(it, 'size', { measure: 'bottles' }), { def: 'Volumen i alt ' + K.n1(K.MEASURES.liters.fn(it)) + ' liter = ' + K.n1(K.MEASURES.liters.fn(it) / 0.75) + ' standardflasker; fysisk ' + K.n0(K.sum(it)) + ' flasker.' }) + '</div></div>';
+  {
+    const rk = K.rank(it, 'grape'); const tn = +ui('dr_pn', 10);
+    const parts = rk.slice(0, tn).map(function (r, i) { return { name: r.name, v: r.v, color: U.color('grape', r.key, i) }; });
+    const rest = rk.slice(tn).reduce(function (a, r) { return a + r.v; }, 0);
+    if (rest) parts.push({ name: 'Øvrige (' + (rk.length - tn) + ' druer)', v: rest, color: 'var(--line-2)' });
+    h += '<div class="section">' + panel('Druer i kælderen nu', U.pie(parts, { label: 'Druer i kælderen' }), { tools: U.select('dr_pn', [['6', 'top 6'], ['8', 'top 8'], ['10', 'top 10'], ['12', 'top 12']], String(tn)), def: K.n0(K.sum(it)) + ' flasker. Udviklingen over årene finder du under Udvikling (Fordel på: Drue) og i »Følg en drue«.' }) + '</div>';
+  }
   h += '<div class="section">' + P.grapeGeo(it) + '</div>';
   h += '<div class="section">' + panel('Vintype × land', U.heat(it, 'country', 'cls', { mode: ui('dr_hm2', 'abs'), topR: 10, topC: 9 }), { tools: U.seg('dr_hm2', [['abs', 'Antal'], ['row', 'Række-%'], ['col', 'Kolonne-%']], ui('dr_hm2', 'abs')) }) + '</div>';
   return h;
@@ -609,8 +616,11 @@ P.udvMain = function () {
   // 3: lagkage for et valgt år
   const py = +ui('ud_y', years[years.length - 1]);
   const yy = years.indexOf(py) >= 0 ? py : years[years.length - 1];
-  const parts = allKeys.map(function (k, i) { return { name: nm(k), v: val(yy, k), color: color(k, i) }; });
-  h += '<div class="grid g2 section">' + panel('Fordeling ' + yy, U.pie(parts, { label: 'Fordeling ' + yy }), { tools: U.select('ud_y', years.slice().reverse().map(function (y) { return [String(y), String(y)]; }), String(yy)), def: K.n0(ytot(yy)) + ' ' + label + '.' });
+  // i indeværende år viser beholdningsperspektivet de faktiske flasker i kælderen nu
+  const live = pv === 'hold' && yy === nowY;
+  const liveV = function (k) { return A.view.filter(function (i) { const kk = get(i); return k === '…' ? shown.indexOf(kk) < 0 : kk === k; }).reduce(function (a, i) { return a + i.qty; }, 0); };
+  const parts = allKeys.map(function (k, i) { return { name: nm(k), v: live ? liveV(k) : val(yy, k), color: color(k, i) }; });
+  h += '<div class="grid g2 section">' + panel(live ? 'Fordeling nu' : 'Fordeling ' + yy, U.pie(parts, { label: 'Fordeling ' + yy }), { tools: U.select('ud_y', years.slice().reverse().map(function (y) { return [String(y), String(y)]; }), String(yy)), def: live ? K.n0(K.sum(A.view)) + ' flasker i kælderen i dag.' : K.n0(ytot(yy)) + ' ' + label + '.' });
   // tabel med andel pr. år
   const tb = '<div class="tw"><table class="dv"><thead><tr><th></th>' + years.slice(U.narrow() ? -3 : -6).map(function (y) { return '<th class="r">' + y + '</th>'; }).join('') + '</tr></thead><tbody>' +
     allKeys.map(function (k) { return '<tr><td>' + esc(nm(k)) + '</td>' + years.slice(U.narrow() ? -3 : -6).map(function (y) { const t = ytot(y); return '<td class="r num"' + U.tipAttr(nm(k) + ' ' + y + ': ' + val(y, k) + ' af ' + t + ' fl.') + '>' + (t ? K.n0(val(y, k) / t * 100) + ' %' : '–') + '</td>'; }).join('') + '</tr>'; }).join('') +
