@@ -369,7 +369,7 @@ K.dimsAvailable = function (db) {
 
 K.MEASURES = {
   bottles: { label: 'Flasker', short: 'fl.', fn: function (it) { let s = 0; for (let i = 0; i < it.length; i++) s += it[i].qty; return s; }, fmt: function (v) { return K.n0(v); } },
-  wines: { label: 'Unikke vine (iWine)', short: 'vine', fn: function (it) { const s = new Set(); it.forEach(function (i) { s.add(i.w.id); }); return s.size; }, fmt: function (v) { return K.n0(v); } },
+  wines: { label: 'Unikke vine', short: 'vine', fn: function (it) { const s = new Set(); it.forEach(function (i) { s.add(i.w.id); }); return s.size; }, fmt: function (v) { return K.n0(v); } },
   value: { label: 'Indkøbsværdi', short: '', fn: function (it) { let s = 0; it.forEach(function (i) { s += i.qty * i.price; }); return s; }, fmt: function (v) { return K.money(v); } },
   avgPrice: { label: 'Gns. pris pr. flaske', short: '', fn: function (it) { let s = 0, n = 0; it.forEach(function (i) { if (i.price > 0) { s += i.qty * i.price; n += i.qty; } }); return n ? s / n : 0; }, fmt: function (v) { return v ? K.money(v) : '–'; }, noShare: true },
   producers: { label: 'Producenter', short: 'prod.', fn: function (it) { const s = new Set(); it.forEach(function (i) { s.add(i.w.producer); }); return s.size; }, fmt: function (v) { return K.n0(v); }, noShare: true },

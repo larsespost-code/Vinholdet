@@ -36,12 +36,12 @@ P.overblik = function () {
   let h = head('Overblik', filterNote(), '<button class="btn" data-nav="vinkort">Vinkort</button><button class="btn" data-nav="mad">Mad og vin</button>') + notice();
   h += U.kpis([
     { v: K.n0(s.bottles), l: 'Flasker', s: K.n1(s.bottles / (s.wines || 1)) + ' pr. vin' },
-    { v: K.n0(s.wines), l: 'Unikke vine (iWine)', s: K.n0(s.cuvees) + ' cuvéer på tværs af årgange', tip: 'iWine er én vin i én årgang i CellarTracker. Cuvéer samler samme vin på tværs af årgange.' },
+    { v: K.n0(s.wines), l: 'Unikke vine', s: K.n0(s.cuvees) + ' cuvéer på tværs af årgange', tip: 'En vin er én vin i én årgang. Cuvéer samler samme vin på tværs af årgange.' },
   ]);
   h += '<div class="section" style="margin-top:14px">' + panel('Vintype', U.stack(it, 'cls'), { def: 'Mousserende og hedvin tælles kun her, ikke også som hvid eller rosé. Klik for at åbne en profil.' }) + '</div>';
   h += '<div class="grid g3 section" style="margin-top:18px">' +
     panel('Regioner', U.bars(it, 'region', { measure: m, top: 10 }), { tools: U.measureSeg('ov_m', m) }) +
-    panel('Druer', U.bars(it, 'grape', { measure: m, top: 10 }), { def: 'Overordnet drue (MasterVarietal). Blends tælles som deres blendkategori.' }) +
+    panel('Druer', U.bars(it, 'grape', { measure: m, top: 10 }), { def: 'Blends tælles som deres blendkategori.' }) +
     panel('Producenter', U.bars(it, 'producer', { measure: m, top: 10 })) + '</div>';
   h += '<div class="section">' + panel('Årgange', U.vintages(it), { def: 'Antal flasker pr. årgang. NV står for sig. Årgang er ikke købsår og siger intet om modenhed.' }) + '</div>';
   h += '<div class="section"><h2>Observationer</h2>' + P.facts(it) + '</div>';
@@ -58,8 +58,8 @@ P.facts = function (it) {
   const per = Array.from(K.group(it, function (i) { return i.w.id; }).values());
   const single = per.filter(function (x) { return K.sum(x) === 1; });
   out.push({ b: K.n0(single.length) + ' af ' + K.n0(per.length), t: 'vinposter har kun én flaske (' + K.pct(single.length / (per.length || 1)) + ')', reg: U.reg([].concat.apply([], single), 'Vine med kun én flaske') });
-  const p = K.rank(it, 'producer')[0]; if (p) out.push({ b: p.name, t: 'største producent: ' + K.n0(p.v) + ' fl. (' + K.pct(p.v / s.bottles) + ') og ' + K.money(K.value(p.items)), act: U.act('producer', p.key, p.items) });
-  const d = K.diversity(it, 'region'); out.push({ b: d.c50 + ' af ' + d.n + ' regioner', t: 'rummer tilsammen halvdelen af flaskerne', reg: U.reg([].concat.apply([], d.rank.slice(0, d.c50).map(function (x) { return x.items; })), 'Regioner der dækker 50 %') });
+  const p = K.rank(it, 'producer')[0]; if (p) out.push({ b: p.name, t: 'yndlingsproducent: ' + K.n0(p.v) + ' fl. (' + K.pct(p.v / s.bottles) + ') og ' + K.money(K.value(p.items)), act: U.act('producer', p.key, p.items) });
+  const d = K.diversity(it, 'region'); const rn = d.rank.slice(0, d.c50).map(function (x) { return x.name; }); out.push({ b: d.c50 + ' af ' + d.n + ' regioner', t: (rn.length > 1 ? rn.slice(0, -1).join(', ') + ' og ' + rn[rn.length - 1] : rn[0]) + ' rummer tilsammen halvdelen af flaskerne', reg: U.reg([].concat.apply([], d.rank.slice(0, d.c50).map(function (x) { return x.items; })), 'Regioner der dækker 50 %') });
   const pv = K.rank(it, 'producer', 'value')[0]; if (pv && pv.key !== (p && p.key)) out.push({ b: K.money(pv.v), t: 'bundet hos ' + pv.name + ', den producent med højest registreret værdi', act: U.act('producer', pv.key, pv.items) });
   const top = it.filter(function (i) { return i.price > 0; }).sort(function (a, b) { return b.price - a.price; })[0];
   if (top) out.push({ b: K.money(top.price), t: 'dyreste flaske: ' + top.w.producerRaw + ' ' + top.w.label + ' ' + (top.w.nv ? 'NV' : top.w.vintage), wine: top.w.id });
@@ -888,7 +888,7 @@ P.wineList = function (items, opts) {
   const cmp = function (a, b) { return a.localeCompare(b, 'da'); };
   const total = items.reduce(function (a, i) { return a + i.qty; }, 0);
   const now = new Date();
-  let h = '<article class="wl"><header class="wl-head"><div class="sub">Vinkort</div><h1>Kælderen</h1><div class="sub">' + e(opts.scope) + ' · ' + K.n0(total) + ' flasker · ' + now.toLocaleDateString('da-DK', { day: 'numeric', month: 'long', year: 'numeric' }) + '</div></header>';
+  let h = '<article class="wl"><header class="wl-head"><h1>Vinkort</h1><div class="sub">' + e(opts.scope) + ' · ' + K.n0(total) + ' flasker · ' + now.toLocaleDateString('da-DK', { day: 'numeric', month: 'long', year: 'numeric' }) + '</div></header>';
   h += '<nav class="wl-toc noprint">' + order.map(function (s) { return '<a href="#vinkort" data-act="wl-jump" data-to="wl-' + K.fold(s).replace(/[^a-z]/g, '') + '">' + e(K.CLASS_TITLE[s]) + '</a>'; }).join('') + '</nav>';
   order.forEach(function (s) {
     h += '<section class="wl-sec" id="wl-' + K.fold(s).replace(/[^a-z]/g, '') + '"><h2>' + e(K.CLASS_TITLE[s]) + '</h2><div class="orn">❦</div>';

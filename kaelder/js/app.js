@@ -80,8 +80,13 @@ A.go = function (page, extra, noPush) {
   if (A.back.length > 40) A.back.shift();
   A.route = Object.assign({ page: page }, extra || {});
   try { if (location.hash.slice(1) !== page) history.replaceState(null, '', '#' + page); } catch (e) { /* */ }
+  const from = A.tabIndex(A.back.length ? A.back[A.back.length - 1].page : ''), to = A.tabIndex(page);
   A.render(); window.scrollTo(0, 0);
+  if (!A._swiped && from >= 0 && to >= 0 && from !== to && A.slideIn) A.slideIn(to > from ? 1 : -1);
+  A._swiped = false;
 };
+A.tabs = function () { return PAGES.filter(function (p) { return p !== '-'; }).map(function (p) { return p[0]; }); };
+A.tabIndex = function (page) { if (SUB[page]) page = SUB[page][0]; return A.tabs().indexOf(page); };
 A.goBack = function () {
   const r = A.back.pop();
   if (r) { A.route = r; try { history.replaceState(null, '', '#' + r.page); } catch (e) { /* */ } A.render(); }
@@ -95,6 +100,7 @@ A.refresh = function () {
 };
 
 A.renderNav = function () {
+  const cb = document.getElementById('curbtn'); if (cb) cb.textContent = K.settings().currency === 'DKK' ? 'kr.' : '€';
   $('nav').innerHTML = PAGES.map(function (p) {
     if (p === '-') return '<div class="sep"></div>';
     const ps = A.route.page === 'profil' ? A.profileSection() : '';
@@ -270,15 +276,13 @@ A.showWine = function (id) {
     '<dl class="kv">' + row('Producent', pl('producer', w.producer, w.producerRaw) + (w.producer !== w.producerRaw ? ' <span class="tag">gruppe: ' + K.esc(w.producer) + '</span>' : '')) +
     row('Cuvée / designation', K.esc(w.designation)) + row('Mark', K.esc(w.vineyard)) +
     row('Land', pl('country', w.country, w.countryDa)) + row('Region', pl('region', w.regionKey, w.regionDa)) + row('Underområde', w.subregion ? pl('subregion', w.subregion, w.subregion) : '') + row('Appellation', w.appellation ? pl('appellation', w.appellation, w.appellation) : '') +
-    row('Farve', K.esc(w.color)) + row('CT-type / kategori', K.esc(w.type + ' / ' + w.category)) +
+    row('Farve', K.esc(w.color)) +
     row('Drue', pl('grape', w.master, w.master) + (w.varietal !== w.master ? ' <span class="muted">(' + K.esc(w.varietal) + ')</span>' : '')) +
-    row('Pris pr. flaske', w.price > 0 ? K.money(w.price, 2) + (A.db.bottleLevel ? '' : ' <span class="faint">(CT-pris for vinposten)</span>') : '<span class="faint">ikke registreret (nul)</span>') +
-    row('Registreret værdi', w.price > 0 ? K.money(w.price * q, 2) : '') +
+    row('Pris pr. flaske', w.price > 0 ? K.money(w.price, 2) : '<span class="faint">ikke registreret</span>') +
     row('Størrelser', K.esc(Array.from(new Set(its.map(function (i) { return K.sizeLabel(i.ml); }))).join(', '))) +
     (A.db.hasLoc ? row('Lokation', byLoc.map(function (l) { return K.esc(l.name) + ': ' + l.v + ' fl.'; }).join('<br>')) : '') +
-    row('CT-aktivitet', w.cnotes || w.likeVotes ? K.n0(w.cnotes) + ' noter · ' + K.n0(w.likeVotes) + ' synes-om-stemmer <span class="faint">(registreret aktivitet, ikke kvalitet)</span>' : '') +
-    row('iWine', '<span class="mono">' + K.esc(w.id) + '</span>') + '</dl>' +
-    (buys.length ? '<h3 style="margin:18px 0 6px">Køb</h3>' + buys.map(function (b) { return '<div class="muted">' + K.date(b.date) + ' · ' + b.qty + ' fl.' + (b.price ? ' · ' + K.money(b.price, 2) : '') + (b.store ? ' · ' + K.esc(b.store) : '') + '</div>'; }).join('') : '') +
+    row('Købt hos', K.rank(its.filter(function (i) { return i.store; }), 'store').map(function (s) { return K.esc(s.name) + ': ' + s.v + ' fl.'; }).join('<br>')) + '</dl>' +
+    (buys.length ? '<h3 style="margin:18px 0 6px">Købshistorik</h3>' + buys.map(function (b) { return '<div class="muted">' + K.date(b.date) + ' · ' + b.qty + ' fl.' + (b.price ? ' · ' + K.money(b.price, 2) : '') + (b.store ? ' · ' + K.esc(b.store) : '') + '</div>'; }).join('') : '') +
     (drunk.length ? '<h3 style="margin:18px 0 6px">Afgang</h3>' + drunk.map(function (b) { return '<div class="muted">' + K.date(b.date) + ' · ' + b.qty + ' fl. · ' + K.esc(b.reason) + '</div>'; }).join('') : '') +
     '<p style="margin-top:20px"><a href="https://www.cellartracker.com/wine.asp?iWine=' + encodeURIComponent(w.id) + '" target="_blank" rel="noopener">Åbn vinen i CellarTracker ↗</a></p>');
 };
@@ -367,7 +371,7 @@ A.post = async function (body) {
 /* ---------------------------------------------------------------- hændelser */
 
 document.addEventListener('click', function (e) {
-  const t = e.target.closest('[data-nav],[data-fpop],[data-popapply],[data-popclear],[data-unf],[data-seg],[data-wine],[data-reg],[data-dim],[data-act],[data-wlreg],[data-csvreg],[data-weekend]');
+  const t = e.target.closest('[data-curtog],[data-nav],[data-fpop],[data-popapply],[data-popclear],[data-unf],[data-seg],[data-wine],[data-reg],[data-dim],[data-act],[data-wlreg],[data-csvreg],[data-weekend]');
   if (!t) { if (!e.target.closest('#pop')) A.closePop(); return; }
   const d = t.dataset;
   if (d.nav) { e.preventDefault(); A.closeDrawer(); A.go(d.nav); return; }
@@ -375,6 +379,7 @@ document.addEventListener('click', function (e) {
   if (d.popapply) { A.applyPop(d.popapply); return; }
   if (d.popclear) { A.clearFilter(d.popclear); return; }
   if (d.unf) { A.clearFilter(d.unf); return; }
+  if (t.closest && t.closest('[data-curtog]')) { K.saveSettings({ currency: K.settings().currency === 'DKK' ? 'EUR' : 'DKK' }); A.refresh(); return; }
   if (d.seg) { if (d.seg === 'popmode') { A.popMode = d.val; t.parentNode.querySelectorAll('button').forEach(function (b) { b.classList.toggle('on', b === t); }); return; } if (d.seg === 'cur') { K.saveSettings({ currency: d.val }); A.refresh(); return; } A.ui[d.seg] = d.val; A.render(); return; }
   if (d.weekend) { const wk = K.settings().weekendLocations || []; K.filters.dims.location = { mode: 'in', vals: new Set(wk) }; K.filters.dims.color = { mode: 'in', vals: new Set(['Rød']) }; A.refresh(); return; }
   if (d.wlreg) { A.closeDrawer(); A.go('vinkort', { items: U._reg[+d.wlreg].items, title: U._reg[+d.wlreg].title }); return; }
@@ -399,4 +404,124 @@ window.addEventListener('hashchange', function () { const p = location.hash.slic
   const p = location.hash.slice(1);
   if (p && P[p] && p !== 'profil') { if (SUB[p]) { A.ui[SUB[p][1]] = p; A.route = { page: SUB[p][0] }; } else A.route = { page: p }; }
   A.load().then(function () { if (A.src.mode === 'none') A.route = { page: 'data' }; A.refresh(); });
+})();
+
+
+/* ---------------------------------------------------------------- swipe mellem fanerne (som i Blindervenner-dashboardet) */
+(function () {
+  const NO = '.chart,.tw,.hml,input,select,textarea,.seg,.toolbar,.chips,.drawer,#pop,.pl';
+  const EASE = 'cubic-bezier(.22,.8,.25,1)';
+  const reduce = function () { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; };
+  const T = function (ms) { return Math.round(ms * (reduce() ? 0.6 : 1)); };
+  const W = function () { return window.innerWidth || 400; };
+  let x0 = null, y0 = 0, mode = null, dx = 0, lastX = 0, lastT = 0, vx = 0, busy = false, peek = null, peekDir = 0;
+  const root = function () { return document.getElementById('view'); };
+  const idx = function () { return A.tabIndex(A.route.page); };
+  function hidePeek() { if (peek) { peek.remove(); peek = null; peekDir = 0; } }
+  function showPeek(dir) {
+    if (peek && peekDir === dir) return;
+    hidePeek();
+    const tabs = A.tabs(), j = idx() + dir; if (j < 0 || j >= tabs.length) return;
+    const v = root(), r = v.getBoundingClientRect(), top = Math.max(0, r.top);
+    let html = '';
+    const keep = A.route; A.route = { page: tabs[j] };
+    try { html = P[tabs[j]](); } catch (e) { html = ''; }
+    A.route = keep;
+    peek = document.createElement('div'); peek.id = 'peek'; peekDir = dir;
+    peek.style.cssText = 'position:fixed;top:' + top + 'px;left:' + (r.left + dir * W()) + 'px;width:' + r.width + 'px;height:' + (window.innerHeight - top) + 'px';
+    peek.innerHTML = html;
+    document.body.appendChild(peek);
+  }
+  function set(x, ms) {
+    const v = root(); const tr = ms ? 'transform ' + ms + 'ms ' + EASE + ', opacity ' + ms + 'ms ' + EASE : 'none';
+    v.style.transition = tr; v.style.transform = x ? 'translate3d(' + x + 'px,0,0)' : '';
+    v.style.opacity = (x && !peek) ? String(1 - Math.min(0.35, Math.abs(x) / W() * 0.5)) : '';
+    if (peek) { peek.style.transition = ms ? 'transform ' + ms + 'ms ' + EASE : 'none'; peek.style.transform = x ? 'translate3d(' + x + 'px,0,0)' : ''; }
+  }
+  A.slideIn = function (dir, fromSwipe) {
+    const v = root(); set(dir * (fromSwipe ? W() * 0.9 : W() * 0.35), 0); void v.offsetWidth;
+    requestAnimationFrame(function () { set(0, T(fromSwipe ? 300 : 260)); setTimeout(function () { v.style.transition = ''; v.classList.remove('dragging'); }, T(320)); });
+  };
+  function abort() { x0 = null; mode = null; dx = 0; const v = root(); v.style.transition = ''; v.style.transform = ''; v.style.opacity = ''; v.classList.remove('dragging'); hidePeek(); }
+  document.addEventListener('touchstart', function (e) {
+    if (x0 !== null && e.touches.length > 1) { abort(); return; }
+    if (busy || e.touches.length !== 1 || idx() < 0 || document.body.classList.contains('drawer-open') || document.querySelector('.drawer.open') || e.target.closest(NO) || !e.target.closest('#view')) { x0 = null; return; }
+    x0 = lastX = e.touches[0].clientX; y0 = e.touches[0].clientY; lastT = Date.now(); mode = null; dx = 0; vx = 0;
+  }, { passive: true });
+  document.addEventListener('touchmove', function (e) {
+    if (x0 === null) return;
+    const t = e.touches[0], mx = t.clientX - x0, my = t.clientY - y0;
+    if (!mode) { if (Math.abs(mx) < 8 && Math.abs(my) < 8) return; mode = Math.abs(mx) > Math.abs(my) * 1.2 ? 'x' : 'y'; if (mode === 'x') root().classList.add('dragging'); }
+    if (mode !== 'x') return;
+    e.preventDefault();
+    const now = Date.now(); vx = (t.clientX - lastX) / Math.max(1, now - lastT); lastX = t.clientX; lastT = now;
+    const i = idx(), n = A.tabs().length, edge = (mx > 0 && i === 0) || (mx < 0 && i === n - 1);
+    dx = edge ? mx * 0.25 : mx;
+    if (edge) hidePeek(); else showPeek(mx < 0 ? 1 : -1);
+    set(dx, 0);
+  }, { passive: false });
+  const end = function () {
+    if (x0 === null) return; x0 = null;
+    if (mode !== 'x') { mode = null; return; }
+    mode = null;
+    const tabs = A.tabs(), i = idx(), dir = dx < 0 ? 1 : -1, j = i + dir;
+    const go = j >= 0 && j < tabs.length && (Math.abs(dx) > W() * 0.22 || (Math.abs(vx) > 0.45 && Math.abs(dx) > 30));
+    const v = root();
+    if (!go) { set(0, T(220)); setTimeout(function () { v.style.transition = ''; v.classList.remove('dragging'); hidePeek(); }, T(240)); return; }
+    busy = true;
+    const withPeek = !!peek && peekDir === dir;
+    set(-dir * W(), T(withPeek ? 240 : 170));
+    setTimeout(function () {
+      busy = false;
+      v.style.transition = 'none'; v.style.transform = ''; v.style.opacity = '';
+      A._swiped = true; A.go(tabs[j]); hidePeek(); v.classList.remove('dragging');
+      if (!withPeek) A.slideIn(dir, true);
+    }, T(withPeek ? 240 : 170));
+  };
+  document.addEventListener('touchend', end, { passive: true });
+  document.addEventListener('touchcancel', end, { passive: true });
+})();
+
+/* ---------------------------------------------------------------- træk en finger hen over et diagram for at se tallene */
+(function () {
+  let sv = null, x0 = 0, y0 = 0, mode = null, hot = null, hideT = 0;
+  const tip = function () { return document.getElementById('tip'); };
+  function pick(x, y) {
+    let best = null, bd = 1e9;
+    sv.querySelectorAll('[data-tip]').forEach(function (el) {
+      const b = el.getBoundingClientRect(); if (!b.width && !b.height) return;
+      const cx = b.left + b.width / 2, cy = b.top + b.height / 2;
+      const inX = x >= b.left && x <= b.right;
+      const d = (inX ? 0 : Math.abs(x - cx) * 3) + (el.tagName === 'circle' ? Math.abs(y - cy) : 0);
+      if (d < bd) { bd = d; best = el; }
+    });
+    return best;
+  }
+  function show(x, y) {
+    const el = pick(x, y), t = tip(); if (!el || !t) return;
+    if (hot !== el) { if (hot) hot.classList.remove('hot'); hot = el; el.classList.add('hot'); }
+    t.textContent = el.getAttribute('data-tip'); t.style.display = 'block';
+    const lx = Math.max(8, Math.min(x - t.offsetWidth / 2, window.innerWidth - t.offsetWidth - 8));
+    t.style.left = lx + 'px'; t.style.top = Math.max(8, y - t.offsetHeight - 36) + 'px';
+  }
+  function clear() { if (hot) hot.classList.remove('hot'); hot = null; const t = tip(); if (t) t.style.display = 'none'; }
+  document.addEventListener('touchstart', function (e) {
+    const s = e.target.closest && e.target.closest('.chart svg');
+    clearTimeout(hideT);
+    if (!s || e.touches.length !== 1) { sv = null; return; }
+    sv = s; mode = null; x0 = e.touches[0].clientX; y0 = e.touches[0].clientY;
+  }, { passive: true });
+  document.addEventListener('touchmove', function (e) {
+    if (!sv) return;
+    const t = e.touches[0];
+    if (!mode) { if (Math.abs(t.clientX - x0) < 6 && Math.abs(t.clientY - y0) < 6) return; mode = Math.abs(t.clientX - x0) >= Math.abs(t.clientY - y0) ? 'x' : 'y'; }
+    if (mode !== 'x') { sv = null; clear(); return; }
+    if (e.cancelable) e.preventDefault();
+    show(t.clientX, t.clientY);
+  }, { passive: false });
+  document.addEventListener('touchend', function (e) {
+    if (!sv) return;
+    if (mode === 'x') { e.preventDefault(); hideT = setTimeout(clear, 1800); }
+    sv = null; mode = null;
+  }, { passive: false });
 })();
