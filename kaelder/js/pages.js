@@ -517,6 +517,107 @@ P.priceChart = function (it) {
     return { label: short[b.name] || b.name.replace(' €', ''), v: b.v, act: U.act('priceBand', b.key, b.items, 'Pris: ' + b.name), tip: b.name + ': ' + b.v + ' fl.', color: b.key === 'Ingen pris' ? 'var(--ink-3)' : 'var(--accent)' }; }), { h: 180, label: 'Prisfordeling' });
 };
 
+
+/* ================================================================ UDVIKLING */
+
+P.udvikling = function () {
+  const db = A.db;
+  let h = head('Udvikling', 'Hvordan samlingen har ændret sig år for år. Vælg hvad der skal fordeles på, og om du vil se beholdningen eller årets køb.');
+  const dim = ui('ud_d', 'color');
+  const inclR = ui('ud_r', 'nej') === 'ja';
+  const isR = function (p) { return /^restaurant$/i.test(p.store || ''); };
+  const ef = K.eventFilter(K.filters);
+  // »Restaurant«-køb er typisk vine drukket ude; de påvirker kun visningen af årets køb, ikke beholdningen.
+  const purAll = db.purchases.filter(ef);
+  let pur = purAll;
+  const con = db.consumed.filter(ef);
+  const persp = [];
+  if (db.hasPurchases && db.hasConsumed) persp.push(['hold', 'Beholdning ved årets udgang']);
+  if (db.hasPurchases) persp.push(['buy', 'Købt pr. år']);
+  if (db.hasPurchases || db.bottleLevel) persp.push(['have', 'Nuværende flasker efter købsår']);
+  if (!persp.length) return h + '<div class="note">Udviklingen kræver CellarTrackers købshistorik (Purchase) og helst også forbrug (Consumed). ' + (A.src.mode === 'sync' ? 'Synkroniseringen henter dem, når de er tilgængelige; se <a href="#data" data-nav="data">Data & synk</a>.' : 'Upload dem under <a href="#data" data-nav="data">Data & synk</a>, eller sæt den automatiske synkronisering op.') + '</div>';
+  let pv = ui('ud_p', persp[0][0]);
+  if (!persp.some(function (x) { return x[0] === pv; })) pv = persp[0][0];
+  if (pv === 'buy' && !inclR) pur = purAll.filter(function (p) { return !isR(p); });
+  const get = K.DIMS[dim].get;
+  const ev = function (e) { return { w: e.w, qty: e.qty, price: e.price || 0, ml: 750, loc: '', store: e.store || '' }; };
+  const nowY = new Date().getFullYear();
+  // tællinger pr. år og kategori
+  const byY = new Map();
+  const add = function (y, k, q) { if (!byY.has(y)) byY.set(y, new Map()); const m = byY.get(y); m.set(k, (m.get(k) || 0) + q); };
+  let years = [];
+  if (pv === 'buy') {
+    pur.forEach(function (p) { add(p.date.getFullYear(), get(ev(p)), p.qty); });
+    years = Array.from(byY.keys()).sort();
+  } else if (pv === 'have') {
+    if (db.bottleLevel) A.view.forEach(function (i) { if (i.pdate) add(i.pdate.getFullYear(), get(i), i.qty); });
+    else pur.forEach(function (p) { if (p.rem) add(p.date.getFullYear(), get(ev(p)), p.rem); });
+    years = Array.from(byY.keys()).sort();
+  } else {
+    const delta = new Map();
+    const dd = function (y, k, q) { if (!delta.has(y)) delta.set(y, new Map()); const m = delta.get(y); m.set(k, (m.get(k) || 0) + q); };
+    pur.forEach(function (p) { dd(p.date.getFullYear(), get(ev(p)), p.qty); });
+    con.forEach(function (c) { dd(c.date.getFullYear(), get(ev(c)), -c.qty); });
+    const ys = Array.from(delta.keys()); const y0 = Math.min.apply(null, ys);
+    const run = new Map();
+    for (let y = y0; y <= nowY; y++) {
+      (delta.get(y) || new Map()).forEach(function (q, k) { run.set(k, (run.get(k) || 0) + q); });
+      run.forEach(function (q, k) { if (q > 0) add(y, k, q); });
+      years.push(y);
+    }
+  }
+  if (!years.length) return h + '<div class="empty">Ingen data matcher filtrene.</div>';
+  if (pv !== 'hold') { const lo = years[0], hi = years[years.length - 1]; years = []; for (let y = lo; y <= hi; y++) years.push(y); }
+  // de største kategorier, resten som Øvrige
+  const tot = new Map();
+  (pv === 'hold' ? [years[years.length - 1]] : years).forEach(function (y) { (byY.get(y) || new Map()).forEach(function (q, k) { tot.set(k, (tot.get(k) || 0) + q); }); });
+  years.forEach(function (y) { (byY.get(y) || new Map()).forEach(function (q, k) { if (!tot.has(k)) tot.set(k, 0); }); });
+  const D = K.DIMS[dim];
+  let keys = Array.from(tot.keys()).sort(function (a, b) { return D.order ? D.order.indexOf(a) - D.order.indexOf(b) : tot.get(b) - tot.get(a); });
+  const n = +ui('ud_n', 6);
+  if (!D.order) keys = Array.from(tot.keys()).sort(function (a, b) { return tot.get(b) - tot.get(a); });
+  const shown = keys.slice(0, n), hasOther = keys.length > n;
+  const val = function (y, k) {
+    const m = byY.get(y) || new Map();
+    if (k === '…') { let s = 0; m.forEach(function (q, kk) { if (shown.indexOf(kk) < 0) s += q; }); return s; }
+    return m.get(k) || 0;
+  };
+  const allKeys = shown.concat(hasOther ? ['…'] : []);
+  const color = function (k, i) { return k === '…' ? 'var(--line-2)' : U.color(dim, k, i); };
+  const nm = function (k) { return k === '…' ? 'Øvrige' : K.dimName(dim, k); };
+  const ytot = function (y) { let s = 0; (byY.get(y) || new Map()).forEach(function (q) { s += q; }); return s; };
+  const xs = years.map(function (y) { return pv === 'buy' && y === nowY ? y + '*' : String(y); });
+  const label = { hold: 'flasker i beholdningen ved årets udgang', buy: 'købte flasker i året', have: 'nuværende flasker købt i året' }[pv];
+  // værktøjslinje
+  h += '<div class="toolbar">' + U.seg('ud_p', persp, pv) + '</div><div class="toolbar">' +
+    '<label class="inl">Fordel på ' + U.select('ud_d', [['color', 'Farve'], ['cls', 'Vintype'], ['grape', 'Drue'], ['country', 'Land'], ['region', 'Region'], ['producer', 'Producent']].concat(db.hasStore ? [['store', 'Forhandler']] : []), dim) + '</label>' +
+    '<label class="inl">Vis ' + U.select('ud_n', [['4', 'top 4'], ['6', 'top 6'], ['8', 'top 8'], ['12', 'top 12']], String(n)) + '</label>' +
+    (pv === 'buy' && purAll.some(isR) ? '<label class="inl">' + U.select('ud_r', [['nej', 'Uden »Restaurant«'], ['ja', 'Med »Restaurant«']], inclR ? 'ja' : 'nej') + '</label>' : '') + '</div>';
+  // 1: antal
+  const series = shown.map(function (k, i) { return { name: nm(k), color: color(k, i), ys: years.map(function (y) { return val(y, k); }) }; });
+  h += '<div class="grid g2">' + panel('Antal', U.lines(xs, series, { label: 'Antal pr. år' }), { def: 'Antal ' + label + '.' + (pv === 'buy' && years.indexOf(nowY) >= 0 ? ' * = år til dato.' : '') });
+  // 2: andel
+  const groups = years.map(function (y) { return { x: String(y), parts: allKeys.map(function (k) { return { key: k, name: nm(k), v: val(y, k) }; }) }; });
+  h += panel('Andel', U.stackCols(groups, allKeys, { color: color }) + '<div class="legend">' + allKeys.map(function (k, i) { return '<span><span class="sw" style="background:' + color(k, i) + '"></span>' + esc(nm(k)) + '</span>'; }).join('') + '</div>', { def: 'Hver søjle er 100 % af ' + label + '.' }) + '</div>';
+  // 3: lagkage for et valgt år
+  const py = +ui('ud_y', years[years.length - 1]);
+  const yy = years.indexOf(py) >= 0 ? py : years[years.length - 1];
+  const parts = allKeys.map(function (k, i) { return { name: nm(k), v: val(yy, k), color: color(k, i) }; });
+  h += '<div class="grid g2 section">' + panel('Fordeling ' + yy, U.pie(parts, { label: 'Fordeling ' + yy }), { tools: U.select('ud_y', years.slice().reverse().map(function (y) { return [String(y), String(y)]; }), String(yy)), def: K.n0(ytot(yy)) + ' ' + label + '.' });
+  // tabel med andel pr. år
+  const tb = '<div class="tw"><table class="dv"><thead><tr><th></th>' + years.slice(-6).map(function (y) { return '<th class="r">' + y + '</th>'; }).join('') + '</tr></thead><tbody>' +
+    allKeys.map(function (k) { return '<tr><td>' + esc(nm(k)) + '</td>' + years.slice(-6).map(function (y) { const t = ytot(y); return '<td class="r num"' + U.tipAttr(nm(k) + ' ' + y + ': ' + val(y, k) + ' af ' + t + ' fl.') + '>' + (t ? K.n0(val(y, k) / t * 100) + ' %' : '–') + '</td>'; }).join('') + '</tr>'; }).join('') +
+    '<tr><td class="faint">I alt</td>' + years.slice(-6).map(function (y) { return '<td class="r num faint">' + K.n0(ytot(y)) + '</td>'; }).join('') + '</tr></tbody></table></div>';
+  h += panel('Andel de seneste år', tb, { def: 'Procent af årets ' + label + '. Holder du musen over et tal, ser du antallet.' }) + '</div>';
+  if (pv === 'hold') {
+    const recon = ytot(nowY), actual = K.sum(A.view);
+    h += '<div class="note" style="margin-top:14px">Beholdningen er regnet ud som køb minus afgang år for år. ' + (Math.abs(recon - actual) > 2 ? 'Udregningen giver ' + K.n0(recon) + ' fl. i dag, mens kælderen faktisk har ' + K.n0(actual) + ' fl. Forskellen skyldes typisk flasker uden registreret køb eller afgang.' : 'Den stemmer med den faktiske beholdning i dag (' + K.n0(actual) + ' fl.).') + '</div>';
+  } else if (pv === 'have') {
+    h += '<div class="note" style="margin-top:14px">Viser kun de flasker, du har nu, fordelt på det år de blev købt. Drukne flasker indgår ikke. Med CellarTrackers forbrugsdata (Consumed) kan dashboardet vise den faktiske beholdning år for år.</div>';
+  }
+  return h;
+};
+
 /* ================================================================ CELLAR LAB */
 
 P.lab = function () {

@@ -6,7 +6,7 @@ const $ = function (id) { return document.getElementById(id); };
 
 const PAGES = [
   ['overblik', 'Overblik'], ['samling', 'Min samling'], ['geografi', 'Geografi'], ['druer', 'Druer & vintyper'], ['producenter', 'Producenter'],
-  ['vaerdi', 'Værdi & priser'], ['lab', 'Cellar Lab'], '-', ['vinkort', 'Vinkort'], ['mad', 'Mad og vin'], '-', ['data', 'Data & synk']
+  ['vaerdi', 'Værdi & priser'], ['udvikling', 'Udvikling'], ['lab', 'Cellar Lab'], '-', ['vinkort', 'Vinkort'], ['mad', 'Mad og vin'], '-', ['data', 'Data & synk']
 ];
 
 /* ---------------------------------------------------------------- datakilder */

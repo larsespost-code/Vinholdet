@@ -274,7 +274,7 @@ K.build = function (tables, extras) {
       const w = wineFrom(r); const d = parseDate(pick(r, ['PurchaseDate', 'Date', 'DeliveryDate']));
       if (!w || !d) return;
       db.purchases.push({ w: w, date: d, qty: K.num(pick(r, ['Quantity', 'BottlesPurchased', 'Bottles'])) || 1,
-        price: K.num(pick(r, ['Price', 'BottleCost'])), store: known(pick(r, ['StoreName', 'Store'])), delivered: pick(r, ['Delivered']) });
+        price: K.num(pick(r, ['Price', 'BottleCost'])), store: known(pick(r, ['StoreName', 'Store'])), delivered: pick(r, ['Delivered']), rem: pick(r, ['Remaining']) === '' ? null : K.num(pick(r, ['Remaining'])) });
     });
   }
   // Forbrug / afgang

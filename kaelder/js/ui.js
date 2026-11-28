@@ -170,8 +170,10 @@ U.lines = function (xs, series, opts) {
   const Y = function (v) { return opts.invert ? T + (H - T - B) * (v - 1) / Math.max(1, max - 1) : T + (H - T - B) * (1 - v / max); };
   const fmt = opts.fmt || function (v) { return opts.pct ? K.n0(v * 100) + ' %' : K.n0(v); };
   let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" style="min-width:' + Math.min(W, 560) + 'px;max-height:' + (H * 1.5) + 'px" role="img" aria-label="' + esc(opts.label || 'Linjediagram') + '">';
-  for (let g = 0; g <= 4; g++) {
-    const v = opts.invert ? 1 + (max - 1) * g / 4 : max * g / 4; const y = Y(v);
+  const lead = max / Math.pow(10, Math.floor(Math.log10(max)));
+  const N = opts.invert ? 4 : (Math.abs(lead - 2.5) < 1e-9 || Math.abs(lead - 5) < 1e-9 ? 5 : 4);
+  for (let g = 0; g <= N; g++) {
+    const v = opts.invert ? 1 + (max - 1) * g / N : max * g / N; const y = Y(v);
     s += '<line class="gr" x1="' + L + '" x2="' + (W - R) + '" y1="' + y + '" y2="' + y + '"/><text x="' + (L - 6) + '" y="' + (y + 4) + '" text-anchor="end" font-size="10">' + (opts.invert ? '#' + Math.round(v) : fmt(v)) + '</text>';
   }
   xs.forEach(function (x, i) { s += '<text x="' + X(i) + '" y="' + (H - 9) + '" text-anchor="middle" font-size="10">' + esc(x) + '</text>'; });
@@ -264,6 +266,34 @@ U.heat = function (items, rdim, cdim, opts) {
   const lbl = { abs: 'absolutte tal', row: 'rækkeprocent (andel af rækkens ' + (measure === 'value' ? 'værdi' : 'flasker') + ')', col: 'kolonneprocent (andel af kolonnens ' + (measure === 'value' ? 'værdi' : 'flasker') + ')', total: 'andel af hele udsnittet' };
   h += '<div class="faint" style="font-size:.78rem;margin-top:6px">Celler: ' + esc(measure === 'share' ? 'flasker' : K.MEASURES[measure].label.toLowerCase()) + ', ' + lbl[mode] + (rOther || cOther ? '. »Øvrige« samler resten, så totaler stemmer.' : '.') + ' Klik en celle for at se vinene.</div>';
   return h;
+};
+
+
+/** Lagkage (donut) med forklaring. parts: [{name, v, color, act}] */
+U.pie = function (parts, opts) {
+  opts = opts || {};
+  const tot = parts.reduce(function (a, p) { return a + p.v; }, 0);
+  if (!tot) return '<div class="empty">Ingen flasker.</div>';
+  const R = 92, r = 54, c = 100;
+  let a0 = -Math.PI / 2, s = '<svg viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="' + esc(opts.label || 'Fordeling') + '" style="flex:none;max-width:100%">';
+  parts.forEach(function (p) {
+    if (!p.v) return;
+    const a1 = a0 + 2 * Math.PI * p.v / tot;
+    const tip = U.tipAttr(p.name + ': ' + K.n0(p.v) + ' fl. (' + K.pct(p.v / tot) + ')');
+    if (p.v === tot) {
+      s += '<circle cx="' + c + '" cy="' + c + '" r="' + ((R + r) / 2) + '" fill="none" stroke="' + p.color + '" stroke-width="' + (R - r) + '"' + tip + '/>';
+    } else {
+      const big = a1 - a0 > Math.PI ? 1 : 0;
+      const P = function (rad, a) { return (c + rad * Math.cos(a)).toFixed(2) + ' ' + (c + rad * Math.sin(a)).toFixed(2); };
+      s += '<path d="M' + P(R, a0) + ' A' + R + ' ' + R + ' 0 ' + big + ' 1 ' + P(R, a1) + ' L' + P(r, a1) + ' A' + r + ' ' + r + ' 0 ' + big + ' 0 ' + P(r, a0) + 'Z" fill="' + p.color + '" stroke="var(--paper)" stroke-width="1.5"' + tip + (p.act || '') + (p.act ? ' style="cursor:pointer"' : '') + '/>';
+    }
+    a0 = a1;
+  });
+  s += '<text x="100" y="98" text-anchor="middle" font-size="22" font-weight="800" style="fill:var(--ink);font-family:var(--f-display)">' + K.n0(tot) + '</text><text x="100" y="118" text-anchor="middle" font-size="11">' + esc(opts.unit || 'flasker') + '</text></svg>';
+  const leg = '<div style="display:flex;flex-direction:column;gap:6px;min-width:0;flex:1">' + parts.filter(function (p) { return p.v; }).map(function (p) {
+    return '<div style="display:grid;grid-template-columns:12px minmax(0,1fr) auto auto;gap:8px;align-items:center;font-size:14px"><span class="sw" style="background:' + p.color + '"></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600">' + esc(p.name) + '</span><span class="num faint">' + K.n0(p.v) + '</span><span class="num" style="min-width:52px;text-align:right">' + K.pct(p.v / tot) + '</span></div>';
+  }).join('') + '</div>';
+  return '<div style="display:flex;flex-wrap:wrap;gap:20px;align-items:center">' + s + leg + '</div>';
 };
 
 /* ---------------------------------------------------------------- vinlister */
