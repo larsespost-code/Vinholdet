@@ -699,18 +699,25 @@ P.wineList = function (items, opts) {
   order.forEach(function (s) {
     h += '<section class="wl-sec" id="wl-' + K.fold(s).replace(/[^a-z]/g, '') + '"><h2>' + e(K.CLASS_TITLE[s]) + '</h2><div class="orn">❦</div>';
     Array.from(sec.get(s).keys()).sort(cmp).forEach(function (c) {
-      h += '<div class="wl-cty"><h3>' + e(c) + '</h3>';
       const rm = sec.get(s).get(c);
       Array.from(rm.keys()).sort(function (a, b) { return a === 'Ikke nærmere angivet' ? 1 : b === 'Ikke nærmere angivet' ? -1 : cmp(a, b); }).forEach(function (r) {
-        const ls = rm.get(r).sort(function (a, b) { return cmp(a.w.producerRaw, b.w.producerRaw) || cmp(a.w.label, b.w.label) || (a.w.nv ? -1 : b.w.nv ? 1 : a.w.vintage - b.w.vintage) || a.ml - b.ml; });
-        h += '<div class="wl-reg"><h4>' + e(r) + '</h4>' + ls.map(function (l) {
-          const app = l.w.appellation && l.w.label.indexOf(l.w.appellation) < 0 && l.w.appellation !== l.w.region ? ', ' + l.w.appellation : '';
-          return '<div class="wl-line"><span><span class="p">' + e(l.w.producerRaw) + '</span> <span class="d">' + e(l.w.label + app) + '</span>' + (l.ml !== 750 ? '<span class="sz">' + K.sizeLabel(l.ml) + '</span>' : '') +
-            (opts.priv ? ' <span class="pr">' + (l.price > 0 ? K.money(l.price) : '') + (Object.keys(l.locs).length ? ' · ' + e(Object.keys(l.locs).map(function (k) { return k + ' ' + l.locs[k]; }).join(', ')) : '') + '</span>' : '') +
-            '</span><span class="yr">' + (l.w.nv ? 'NV' : l.w.vintage) + '</span><span class="q">' + l.qty + ' fl.</span></div>';
-        }).join('') + '</div>';
+        h += '<div class="wl-reg"><h3>' + e(c) + (r === 'Ikke nærmere angivet' ? '' : ' <span>—</span> ' + e(r)) + '</h3>';
+        const pm = new Map();
+        rm.get(r).forEach(function (l) { if (!pm.has(l.w.producerRaw)) pm.set(l.w.producerRaw, []); pm.get(l.w.producerRaw).push(l); });
+        Array.from(pm.keys()).sort(cmp).forEach(function (pn) {
+          const ls = pm.get(pn).sort(function (a, b) { return (a.w.nv ? -1 : b.w.nv ? 1 : a.w.vintage - b.w.vintage) || cmp(a.w.label, b.w.label) || a.ml - b.ml; });
+          h += '<div class="wl-prod"><h4>' + e(pn) + '</h4>' + ls.map(function (l) {
+            const grape = l.w.varietal && l.w.varietal !== K.UNKNOWN ? l.w.varietal : l.w.master;
+            return '<div class="wl-line' + (opts.priv ? ' priv' : '') + '"><span class="yr">' + (l.w.nv ? 'NV' : l.w.vintage) + '</span>' +
+              '<span class="d">' + e(l.w.label) + (l.ml !== 750 ? '<span class="sz">' + K.sizeLabel(l.ml) + '</span>' : '') +
+              (opts.priv && Object.keys(l.locs).length ? '<span class="lc">' + e(Object.keys(l.locs).map(function (k) { return k + ' ' + l.locs[k]; }).join(', ')) + '</span>' : '') + '</span>' +
+              '<span class="g">' + e(grape === K.UNKNOWN ? '' : grape) + '</span>' +
+              (opts.priv ? '<span class="pr">' + (l.price > 0 ? K.money(l.price) : '–') + '</span>' : '') +
+              '<span class="q">' + l.qty + ' fl.</span></div>';
+          }).join('') + '</div>';
+        });
+        h += '</div>';
       });
-      h += '</div>';
     });
     h += '</section>';
   });
@@ -723,8 +730,8 @@ P.wineList = function (items, opts) {
 P.mad = function () {
   let h = head('Mad og vin', 'Beskriv retten eller menuen med dine egne ord. Forslagene vælges kun blandt vine i din kælder, som passer til de aktive filtre. Forslag er inspiration, ikke drikkeråd.');
   const s = K.settings();
-  if (!s.syncUrl || !s.syncKey || A.src.mode !== 'sync') return h + '<div class="note">Mad og vin bruger en sprogmodel (Claude) via dit eget Apps Script. Sæt først synkroniseringen op under <a href="#data" data-nav="data">Data & synk</a>, og tilføj derefter en API-nøgle som scriptegenskaben <span class="mono">ANTHROPIC_API_KEY</span>. Resten af dashboardet virker uden.</div>';
-  if (!A.src.ai) return h + '<div class="note">Synkroniseringen kører, men der er ingen API-nøgle. Tilføj scriptegenskaben <span class="mono">ANTHROPIC_API_KEY</span> i dit Apps Script-projekt, og genindlæs siden.</div>';
+  if (!s.syncUrl || !s.syncKey || A.src.mode !== 'sync') return h + '<div class="note">Mad og vin bruger en sprogmodel (Gemini eller Claude) via dit eget Apps Script. Sæt først synkroniseringen op under <a href="#data" data-nav="data">Data & synk</a>, og tilføj derefter en API-nøgle som scriptegenskab: <span class="mono">GEMINI_API_KEY</span> (gratis fra Google AI Studio) eller <span class="mono">ANTHROPIC_API_KEY</span> (Claude, betalt). Resten af dashboardet virker uden.</div>';
+  if (!A.src.ai) return h + '<div class="note">Synkroniseringen kører, men der er ingen API-nøgle. Tilføj scriptegenskaben <span class="mono">GEMINI_API_KEY</span> (gratis) eller <span class="mono">ANTHROPIC_API_KEY</span> i dit Apps Script-projekt, og genindlæs siden.</div>';
   const chat = A.chat = A.chat || [];
   const n = U.wineRows(A.view).length;
   h += '<div class="note" style="margin-bottom:16px">Søger blandt <b>' + n + ' vinposter</b> (' + K.n0(K.sum(A.view)) + ' fl.) · ' + e(K.activeFilterCount() ? P.filterDesc() : 'hele samlingen') + (A.db.hasLoc ? '' : ' · lokation kendes ikke, så fysisk placering kan ikke garanteres') + '. Justér filtrene foroven for at afgrænse.</div>';
@@ -734,7 +741,7 @@ P.mad = function () {
     return '<div class="msg">' + (m.note ? '<p>' + e(m.note) + '</p>' : '') + '<div class="grid" style="gap:10px">' + (m.picks || []).map(function (p) {
       const w = A.db.wines.get(p.id); if (!w) return '';
       return '<div class="pickc"><span class="role">' + e(p.role) + '</span><button class="link" style="text-align:left;font-weight:600" data-wine="' + e(w.id) + '">' + e(w.producerRaw + ' ' + w.label + ' ' + (w.nv ? 'NV' : w.vintage)) + '</button><span class="faint" style="font-size:.82rem">' + e(w.cls + ' · ' + w.master + ' · ' + w.regionDa) + ' · ' + p.qty + ' fl.' + (w.price ? ' · ' + K.money(w.price) : '') + '</span><span>' + e(p.why) + '</span>' + (p.caveat ? '<span class="muted" style="font-size:.86rem">Forbehold: ' + e(p.caveat) + '</span>' : '') + '</div>';
-    }).join('') + '</div>' + (m.usage ? '<div class="faint" style="font-size:.75rem;margin-top:6px">' + m.candidates + ' kandidater sendt · ' + K.n0(m.usage.input) + ' input- og ' + K.n0(m.usage.output) + ' output-tokens' + (m.rejected && m.rejected.length ? ' · ' + m.rejected.length + ' ugyldige forslag frasorteret' : '') + '</div>' : '') + '</div>';
+    }).join('') + '</div>' + (m.usage ? '<div class="faint" style="font-size:.75rem;margin-top:6px">' + e(m.usage.provider || '') + ' · ' + m.candidates + ' kandidater sendt · ' + K.n0(m.usage.input) + ' input- og ' + K.n0(m.usage.output) + ' output-tokens' + (m.rejected && m.rejected.length ? ' · ' + m.rejected.length + ' ugyldige forslag frasorteret' : '') + '</div>' : '') + '</div>';
   }).join('') + (A.chatBusy ? '<div class="muted">Sommelieren tænker …</div>' : '') + '</div>';
   h += '<div style="margin-top:18px;display:grid;gap:8px"><textarea id="mad-q" rows="3" placeholder="' + (chat.length ? 'Fx »Kun Jura«, »Hvad hvis jeg bruger rødvinssauce?«, »Kun vine jeg har mindst to af«' : 'Fx »Pighvar stegt på benet, beurre blanc med citron, grillede porrer og svampe. Gerne hvid fra Jura, ikke blandt de dyreste.«') + '"></textarea>' +
     '<div style="display:flex;gap:8px"><button class="btn pri" data-act="mad-send"' + (A.chatBusy ? ' disabled' : '') + '>' + (chat.length ? 'Send' : 'Find vin') + '</button>' + (chat.length ? '<button class="btn" data-act="mad-reset">Ny ret</button>' : '') + '</div></div>';

@@ -11,7 +11,11 @@
  *   3. Projektindstillinger (tandhjulet) → Scriptegenskaber → Tilføj:
  *        CT_USER  = dit CellarTracker-brugernavn (handle)
  *        CT_PASS  = din CellarTracker-adgangskode
- *      (Valgfrit, til "Mad og vin":  ANTHROPIC_API_KEY = din API-nøgle)
+ *      Valgfrit, til "Mad og vin" (én af dem):
+ *        GEMINI_API_KEY     = gratis nøgle fra Google AI Studio (aistudio.google.com)
+ *        ANTHROPIC_API_KEY  = betalt nøgle fra Anthropic (console.anthropic.com)
+ *      Er begge sat, bruges Claude. Tving et valg med AI_PROVIDER = gemini eller claude.
+ *      GEMINI_MODEL kan ændre Gemini-modellen (standard: gemini-flash-latest).
  *   4. Vælg funktionen "setup" foroven og tryk ▶ Kør. Godkend adgangen.
  *      Se loggen: den viser din dashboard-nøgle og om hentningen lykkedes.
  *   5. Implementer → Ny implementering → Type: Webapp.
@@ -34,6 +38,7 @@ const CT_URL = 'https://www.cellartracker.com/xlquery.asp';
 const MAX_LOG = 60;
 const MAX_SNAPSHOTS = 2000;
 const AI_MODEL = 'claude-opus-5-5';
+const GEMINI_DEFAULT = 'gemini-flash-latest';
 
 /* ------------------------------------------------------------ opsætning */
 
@@ -120,7 +125,7 @@ function payload_() {
     aliases: readJson_('aliases.json', null),
     settings: readJson_('settings.json', {}),
     log: readJson_('log.json', []),
-    ai: !!PropertiesService.getScriptProperties().getProperty('ANTHROPIC_API_KEY'),
+    ai: aiProvider_(),
     nextSync: 'dagligt ca. kl. 06 (dansk tid)'
   };
 }
@@ -314,8 +319,8 @@ function saveJson_(name, obj) { writeText_(name, JSON.stringify(obj)); }
  * kun svar, hvor ID'et findes i det udleverede udsnit med flasker tilbage.
  */
 function pair_(req) {
-  const apiKey = PropertiesService.getScriptProperties().getProperty('ANTHROPIC_API_KEY');
-  if (!apiKey) return { ok: false, error: 'Mad og vin er ikke slået til: ANTHROPIC_API_KEY mangler i Scriptegenskaber.' };
+  const provider = aiProvider_();
+  if (!provider) return { ok: false, error: 'Mad og vin er ikke slået til: GEMINI_API_KEY eller ANTHROPIC_API_KEY mangler i Scriptegenskaber.' };
   const dish = String(req.dish || '').slice(0, 4000).trim();
   if (!dish) return { ok: false, error: 'Skriv retten eller menuen først.' };
 
@@ -354,32 +359,57 @@ function pair_(req) {
   });
   messages.push({ role: 'user', content: 'Ret/ønsker:\n' + dish + '\n\nVine i kælderen (ID | producent | vin | årgang | type | drue | oprindelse | antal | størrelse):\n' + lines });
 
+  const r = provider === 'gemini' ? callGemini_(system, messages) : callClaude_(system, messages);
+  if (!r.ok) return r;
+  const out = r.out;
+
+  const valid = [], rejected = [];
+  (out.picks || []).forEach(function (p) {
+    const c = cands[String(p.id)];
+    if (c && c.qty > 0 && !valid.some(function (v) { return v.id === c.id; })) valid.push({ id: c.id, role: p.role, why: p.why, caveat: p.caveat, qty: c.qty });
+    else rejected.push(String(p.id));
+  });
+  return { ok: true, picks: valid.slice(0, 6), rejected: rejected, note: out.note || '', candidates: list.length, usage: r.usage };
+}
+
+function aiProvider_() {
+  const p = PropertiesService.getScriptProperties();
+  const force = String(p.getProperty('AI_PROVIDER') || '').toLowerCase();
+  const hasC = !!p.getProperty('ANTHROPIC_API_KEY'), hasG = !!p.getProperty('GEMINI_API_KEY');
+  if (force === 'gemini' && hasG) return 'gemini';
+  if (force === 'claude' && hasC) return 'claude';
+  return hasC ? 'claude' : hasG ? 'gemini' : '';
+}
+
+const PICK_SCHEMA = {
+  type: 'object',
+  properties: {
+    picks: { type: 'array', items: { type: 'object', properties: {
+      id: { type: 'string' },
+      role: { type: 'string', enum: ['klassisk', 'alternativ', 'utraditionel', 'andet'] },
+      why: { type: 'string' },
+      caveat: { type: 'string' }
+    }, required: ['id', 'role', 'why', 'caveat'], additionalProperties: false } },
+    note: { type: 'string' }
+  },
+  required: ['picks', 'note'],
+  additionalProperties: false
+};
+
+function parseJson_(txt) {
+  txt = String(txt || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  try { return JSON.parse(txt); } catch (e) {
+    const a = txt.indexOf('{'), b = txt.lastIndexOf('}');
+    if (a >= 0 && b > a) { try { return JSON.parse(txt.slice(a, b + 1)); } catch (e2) { /* */ } }
+    return null;
+  }
+}
+
+function callClaude_(system, messages) {
+  const apiKey = PropertiesService.getScriptProperties().getProperty('ANTHROPIC_API_KEY');
   const body = {
-    model: AI_MODEL,
-    max_tokens: 16000,
-    system: system,
-    messages: messages,
-    fallbacks: 'default',
-    output_config: {
-      effort: 'medium',
-      format: {
-        type: 'json_schema',
-        schema: {
-          type: 'object',
-          properties: {
-            picks: { type: 'array', items: { type: 'object', properties: {
-              id: { type: 'string' },
-              role: { type: 'string', enum: ['klassisk', 'alternativ', 'utraditionel', 'andet'] },
-              why: { type: 'string' },
-              caveat: { type: 'string' }
-            }, required: ['id', 'role', 'why', 'caveat'], additionalProperties: false } },
-            note: { type: 'string' }
-          },
-          required: ['picks', 'note'],
-          additionalProperties: false
-        }
-      }
-    }
+    model: AI_MODEL, max_tokens: 16000, system: system, messages: messages, fallbacks: 'default',
+    output_config: { effort: 'medium', format: { type: 'json_schema', schema: PICK_SCHEMA } }
   };
   const res = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
     method: 'post', contentType: 'application/json', muteHttpExceptions: true,
@@ -388,18 +418,36 @@ function pair_(req) {
   });
   const code = res.getResponseCode();
   let data; try { data = JSON.parse(res.getContentText()); } catch (e) { data = {}; }
-  if (code !== 200) return { ok: false, error: 'AI-tjenesten svarede med fejl ' + code + (data.error && data.error.message ? ': ' + data.error.message : '') + '. Prøv igen senere.' };
+  if (code !== 200) return { ok: false, error: 'Claude svarede med fejl ' + code + (data.error && data.error.message ? ': ' + data.error.message : '') + '. Prøv igen senere.' };
   if (data.stop_reason === 'refusal') return { ok: false, error: 'AI-tjenesten afviste forespørgslen. Prøv at formulere retten anderledes.' };
-  const txt = (data.content || []).filter(function (b) { return b.type === 'text'; }).map(function (b) { return b.text; }).join('');
-  let out; try { out = JSON.parse(txt); } catch (e) { return { ok: false, error: 'AI-svaret kunne ikke læses. Prøv igen.' }; }
-
-  const valid = [], rejected = [];
-  (out.picks || []).forEach(function (p) {
-    const c = cands[String(p.id)];
-    if (c && c.qty > 0 && !valid.some(function (v) { return v.id === c.id; })) valid.push({ id: c.id, role: p.role, why: p.why, caveat: p.caveat, qty: c.qty });
-    else rejected.push(String(p.id));
-  });
+  const out = parseJson_((data.content || []).filter(function (b) { return b.type === 'text'; }).map(function (b) { return b.text; }).join(''));
+  if (!out) return { ok: false, error: 'AI-svaret kunne ikke læses. Prøv igen.' };
   const u = data.usage || {};
-  return { ok: true, picks: valid.slice(0, 6), rejected: rejected, note: out.note || '', candidates: list.length,
-    usage: { input: u.input_tokens || 0, output: u.output_tokens || 0, model: data.model || AI_MODEL } };
+  return { ok: true, out: out, usage: { input: u.input_tokens || 0, output: u.output_tokens || 0, model: data.model || AI_MODEL, provider: 'Claude' } };
+}
+
+/** Gemini via Google AI Studio. Gratisudgaven har dagskvoter og kan ændres af Google uden varsel. */
+function callGemini_(system, messages) {
+  const p = PropertiesService.getScriptProperties();
+  const apiKey = p.getProperty('GEMINI_API_KEY');
+  const model = p.getProperty('GEMINI_MODEL') || GEMINI_DEFAULT;
+  const body = {
+    systemInstruction: { parts: [{ text: system + ' Svar KUN med JSON på formen {"picks":[{"id":"…","role":"klassisk|alternativ|utraditionel|andet","why":"…","caveat":"…"}],"note":"…"}.' }] },
+    contents: messages.map(function (m) { return { role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }; }),
+    generationConfig: { responseMimeType: 'application/json', temperature: 0.4 }
+  };
+  const res = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent', {
+    method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+    headers: { 'x-goog-api-key': apiKey }, payload: JSON.stringify(body)
+  });
+  const code = res.getResponseCode();
+  let data; try { data = JSON.parse(res.getContentText()); } catch (e) { data = {}; }
+  if (code === 429) return { ok: false, error: 'Geminis gratiskvote er brugt op for nu. Prøv igen senere (kvoten nulstilles dagligt).' };
+  if (code !== 200) return { ok: false, error: 'Gemini svarede med fejl ' + code + (data.error && data.error.message ? ': ' + data.error.message : '') + '. Tjek GEMINI_API_KEY og GEMINI_MODEL.' };
+  const cand = (data.candidates || [])[0];
+  if (!cand || !cand.content) return { ok: false, error: 'Gemini returnerede intet svar' + (data.promptFeedback && data.promptFeedback.blockReason ? ' (' + data.promptFeedback.blockReason + ')' : '') + '. Prøv igen.' };
+  const out = parseJson_((cand.content.parts || []).map(function (x) { return x.text || ''; }).join(''));
+  if (!out) return { ok: false, error: 'Gemini-svaret kunne ikke læses. Prøv igen.' };
+  const u = data.usageMetadata || {};
+  return { ok: true, out: out, usage: { input: u.promptTokenCount || 0, output: u.candidatesTokenCount || 0, model: data.modelVersion || model, provider: 'Gemini' } };
 }

@@ -71,12 +71,25 @@ Ved hver import eller synkronisering, hvor beholdningen har ændret sig, gemmes 
 
 ## Mad og vin (valgfrit)
 
-Kræver en API-nøgle fra Anthropic (<https://console.anthropic.com>). Et ChatGPT- eller Claude-abonnement er ikke det samme som API-adgang.
+Mad og vin kan køre på **Gemini (gratis)** eller **Claude (betalt)**. Dashboardet sender retten og ID'erne på vinene i det aktuelle filterudsnit til dit script. Scriptet slår vinene op i den seneste beholdning og sender kun navn, årgang, type, drue, oprindelse, antal og størrelse til modellen. Det afviser ethvert forslag, der ikke er en vin med flasker tilbage i udsnittet.
 
-1. Tilføj scriptegenskaben `ANTHROPIC_API_KEY` i dit Apps Script-projekt.
-2. Genindlæs dashboardet. Siden **Mad og vin** bliver aktiv.
+**Gratis med Gemini**
 
-Dashboardet sender retten og ID'erne på vinene i det aktuelle filterudsnit til dit script. Scriptet slår vinene op i den seneste beholdning, sender kun navn, årgang, type, drue, oprindelse, antal og størrelse til modellen, og afviser ethvert forslag, der ikke er en vin med flasker tilbage i udsnittet. Modellen er `claude-opus-5-5`. Med ca. 270 vinposter er en forespørgsel omkring 12.000 input-tokens og et par tusind output-tokens, dvs. i størrelsesordenen 0,10–0,15 USD (under 1 kr.) pr. forespørgsel ved listeprisen 4 USD / 20 USD pr. million tokens. Der er ingen faste udgifter. Forbruget pr. svar vises under forslagene.
+1. Gå til <https://aistudio.google.com>, log ind med din Google-konto og vælg **Get API key** › **Create API key**. Der skal ikke tilknyttes betalingskort.
+2. Tilføj scriptegenskaben `GEMINI_API_KEY` i dit Apps Script-projekt.
+3. Genindlæs dashboardet.
+
+Standardmodellen er `gemini-flash-latest`, som Google løbende peger på den nyeste Flash-model. Den kan ændres med scriptegenskaben `GEMINI_MODEL`.
+
+Vær opmærksom på:
+
+- Gratisudgaven har en daglig kvote, og Google har flere gange ændret den uden varsel. Er kvoten brugt, viser siden en besked, og den nulstilles dagligt. Til få forespørgsler om ugen er det rigeligt.
+- Tilknytter du et betalingskort til Google-projektet, bliver forbruget betalt.
+- Tjek Googles vilkår for gratisudgaven: data sendt til gratis-API'et kan bruges af Google til at forbedre deres produkter. Det, der sendes, er din ret og vinlisten (ingen navne, adresser eller adgangskoder).
+
+**Claude (betalt)**
+
+Tilføj i stedet `ANTHROPIC_API_KEY` fra <https://console.anthropic.com>. Modellen er `claude-opus-5-5`, ca. 0,10–0,15 USD (under 1 kr.) pr. forespørgsel med ~270 vinposter. Er begge nøgler sat, bruges Claude; scriptegenskaben `AI_PROVIDER` = `gemini` eller `claude` tvinger et valg.
 
 ## Teknik
 

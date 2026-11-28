@@ -212,7 +212,7 @@ K.build = function (tables, extras) {
     };
     w.cuvee = prodRaw + '›' + name;
     w.label = name.indexOf(prodRaw) === 0 ? name.slice(prodRaw.length).trim() : name;
-    if (!w.label) w.label = name;
+    if (!w.label) w.label = w.appellation || w.designation || name;
     w.search = K.fold([name, prodRaw, w.producer, w.designation, w.vineyard, w.appellation, w.region, w.regionDa, w.subregion, w.country, w.countryDa, w.master, w.varietal, w.vintage || 'NV', w.locale].join(' '));
     db.wines.set(id, w);
     return w;
