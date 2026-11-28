@@ -6,7 +6,7 @@ const $ = function (id) { return document.getElementById(id); };
 
 const PAGES = [
   ['overblik', 'Overblik'], ['samling', 'Min samling'], ['geografi', 'Geografi'], ['druer', 'Druer & vintyper'], ['producenter', 'Producenter'],
-  ['trends', 'Trends & historik'], ['vaerdi', 'Værdi & priser'], ['lab', 'Cellar Lab'], '-', ['vinkort', 'Vinkort'], ['mad', 'Mad og vin'], '-', ['data', 'Data & synk']
+  ['vaerdi', 'Værdi & priser'], ['lab', 'Cellar Lab'], '-', ['vinkort', 'Vinkort'], ['mad', 'Mad og vin'], '-', ['data', 'Data & synk']
 ];
 
 /* ---------------------------------------------------------------- datakilder */
@@ -371,7 +371,7 @@ document.addEventListener('click', function (e) {
   if (d.popapply) { A.applyPop(d.popapply); return; }
   if (d.popclear) { A.clearFilter(d.popclear); return; }
   if (d.unf) { A.clearFilter(d.unf); return; }
-  if (d.seg) { if (d.seg === 'popmode') { A.popMode = d.val; t.parentNode.querySelectorAll('button').forEach(function (b) { b.classList.toggle('on', b === t); }); return; } A.ui[d.seg] = d.val; A.render(); return; }
+  if (d.seg) { if (d.seg === 'popmode') { A.popMode = d.val; t.parentNode.querySelectorAll('button').forEach(function (b) { b.classList.toggle('on', b === t); }); return; } if (d.seg === 'cur') { K.saveSettings({ currency: d.val }); A.refresh(); return; } A.ui[d.seg] = d.val; A.render(); return; }
   if (d.weekend) { const wk = K.settings().weekendLocation; K.filters.dims.location = { mode: 'in', vals: new Set([wk]) }; K.filters.dims.color = { mode: 'in', vals: new Set(['Rød']) }; A.refresh(); return; }
   if (d.wlreg) { A.closeDrawer(); A.go('vinkort', { items: U._reg[+d.wlreg].items, title: U._reg[+d.wlreg].title }); return; }
   if (d.csvreg) { A.downloadCSV(U._reg[+d.csvreg].items); return; }

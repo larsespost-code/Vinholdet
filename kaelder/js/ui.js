@@ -316,27 +316,28 @@ U.wineTable = function (items, opts) {
   const limit = opts.limit || 300;
   let h = '';
   if (!single && groups.length > 1) h += '<div class="toolbar" style="margin-bottom:8px"><span class="faint">' + groups.length + ' producenter · ' + rows.length + ' vinposter</span><button class="link" data-act="tg-all" data-open="1">Fold alle ud</button><button class="link" data-act="tg-all" data-open="0">Fold alle sammen</button></div>';
-  h += '<div class="tw"><table class="wt"><thead><tr><th>' + (single ? 'Vin' : 'Producent / vin') + '</th><th class="r">Årgang</th><th class="r">Antal</th><th>Type</th><th>Drue</th><th>Oprindelse</th>' + (showLoc ? '<th>Lokation</th>' : '') + '<th class="r">Pris/fl.</th></tr></thead>';
+  h += '<div class="tw"><table class="wt"><thead><tr><th>' + (single ? 'Vin' : 'Producent / vin') + '</th><th class="r">Årgang</th><th class="r">Antal</th><th class="xm">Type</th><th class="xm">Drue</th><th class="xm">Oprindelse</th>' + (showLoc ? '<th class="xm">Lokation</th>' : '') + '<th class="r xm">Pris/fl.</th></tr></thead>';
   groups.slice(0, limit).forEach(function (g) {
     h += '<tbody class="grp' + (open ? ' open' : '') + '">';
     if (!single) {
       const locs = {}; g.rows.forEach(function (r) { Object.keys(r.locs).forEach(function (l) { locs[l] = (locs[l] || 0) + r.locs[l]; }); });
       const cls = uniq(g.rows.map(function (r) { return r.w.cls; }));
-      h += '<tr class="gh" data-act="tg"><td><span class="chev" aria-hidden="true"></span><b>' + esc(g.name) + '</b> <span class="faint">' + g.rows.length + (g.rows.length === 1 ? ' vin' : ' vine') + '</span></td>' +
+      const gGr = short(uniq(g.rows.map(function (r) { return r.w.master; })), 2), gRe = short(uniq(g.rows.map(function (r) { return r.w.region ? r.w.regionDa : r.w.countryDa; })), 3);
+      h += '<tr class="gh" data-act="tg"><td><span class="chev" aria-hidden="true"></span><b>' + esc(g.name) + '</b> <span class="faint">' + g.rows.length + (g.rows.length === 1 ? ' vin' : ' vine') + '</span><div class="sm">' + esc(gGr + ' · ' + gRe) + '</div></td>' +
         '<td class="r num">' + vrange(g.rows) + '</td><td class="r num"><b>' + g.qty + '</b></td>' +
-        '<td>' + cls.map(function (c) { return '<span class="dot" title="' + esc(c) + '" style="background:' + U.color('cls', c) + '"></span>'; }).join('') + (cls.length === 1 ? esc(cls[0]) : '') + '</td>' +
-        '<td>' + esc(short(uniq(g.rows.map(function (r) { return r.w.master; })), 2)) + '</td>' +
-        '<td>' + esc(short(uniq(g.rows.map(function (r) { return r.w.region ? r.w.regionDa : r.w.countryDa; })), 3)) + '</td>' +
-        (showLoc ? '<td>' + esc(Object.keys(locs).map(function (l) { return l + ' (' + locs[l] + ')'; }).join(', ')) + '</td>' : '') +
-        '<td class="r num">' + (g.avg ? (g.rows.length > 1 ? '<span class="faint">gns.</span> ' : '') + K.money(g.avg, 2) : '<span class="faint">ukendt</span>') + '</td></tr>';
+        '<td class="xm">' + cls.map(function (c) { return '<span class="dot" title="' + esc(c) + '" style="background:' + U.color('cls', c) + '"></span>'; }).join('') + (cls.length === 1 ? esc(cls[0]) : '') + '</td>' +
+        '<td class="xm">' + esc(gGr) + '</td>' +
+        '<td class="xm">' + esc(gRe) + '</td>' +
+        (showLoc ? '<td class="xm">' + esc(Object.keys(locs).map(function (l) { return l + ' (' + locs[l] + ')'; }).join(', ')) + '</td>' : '') +
+        '<td class="r num xm">' + (g.avg ? (g.rows.length > 1 ? '<span class="faint">gns.</span> ' : '') + K.money(g.avg, 2) : '<span class="faint">ukendt</span>') + '</td></tr>';
     }
     g.rows.forEach(function (r) {
       const lbl = single || g.raws > 1 ? (single ? '<b>' + esc(r.w.producerRaw) + '</b> ' : esc(r.w.producerRaw) + ' ') + '<span class="muted">' + esc(r.w.label) + '</span>' : esc(r.w.label);
-      h += '<tr class="click gd" data-wine="' + esc(r.w.id) + '"><td>' + lbl + (r.ml !== 750 ? ' <span class="tag">' + K.sizeLabel(r.ml) + '</span>' : '') + '</td>' +
-        '<td class="r num">' + (r.w.nv ? 'NV' : r.w.vintage) + '</td><td class="r num">' + r.qty + '</td><td><span class="dot" style="background:' + U.color('cls', r.w.cls) + '"></span>' + esc(r.w.cls) + '</td>' +
-        '<td>' + esc(r.w.master) + '</td><td>' + esc(r.w.countryDa) + ', ' + esc(r.w.regionDa) + (r.w.appellation && r.w.appellation !== r.w.region ? ' · <span class="muted">' + esc(r.w.appellation) + '</span>' : '') + '</td>' +
-        (showLoc ? '<td>' + esc(Object.keys(r.locs).map(function (l) { return l + ' (' + r.locs[l] + ')'; }).join(', ')) + '</td>' : '') +
-        '<td class="r num">' + (r.price > 0 ? K.money(r.price, 2) : '<span class="faint">ukendt</span>') + '</td></tr>';
+      h += '<tr class="click gd" data-wine="' + esc(r.w.id) + '"><td>' + lbl + (r.ml !== 750 ? ' <span class="tag">' + K.sizeLabel(r.ml) + '</span>' : '') + '<div class="sm">' + esc(r.w.master) + (r.price > 0 ? ' · ' + K.money(r.price) : '') + '</div></td>' +
+        '<td class="r num">' + (r.w.nv ? 'NV' : r.w.vintage) + '</td><td class="r num">' + r.qty + '</td><td class="xm"><span class="dot" style="background:' + U.color('cls', r.w.cls) + '"></span>' + esc(r.w.cls) + '</td>' +
+        '<td class="xm">' + esc(r.w.master) + '</td><td class="xm">' + esc(r.w.countryDa) + ', ' + esc(r.w.regionDa) + (r.w.appellation && r.w.appellation !== r.w.region ? ' · <span class="muted">' + esc(r.w.appellation) + '</span>' : '') + '</td>' +
+        (showLoc ? '<td class="xm">' + esc(Object.keys(r.locs).map(function (l) { return l + ' (' + r.locs[l] + ')'; }).join(', ')) + '</td>' : '') +
+        '<td class="r num xm">' + (r.price > 0 ? K.money(r.price, 2) : '<span class="faint">ukendt</span>') + '</td></tr>';
     });
     h += '</tbody>';
   });

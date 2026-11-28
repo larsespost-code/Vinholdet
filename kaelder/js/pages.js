@@ -37,14 +37,8 @@ P.overblik = function () {
   h += U.kpis([
     { v: K.n0(s.bottles), l: 'Flasker', s: K.n1(s.bottles / (s.wines || 1)) + ' pr. vin' },
     { v: K.n0(s.wines), l: 'Unikke vine (iWine)', s: K.n0(s.cuvees) + ' cuvéer på tværs af årgange', tip: 'iWine er én vin i én årgang i CellarTracker. Cuvéer samler samme vin på tværs af årgange.' },
-    { v: K.money(s.value), l: 'Registreret indkøbsværdi', s: 'Pris kendt for ' + K.n0(s.priced) + ' af ' + K.n0(s.bottles) + ' fl.', tip: 'Summen af antal × registreret pris. Flasker uden pris tæller ikke med.' },
-    { v: K.n0(s.producers), l: 'Producenter', s: 'grupperet' },
-    { v: K.n0(s.countries), l: 'Lande' },
-    { v: K.n0(s.regions), l: 'Regioner' }
   ]);
-  h += '<div class="grid g2 section" style="margin-top:22px">' +
-    panel('Farve', U.stack(it, 'color'), { def: 'Klik for at åbne en farveprofil.' }) +
-    panel('Vintype', U.stack(it, 'cls'), { def: 'Mousserende og hedvin tælles kun her, ikke også som hvid eller rosé.' }) + '</div>';
+  h += '<div class="section" style="margin-top:14px">' + panel('Vintype', U.stack(it, 'cls'), { def: 'Mousserende og hedvin tælles kun her, ikke også som hvid eller rosé. Klik for at åbne en profil.' }) + '</div>';
   h += '<div class="grid g3 section" style="margin-top:18px">' +
     panel('Regioner', U.bars(it, 'region', { measure: m, top: 10 }), { tools: U.measureSeg('ov_m', m) }) +
     panel('Druer', U.bars(it, 'grape', { measure: m, top: 10 }), { def: 'Overordnet drue (MasterVarietal). Blends tælles som deres blendkategori.' }) +
@@ -77,8 +71,7 @@ P.facts = function (it) {
 P.miniHistory = function () {
   const hist = A.history || [];
   if (hist.length < 2) {
-    return panel('Udvikling over tid', '<div class="note">' + (A.db.hasPurchases ? 'Købshistorik findes – se <a href="#trends" data-nav="trends">Trends & historik</a>.' :
-      'Der er endnu ingen historik. Dashboardet gemmer en dateret observation af beholdningen ved hver import' + (hist.length ? ' (første: ' + K.date(hist[0].d) + ')' : '') + ', så udviklingen bygges op fra nu. Med køb og forbrug fra CellarTracker kan historikken gå længere tilbage.') + '</div>');
+    return panel('Udvikling over tid', '<div class="note">' + ('Der er endnu ingen historik. Dashboardet gemmer en dateret observation af beholdningen ved hver import' + (hist.length ? ' (første: ' + K.date(hist[0].d) + ')' : '') + ', så udviklingen bygges op fra nu. Med køb og forbrug fra CellarTracker kan historikken gå længere tilbage.') + '</div>');
   }
   const xs = hist.map(function (s) { return K.date(s.d); });
   const ys = hist.map(function (s) { return s.r.reduce(function (a, r) { return a + r[2]; }, 0); });
@@ -88,11 +81,10 @@ P.miniHistory = function () {
 /* ================================================================ MIN SAMLING */
 
 P.samling = function () {
-  let h = head('Min samling', filterNote() + ' Søg på navn, producent, mark, appellation, drue eller årgang – accenter er ligegyldige.',
-    '<button class="btn" data-act="csv-view">Hent udsnit som CSV</button><button class="btn" data-act="wl-view">Vinkort af udsnittet</button>');
-  h += '<div class="toolbar"><input type="search" id="samling-q" placeholder="Søg i ' + K.n0(U.wineRows(A.view).length) + ' vinposter …" value="' + e(ui('q', '')) + '" style="flex:1;min-width:200px;max-width:420px">' +
-    '<label class="inl">Gruppér ' + U.select('grp', [['', 'ingen'], ['region', 'region'], ['country', 'land'], ['cls', 'vintype'], ['grape', 'drue'], ['location', 'lokation']].filter(function (o) { return o[0] !== 'location' || A.db.hasLoc; }), ui('grp', '')) + '</label>' +
-    '<label class="inl">Sortér ' + U.select('srt', [['producer', 'producent'], ['vintage', 'årgang'], ['qty', 'antal'], ['price', 'pris'], ['value', 'samlet værdi']], ui('srt', 'producer')) + '</label></div>';
+  let h = head('Min samling', filterNote(),
+    '<button class="btn" data-act="wl-view">Vinkort</button>');
+  h += '<div class="toolbar"><input type="search" id="samling-q" placeholder="Søg i ' + K.n0(U.wineRows(A.view).length) + ' vine …" value="' + e(ui('q', '')) + '" style="flex:1;min-width:180px;max-width:420px">' +
+    U.seg('srt', [['producer', 'A–Å'], ['qty', 'Flest flasker'], ['vintage', 'Årgang']], ui('srt', 'producer')) + '</div>';
   h += '<div id="samling-tbl">' + P.samlingTable() + '</div>';
   return h;
 };
@@ -101,12 +93,7 @@ P.samlingTable = function () {
   const words = q ? q.split(/\s+/) : [];
   const it = words.length ? A.view.filter(function (i) { return words.every(function (w) { return i.w.search.indexOf(w) >= 0; }); }) : A.view;
   if (!it.length) return A.view.length ? '<div class="empty">Ingen vine matcher »' + e(ui('q', '')) + '«.</div>' : noData();
-  const grp = ui('grp', '');
-  if (!grp) return U.wineTable(it, { sort: ui('srt', 'producer'), limit: 500, open: words.length > 0 });
-  const r = K.rank(it, grp, 'bottles', { natural: !!K.DIMS[grp].order });
-  return r.map(function (g) {
-    return '<div style="margin:20px 0 8px;display:flex;gap:12px;align-items:baseline"><h3><button class="link" style="font:inherit"' + U.act(grp, g.key, g.items, g.name) + '>' + e(g.name) + '</button></h3><span class="muted num">' + K.n0(g.v) + ' fl. · ' + K.money(K.value(g.items)) + '</span></div>' + U.wineTable(g.items, { sort: ui('srt', 'producer'), open: words.length > 0 });
-  }).join('');
+  return U.wineTable(it, { sort: ui('srt', 'producer'), limit: 500, open: words.length > 0 });
 };
 
 /* ================================================================ PROFIL (dynamisk for enhver dimension) */
@@ -210,10 +197,7 @@ P.geografi = function () {
   const m = ui('geo_m', 'bottles');
   h += '<div class="grid g2">' + panel('Lande', U.bars(it, 'country', { measure: m, top: 12 }), { tools: U.measureSeg('geo_m', m) }) +
     panel('Regioner', U.bars(it, 'region', { measure: m, top: 14 })) + '</div>';
-  h += '<div class="grid g2 section" style="margin-top:18px">' + panel('Appellationer', U.bars(it.filter(function (i) { return i.w.appellation; }), 'appellation', { measure: m, top: 14 }), { def: K.n0(K.sum(it.filter(function (i) { return !i.w.appellation; }))) + ' fl. har ingen kendt appellation og er udeladt her.' }) +
-    panel('Marker', U.bars(it.filter(function (i) { return i.w.vineyard; }), 'vineyard', { measure: m, top: 14 }), { def: K.n0(K.sum(it.filter(function (i) { return i.w.vineyard; }))) + ' fl. har en registreret mark.' }) + '</div>';
-  h += '<div class="section">' + panel('Geografisk fingeraftryk', P.geoTree(it), { def: 'Land › region › appellation. Ukendte niveauer tælles ikke som et sted, men vises særskilt.' }) + '</div>';
-  h += '<div class="section">' + P.compare('geo', ['region', 'country', 'appellation', 'subregion']) + '</div>';
+  h += '<div class="section" style="margin-top:14px">' + panel('Appellationer', U.bars(it.filter(function (i) { return i.w.appellation; }), 'appellation', { measure: m, top: 14 }), { def: K.n0(K.sum(it.filter(function (i) { return !i.w.appellation; }))) + ' fl. har ingen kendt appellation og er udeladt her.' }) + '</div>';
   return h;
 };
 P.geoTree = function (it) {
@@ -280,50 +264,59 @@ P.medVintage = function (items) {
 
 P.druer = function () {
   const it = A.view;
-  let h = head('Druer & vintyper', filterNote() + ' Standard er den overordnede drue fra CellarTracker (MasterVarietal), så fx Spätburgunder tæller som Pinot Noir.');
+  let h = head('Druer & vintyper', filterNote());
   if (!it.length) return h + noData();
-  const m = ui('dr_m', 'bottles'); const gd = ui('dr_g', 'grape');
-  h += '<div class="grid g2">' + panel('Druer', U.bars(it, gd, { measure: m, top: 15 }), { tools: U.seg('dr_g', [['grape', 'Overordnet'], ['varietal', 'Detaljeret']], gd) + U.measureSeg('dr_m', m), def: 'Blends tælles som deres registrerede blendkategori. De enkelte druers andele i en blend er ikke registreret og opfindes ikke.' }) +
-    '<div class="grid" style="gap:18px">' + panel('Farve', U.stack(it, 'color')) + panel('Vintype', U.stack(it, 'cls')) + panel('Flaskestørrelse', U.bars(it, 'size', { measure: 'bottles' }), { def: 'Volumen i alt ' + K.n1(K.MEASURES.liters.fn(it)) + ' liter = ' + K.n1(K.MEASURES.liters.fn(it) / 0.75) + ' standardflasker; fysisk ' + K.n0(K.sum(it)) + ' flasker.' }) + '</div></div>';
-  const rd = ui('dr_rd', 'region'), hm = ui('dr_hm', 'abs'), hmm = ui('dr_hmm', 'bottles');
-  h += '<div class="section">' + panel('Drue × geografi', U.heat(it, rd, gd, { mode: hm, measure: hmm, topR: 16, topC: 10 }), {
-    tools: U.select('dr_rd', [['region', 'Regioner'], ['country', 'Lande'], ['appellation', 'Appellationer'], ['producer', 'Producenter']], rd) + U.seg('dr_hmm', [['bottles', 'Flasker'], ['value', 'Værdi']], hmm) + U.seg('dr_hm', [['abs', 'Antal'], ['row', 'Række-%'], ['col', 'Kolonne-%']], hm),
-    def: 'Rækkeprocent: druens andel af rækkens flasker. Kolonneprocent: rækkens andel af druens flasker.' }) + '</div>';
+  const m = ui('dr_m', 'bottles');
+  h += '<div class="grid g2">' + panel('Druer', U.bars(it, 'grape', { measure: m, top: 15 }), { tools: U.measureSeg('dr_m', m), def: 'Blends tælles som deres registrerede blendkategori. De enkelte druers andele i en blend er ikke registreret og opfindes ikke.' }) +
+    '<div class="grid" style="gap:14px">' + panel('Farve', U.stack(it, 'color')) + panel('Vintype', U.stack(it, 'cls')) + panel('Flaskestørrelse', U.bars(it, 'size', { measure: 'bottles' }), { def: 'Volumen i alt ' + K.n1(K.MEASURES.liters.fn(it)) + ' liter = ' + K.n1(K.MEASURES.liters.fn(it) / 0.75) + ' standardflasker; fysisk ' + K.n0(K.sum(it)) + ' flasker.' }) + '</div></div>';
+  h += '<div class="section">' + P.grapeGeo(it) + '</div>';
   h += '<div class="section">' + panel('Vintype × land', U.heat(it, 'country', 'cls', { mode: ui('dr_hm2', 'abs'), topR: 10, topC: 9 }), { tools: U.seg('dr_hm2', [['abs', 'Antal'], ['row', 'Række-%'], ['col', 'Kolonne-%']], ui('dr_hm2', 'abs')) }) + '</div>';
-  h += '<div class="section">' + P.compare('dr', ['grape', 'varietal', 'color', 'cls']) + '</div>';
   return h;
+};
+/* Drue og geografi som søjler i stedet for en bred krydstabel: vælg en drue og se regionerne, eller omvendt. */
+P.grapeGeo = function (it) {
+  const mode = ui('gg_m', 'g2r');
+  const from = mode === 'g2r' ? 'grape' : 'region', to = mode === 'g2r' ? 'region' : 'grape';
+  const opts = K.rank(it, from);
+  let sel = ui('gg_' + from, '');
+  if (!opts.some(function (o) { return o.key === sel; })) sel = opts.length ? opts[0].key : '';
+  const sub = it.filter(function (i) { return K.DIMS[from].get(i) === sel; });
+  const meas = ui('gg_v', 'bottles');
+  const tot = K.sum(sub);
+  const body = '<div class="toolbar">' + U.seg('gg_m', [['g2r', 'Drue → regioner'], ['r2g', 'Region → druer']], mode) +
+    U.select('gg_' + from, opts.map(function (o) { return [o.key, o.name + ' (' + o.v + ')']; }), sel) + U.seg('gg_v', [['bottles', 'Flasker'], ['share', '%']], meas) + '</div>' +
+    '<p class="muted" style="margin:0 0 10px;font-size:15px">' + (mode === 'g2r' ? 'Hvor kommer dine ' + K.n0(tot) + ' flasker ' + e(K.dimName(from, sel)) + ' fra?' : 'Hvilke druer udgør dine ' + K.n0(tot) + ' flasker fra ' + e(K.dimName(from, sel)) + '?') + '</p>' +
+    U.bars(sub, to, { measure: meas, top: 12 });
+  return panel('Drue og geografi', body, { def: meas === 'share' ? 'Procent af den valgte ' + (mode === 'g2r' ? 'drues' : 'regions') + ' flasker.' : '' });
 };
 
 /* ================================================================ PRODUCENTER */
 
 P.producenter = function () {
   const it = A.view;
-  let h = head('Producenter', filterNote() + ' To forskellige ranglister: hvem du har flest flasker fra, og hvem du har flest penge bundet hos.');
+  let h = head('Producenter', filterNote() + ' Hvem du har flest flasker fra, og hvem du har brugt flest penge på.');
   if (!it.length) return h + noData();
-  const g = K.group(it, ui('pr_raw', 'producer'));
+  const g = K.group(it, 'producer');
   const tot = K.sum(it);
   let rows = Array.from(g).map(function (x) {
     const s = K.stats(x[1]);
-    const regs = new Set(x[1].map(function (i) { return i.w.regionDa; }));
-    return { key: x[0], items: x[1], s: s, regs: Array.from(regs), raw: new Set(x[1].map(function (i) { return i.w.producerRaw; })).size };
+    return { key: x[0], items: x[1], s: s, regs: Array.from(new Set(x[1].map(function (i) { return i.w.regionDa; }))) };
   });
   const sort = ui('pr_s', 'bottles');
-  const val = { bottles: function (r) { return r.s.bottles; }, wines: function (r) { return r.s.wines; }, cuvees: function (r) { return r.s.cuvees; }, vintages: function (r) { return r.s.vintages; }, value: function (r) { return r.s.value; }, avg: function (r) { return r.s.avg; }, name: null };
+  const val = { bottles: function (r) { return r.s.bottles; }, wines: function (r) { return r.s.wines; }, vintages: function (r) { return r.s.vintages; }, value: function (r) { return r.s.value; }, avg: function (r) { return r.s.avg; } };
   rows.sort(sort === 'name' ? function (a, b) { return a.key.localeCompare(b.key, 'da'); } : function (a, b) { return val[sort](b) - val[sort](a) || b.s.bottles - a.s.bottles; });
   const q = K.fold(ui('pr_q', ''));
   if (q) rows = rows.filter(function (r) { return K.fold(r.key).indexOf(q) >= 0; });
   const n = +ui('pr_n', 25);
-  const th = function (k, l, r) { return '<th class="s' + (r ? ' r' : '') + (sort === k ? ' on' : '') + '" data-seg="pr_s" data-val="' + k + '">' + l + (sort === k ? ' ↓' : '') + '</th>'; };
-  let t = '<div class="tw"><table><thead><tr><th>#</th>' + th('name', 'Producent') + th('bottles', 'Flasker', 1) + '<th class="r">Andel</th>' + th('wines', 'Vine', 1) + th('cuvees', 'Cuvéer', 1) + th('vintages', 'Årgange', 1) + th('value', 'Værdi', 1) + th('avg', 'Gns. pris', 1) + '<th>Regioner</th></tr></thead><tbody>';
+  const th = function (k, l, cls) { return '<th class="s' + (cls ? ' ' + cls : '') + (sort === k ? ' on' : '') + '" data-seg="pr_s" data-val="' + k + '">' + l + (sort === k ? ' ↓' : '') + '</th>'; };
+  let t = '<div class="tw"><table class="pt"><thead><tr><th class="xm">#</th>' + th('name', 'Producent') + th('bottles', 'Fl.', 'r') + '<th class="r xm">Andel</th>' + th('wines', 'Vine', 'r xm') + th('vintages', 'Årgange', 'r xm') + th('value', 'Brugt', 'r') + th('avg', 'Gns. pris', 'r xm') + '<th class="xm">Regioner</th></tr></thead><tbody>';
   rows.slice(0, n || rows.length).forEach(function (r, i) {
-    t += '<tr class="click"' + U.act(ui('pr_raw', 'producer'), r.key, r.items) + '><td class="faint num">' + (i + 1) + '</td><td><b>' + e(r.key) + '</b>' + (r.raw > 1 ? ' <span class="tag">' + r.raw + ' navne</span>' : '') + '</td><td class="r num">' + r.s.bottles + '</td><td class="r num faint">' + K.pct(r.s.bottles / tot) + '</td><td class="r num">' + r.s.wines + '</td><td class="r num">' + r.s.cuvees + '</td><td class="r num">' + r.s.vintages + '</td><td class="r num">' + K.money(r.s.value) + '</td><td class="r num">' + (r.s.avg ? K.money(r.s.avg) : '–') + '</td><td class="muted">' + e(r.regs.join(', ')) + '</td></tr>';
+    t += '<tr class="click"' + U.act('producer', r.key, r.items) + '><td class="faint num xm">' + (i + 1) + '</td><td><b>' + e(r.key) + '</b><div class="sm">' + e(r.regs.join(', ')) + '</div></td><td class="r num">' + r.s.bottles + '</td><td class="r num faint xm">' + K.pct(r.s.bottles / tot) + '</td><td class="r num xm">' + r.s.wines + '</td><td class="r num xm">' + r.s.vintages + '</td><td class="r num">' + K.money(r.s.value) + '</td><td class="r num xm">' + (r.s.avg ? K.money(r.s.avg) : '–') + '</td><td class="muted xm">' + e(r.regs.join(', ')) + '</td></tr>';
   });
   t += '</tbody></table></div>';
-  h += '<div class="toolbar"><input type="search" id="pr-q" placeholder="Søg producent …" value="' + e(ui('pr_q', '')) + '" style="min-width:200px">' +
-    '<label class="inl">Vis ' + U.select('pr_n', [['15', 'top 15'], ['25', 'top 25'], ['50', 'top 50'], ['0', 'alle ' + g.size]], String(n)) + '</label>' +
-    U.seg('pr_raw', [['producer', 'Producentgrupper'], ['producerRaw', 'Rå navne']], ui('pr_raw', 'producer')) +
-    '<span class="faint">' + g.size + (ui('pr_raw', 'producer') === 'producer' ? ' grupper' : ' navne') + '</span></div>' + t;
-  h += '<div class="grid g2 section">' + panel('Flest flasker', U.bars(it, 'producer', { measure: 'bottles', top: 12 })) + panel('Højest registreret værdi', U.bars(it, 'producer', { measure: 'value', top: 12 })) + '</div>';
+  h += '<div class="toolbar"><input type="search" id="pr-q" placeholder="Søg producent …" value="' + e(ui('pr_q', '')) + '" style="min-width:180px">' +
+    '<label class="inl">Vis ' + U.select('pr_n', [['15', 'top 15'], ['25', 'top 25'], ['50', 'top 50'], ['0', 'alle']], String(n)) + '</label></div>' + t;
+  h += '<div class="section">' + panel('Flest flasker', U.bars(it, 'producer', { measure: 'bottles', top: 12 })) + '</div>';
   return h;
 };
 
@@ -480,44 +473,48 @@ P.historyFor = function (it, dim, key) {
 
 P.vaerdi = function () {
   const it = A.view;
-  let h = head('Værdi & priser', 'Registreret indkøbspris fra CellarTracker. Ingen budgetter, ingen markedsvurdering. ' + filterNote());
+  const cur = K.settings().currency === 'DKK' ? 'DKK' : 'EUR';
+  let h = head('Værdi & priser', 'Registreret indkøbspris fra CellarTracker. ' + filterNote() + (cur === 'DKK' ? ' Omregnet med fast kurs ' + K.n2(K.settings().dkkRate) + ' kr. pr. €.' : ''),
+    U.seg('cur', [['EUR', 'Euro'], ['DKK', 'Kroner']], cur));
   if (!it.length) return h + noData();
   const s = K.stats(it);
-  const priced = it.filter(function (i) { return i.price > 0; });
-  const lo = priced.length ? Math.min.apply(null, priced.map(function (i) { return i.price; })) : 0, hi = priced.length ? Math.max.apply(null, priced.map(function (i) { return i.price; })) : 0;
   h += U.kpis([
-    { v: K.money(s.value), l: 'Registreret indkøbsværdi', s: 'antal × pris' },
-    { v: K.n0(s.priced) + ' / ' + K.n0(s.zero), l: 'Flasker med / uden pris', s: s.zero ? 'nulpris er ukendt, ikke gratis' : '' },
-    { v: s.avg ? K.money(s.avg, 2) : '–', l: 'Gns. pris pr. flaske', s: 'vægtet, kun kendte priser' },
-    { v: s.median ? K.money(s.median, 2) : '–', l: 'Medianpris' },
-    { v: priced.length ? K.n0(lo) + '–' + K.n0(hi) : '–', l: 'Prisspænd (€)' }
+    { v: K.money(s.value), l: 'Indkøbsværdi i alt', s: 'antal × registreret pris' },
+    { v: K.n0(s.priced) + ' / ' + K.n0(s.zero), l: 'Flasker med / uden pris', s: s.zero ? 'uden pris tæller ikke med' : '' },
+    { v: s.avg ? K.money(s.avg) : '–', l: 'Gns. pris pr. flaske', s: 'kun flasker med pris' }
   ]);
-  if (A.db.wines.size && Array.from(A.db.wines.values()).every(function (w) { return !w.value || Math.abs(w.value - w.price) < 0.001; })) h += '<div class="note" style="margin-top:14px">CellarTrackers »Value« er lig med indkøbsprisen på alle vine, så der er ikke grundlag for at vise værdistigning.</div>';
   const dim = ui('va_d', 'producer'), m = ui('va_m', 'value');
-  h += '<div class="grid g2 section">' + panel('Hvor pengene er bundet', U.bars(it, dim, { measure: m, top: 15 }), { tools: U.select('va_d', [['producer', 'Producent'], ['region', 'Region'], ['country', 'Land'], ['grape', 'Drue'], ['cls', 'Vintype'], ['vintage', 'Årgang']].concat(A.db.hasLoc ? [['location', 'Lokation']] : []), dim) + U.measureSeg('va_m', m, ['value', 'bottles', 'wines', 'avgPrice']) }) +
-    panel('Prisfordeling', P.priceBlock(it)) + '</div>';
-  const rows = U.wineRows(it).filter(function (r) { return r.price > 0; });
-  const top = ui('va_t', 'price');
-  rows.sort(top === 'price' ? function (a, b) { return b.price - a.price; } : function (a, b) { return b.price * b.qty - a.price * a.qty; });
-  h += '<div class="section">' + panel('Dyreste vine', '<div class="tw"><table><thead><tr><th>Vin</th><th class="r">Årgang</th><th class="r">Antal</th><th class="r">Pris/fl.</th><th class="r">Samlet</th></tr></thead><tbody>' +
-    rows.slice(0, 15).map(function (r) { return '<tr class="click" data-wine="' + e(r.w.id) + '"><td><b>' + e(r.w.producerRaw) + '</b> ' + e(r.w.label) + (r.ml !== 750 ? ' <span class="tag">' + K.sizeLabel(r.ml) + '</span>' : '') + '</td><td class="r num">' + (r.w.nv ? 'NV' : r.w.vintage) + '</td><td class="r num">' + r.qty + '</td><td class="r num">' + K.money(r.price, 2) + '</td><td class="r num">' + K.money(r.price * r.qty) + '</td></tr>'; }).join('') +
-    '</tbody></table></div>', { tools: U.seg('va_t', [['price', 'Pris pr. flaske'], ['total', 'Samlet værdi']], top) }) + '</div>';
-  // pris pr. region
-  const reg = K.rank(it, ui('va_pd', 'region')).filter(function (r) { return r.items.some(function (i) { return i.price > 0; }); });
+  h += '<div class="grid g2 section">' + panel('Hvad pengene er brugt på', U.bars(it, dim, { measure: m, top: 15 }), { tools: U.select('va_d', [['producer', 'Producent'], ['region', 'Region'], ['country', 'Land'], ['grape', 'Drue'], ['cls', 'Vintype'], ['vintage', 'Årgang']].concat(A.db.hasLoc ? [['location', 'Lokation']] : []), dim) + U.measureSeg('va_m', m, ['value', 'bottles', 'avgPrice']) }) +
+    panel('Prisfordeling', P.priceChart(it), { def: 'Flasker pr. prisinterval (pr. flaske, i euro).' }) + '</div>';
+  const rows = U.wineRows(it).filter(function (r) { return r.price > 0; }).sort(function (a, b) { return b.price - a.price; });
+  h += '<div class="section">' + panel('Dyreste vine', '<div class="tw"><table class="dv"><thead><tr><th>Vin</th><th class="r">Årgang</th><th class="r xm">Antal</th><th class="r">Pris</th></tr></thead><tbody>' +
+    rows.slice(0, 15).map(function (r) { return '<tr class="click" data-wine="' + e(r.w.id) + '"><td><b>' + e(r.w.producerRaw) + '</b> ' + e(r.w.label) + (r.ml !== 750 ? ' <span class="tag">' + K.sizeLabel(r.ml) + '</span>' : '') + '</td><td class="r num">' + (r.w.nv ? 'NV' : r.w.vintage) + '</td><td class="r num xm">' + r.qty + '</td><td class="r num">' + K.money(r.price) + '</td></tr>'; }).join('') +
+    '</tbody></table></div>', { def: 'Pris pr. flaske.' }) + '</div>';
+  // prisniveau som lodret liste, så intet skal scrolles sidelæns
+  const pd = ui('va_pd', 'region');
+  const reg = K.rank(it, pd).filter(function (r) { return r.items.some(function (i) { return i.price > 0; }); });
   const q = function (items, p) { const ps = []; items.forEach(function (i) { if (i.price > 0) for (let k = 0; k < i.qty; k++) ps.push(i.price); }); ps.sort(function (a, b) { return a - b; }); return ps.length ? ps[Math.min(ps.length - 1, Math.floor(p * (ps.length - 1) + 0.5))] : 0; };
   const gmax = Math.max.apply(null, reg.map(function (r) { return q(r.items, 1); }).concat([1]));
-  h += '<div class="section">' + panel('Prisniveau pr. ' + K.DIMS[ui('va_pd', 'region')].label.toLowerCase(), '<div class="tw"><table><thead><tr><th></th><th class="r">Fl. m. pris</th><th class="r">Median</th><th class="r">Gns.</th><th style="width:40%">Spænd (min · kvartiler · max)</th></tr></thead><tbody>' + reg.slice(0, 20).map(function (r) {
+  const X = function (v) { return (100 * v / gmax).toFixed(1) + '%'; };
+  h += '<div class="section">' + panel('Prisniveau pr. ' + K.DIMS[pd].label.toLowerCase(), '<div class="pl">' + reg.slice(0, 20).map(function (r) {
     const mn = q(r.items, 0), q1 = q(r.items, 0.25), md = q(r.items, 0.5), q3 = q(r.items, 0.75), mx = q(r.items, 1);
-    const X = function (v) { return (100 * v / gmax).toFixed(1) + '%'; };
-    return '<tr class="click"' + U.act(ui('va_pd', 'region'), r.key, r.items) + '><td>' + e(r.name) + '</td><td class="r num">' + K.priceCoverage(r.items).priced + '</td><td class="r num">' + K.money(md) + '</td><td class="r num">' + K.money(K.MEASURES.avgPrice.fn(r.items)) + '</td><td><div style="position:relative;height:14px"' + U.tipAttr(r.name + ': min ' + K.n0(mn) + ' · 25 % ' + K.n0(q1) + ' · median ' + K.n0(md) + ' · 75 % ' + K.n0(q3) + ' · max ' + K.n0(mx) + ' €') + '>' +
-      '<span style="position:absolute;top:6px;height:2px;left:' + X(mn) + ';width:calc(' + X(mx) + ' - ' + X(mn) + ');background:var(--line-2)"></span><span style="position:absolute;top:2px;height:10px;left:' + X(q1) + ';width:calc(' + X(q3) + ' - ' + X(q1) + ');background:var(--accent-wash);border:1px solid var(--accent);border-radius:2px"></span><span style="position:absolute;top:0;height:14px;width:2px;left:' + X(md) + ';background:var(--accent)"></span></div></td></tr>';
-  }).join('') + '</tbody></table></div>', { tools: U.select('va_pd', [['region', 'Region'], ['country', 'Land'], ['grape', 'Drue'], ['cls', 'Vintype'], ['producer', 'Producent']], ui('va_pd', 'region')), def: 'Pr. flaske, kun kendte priser. Kassen viser de midterste 50 %, stregen medianen.' }) + '</div>';
+    return '<button type="button" class="pl-row"' + U.act(pd, r.key, r.items) + U.tipAttr(r.name + ': billigste ' + K.money(mn) + ' · median ' + K.money(md) + ' · dyreste ' + K.money(mx)) + '>' +
+      '<span class="pl-n">' + e(r.name) + ' <span class="faint">' + K.priceCoverage(r.items).priced + ' fl.</span></span><span class="pl-v num">median <b>' + K.money(md) + '</b></span>' +
+      '<span class="pl-b"><i style="left:' + X(mn) + ';width:calc(' + X(mx) + ' - ' + X(mn) + ')"></i><em style="left:' + X(q1) + ';width:calc(' + X(q3) + ' - ' + X(q1) + ')"></em><s style="left:' + X(md) + '"></s></span></button>';
+  }).join('') + '</div>', { tools: U.select('va_pd', [['region', 'Region'], ['country', 'Land'], ['grape', 'Drue'], ['cls', 'Vintype'], ['producer', 'Producent']], pd), def: 'Stregen går fra billigste til dyreste flaske, kassen viser de midterste 50 %, og den mørke streg er medianen.' }) + '</div>';
   const hist = A.history || [];
   if (hist.length >= 2) {
     const xs = hist.map(function (s) { return K.date(s.d); });
-    h += '<div class="section">' + panel('Registreret værdi over tid', U.lines(xs, [{ name: 'Værdi', color: 'var(--accent)', ys: hist.map(function (s) { return s.r.reduce(function (a, r) { return a + r[2] * (r[3] || 0); }, 0); }) }], { fmt: function (v) { return K.n0(v) + ' €'; } }), { def: 'Beholdning × registreret pris på hver observationsdato (hele samlingen).' }) + '</div>';
+    const rate = cur === 'DKK' ? K.settings().dkkRate : 1;
+    h += '<div class="section">' + panel('Indkøbsværdi over tid', U.lines(xs, [{ name: 'Værdi', color: 'var(--accent)', ys: hist.map(function (s) { return rate * s.r.reduce(function (a, r) { return a + r[2] * (r[3] || 0); }, 0); }) }], { fmt: function (v) { return K.n0(v); } }), { def: 'Beholdning × registreret pris ved hver import (hele samlingen).' }) + '</div>';
   }
   return h;
+};
+P.priceChart = function (it) {
+  const bands = K.rank(it, 'priceBand', 'bottles', { natural: true });
+  return U.columns(bands.map(function (b) {
+    const short = { 'Ingen pris': 'Ingen', 'Under 20 €': '<20', 'Over 150 €': '150+' };
+    return { label: short[b.name] || b.name.replace(' €', ''), v: b.v, act: U.act('priceBand', b.key, b.items, 'Pris: ' + b.name), tip: b.name + ': ' + b.v + ' fl.', color: b.key === 'Ingen pris' ? 'var(--ink-3)' : 'var(--accent)' }; }), { h: 180, label: 'Prisfordeling' });
 };
 
 /* ================================================================ CELLAR LAB */
@@ -655,15 +652,15 @@ P.overlap = function (it) {
 
 P.vinkort = function () {
   const custom = A.route.items;
-  const scope = ui('wl_scope', 'filter');
-  const items = custom || (scope === 'all' ? A.all : A.view);
+  const items = custom || A.view;
   const priv = ui('wl_priv', 'guest');
-  const filtered = !custom && scope !== 'all' && K.activeFilterCount() > 0;
+  const filtered = !custom && K.activeFilterCount() > 0;
   const scopeText = custom ? (A.route.title || 'Udvalgt udsnit') : filtered ? P.filterDesc() : 'Hele samlingen';
-  let h = '<div class="noprint">' + head('Vinkort', 'Et klassisk vinkort over de vine, du har: vintype › land › område › vin, med antal flasker. Udskriv eller gem som PDF fra browseren (A4).',
+  let h = '<div class="noprint">' + head('Vinkort', 'Vintype › land og region › producent › vin, med antal flasker. Udskriv eller gem som PDF fra browseren.',
     '<button class="btn pri" data-act="print">Udskriv / gem som PDF</button>') + (A.src.mode === 'demo' ? '<div class="note" style="margin-bottom:12px">I forhåndsvisningen kan browseren ikke udskrive. Det virker i den installerede version.</div>' : '') +
-    '<div class="toolbar">' + (custom ? '<span class="tag">' + e(scopeText) + '</span><button class="link" data-act="wl-clear">Brug filtrene i stedet</button>' : U.seg('wl_scope', [['filter', filtered ? 'Aktive filtre' : 'Hele samlingen'], ['all', 'Altid hele samlingen']], filtered ? scope : 'filter')) +
-    U.seg('wl_priv', [['guest', 'Gæsteversion'], ['private', 'Privat (pris og lokation)']], priv) + '</div>' +
+    (custom ? '<div class="note" style="margin-bottom:12px">Vinkort over <b>' + e(scopeText) + '</b>. <button class="link" data-act="wl-clear">Vis hele samlingen</button></div>' :
+      filtered ? '<div class="note" style="margin-bottom:12px">Vinkortet viser kun det, der passer til dine filtre: <b>' + e(scopeText) + '</b>. <button class="link" data-unf="#all">Nulstil filtrene</button> for hele samlingen.</div>' : '') +
+    '<div class="toolbar">' + U.seg('wl_priv', [['guest', 'Til gæster'], ['private', 'Med pris og lokation']], priv) + '</div>' +
     (A.src.mode === 'sync' && !A.src.live ? '<div class="note warn">Synkroniseringen er ikke opdateret. Kortet er dannet fra sidste gyldige beholdning (' + K.date(A.src.status && A.src.status.lastSuccess, true) + ').</div>' : '') + '</div>';
   if (!items.length) return h + '<div class="empty">Der er ingen vine i det valgte udsnit, så der er intet vinkort at vise.</div>';
   h += P.wineList(items, { priv: priv === 'private', scope: scopeText });
@@ -798,7 +795,7 @@ P.sourceMatrix = function () {
   return '<div class="tw"><table><thead><tr><th>CT-tabel</th><th>Status</th><th>Gør muligt</th></tr></thead><tbody>' +
     row('List (beholdning)', !!db.tables.List, db.tables.List ? db.tables.List + ' rækker' : 'mangler', 'Alt grundlæggende') +
     row('Inventory (flasker)', db.bottleLevel, db.bottleLevel ? db.tables.Inventory + ' flasker' : db.tables.Inventory ? 'indlæst, men stemmer ikke' : 'ikke indlæst', 'Lokation, bin, weekendvine') +
-    row('Purchase (køb)', db.hasPurchases, db.hasPurchases ? db.purchases.length + ' køb' : 'ikke indlæst', 'Købstrends, forhandlere') +
+    row('Purchase (køb)', db.hasPurchases, db.hasPurchases ? db.purchases.length + ' køb' : 'ikke indlæst', 'Købshistorik og forhandlere') +
     row('Consumed (afgang)', db.hasConsumed, db.hasConsumed ? db.consumed.length + ' hændelser' : 'ikke indlæst', 'Forbrug, køb mod drukket') +
     row('Notes (smagninger)', db.notes.length > 0, db.notes.length ? db.notes.length + ' scores' : 'ingen scores', 'Egne scores (senere)') +
     '</tbody></table></div>' + (db.warnings.length ? '<div class="note warn" style="margin-top:10px">' + e(db.warnings.join(' ')) + '</div>' : '') +
