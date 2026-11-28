@@ -616,9 +616,50 @@ P.udvMain = function () {
     allKeys.map(function (k) { return '<tr><td>' + esc(nm(k)) + '</td>' + years.slice(U.narrow() ? -3 : -6).map(function (y) { const t = ytot(y); return '<td class="r num"' + U.tipAttr(nm(k) + ' ' + y + ': ' + val(y, k) + ' af ' + t + ' fl.') + '>' + (t ? K.n0(val(y, k) / t * 100) + ' %' : '–') + '</td>'; }).join('') + '</tr>'; }).join('') +
     '<tr><td class="faint">I alt</td>' + years.slice(U.narrow() ? -3 : -6).map(function (y) { return '<td class="r num faint">' + K.n0(ytot(y)) + '</td>'; }).join('') + '</tr></tbody></table></div>';
   h += panel('Andel de seneste år', tb, { def: 'Procent af årets ' + label + '. Holder du musen over et tal, ser du antallet.' }) + '</div>';
+  // følg én drue, evt. i én region, år for år
+  {
+    const gG = K.DIMS.grape.get, gR = K.DIMS.region.get;
+    const pool = pur.map(ev).concat(A.view);
+    const gq = new Map(); pool.forEach(function (i) { const k = gG(i); if (k && k !== K.UNKNOWN) gq.set(k, (gq.get(k) || 0) + i.qty); });
+    const grapes = Array.from(gq.keys()).sort(function (a, b) { return gq.get(b) - gq.get(a); });
+    if (grapes.length) {
+      let fg = ui('fo_g', grapes[0]); if (!gq.has(fg)) fg = grapes[0];
+      const rq = new Map(); pool.forEach(function (i) { if (gG(i) === fg) { const k = gR(i); if (k && k !== K.UNKNOWN) rq.set(k, (rq.get(k) || 0) + i.qty); } });
+      const regs = Array.from(rq.keys()).sort(function (a, b) { return rq.get(b) - rq.get(a); });
+      let fr = ui('fo_r', '*'); if (fr !== '*' && !rq.has(fr)) fr = '*';
+      const yearly = function (pred) {
+        const m = new Map(); const a = function (y, q) { m.set(y, (m.get(y) || 0) + q); };
+        if (pv === 'buy') pur.forEach(function (p) { if (pred(ev(p))) a(p.date.getFullYear(), p.qty); });
+        else if (pv === 'have') {
+          if (db.bottleLevel) A.view.forEach(function (i) { if (i.pdate && pred(i)) a(i.pdate.getFullYear(), i.qty); });
+          else pur.forEach(function (p) { if (p.rem && pred(ev(p))) a(p.date.getFullYear(), p.rem); });
+        } else {
+          const d = new Map(); const dd = function (y, q) { d.set(y, (d.get(y) || 0) + q); };
+          pur.forEach(function (p) { if (pred(ev(p))) dd(p.date.getFullYear(), p.qty); });
+          con.forEach(function (c) { if (pred(ev(c))) dd(c.date.getFullYear(), -c.qty); });
+          let run = 0; for (let y = Math.min.apply(null, years.concat(Array.from(d.keys()))); y <= nowY; y++) { run += d.get(y) || 0; a(y, Math.max(0, run)); }
+        }
+        return years.map(function (y) { return m.get(y) || 0; });
+      };
+      const gName = K.dimName('grape', fg), rName = fr === '*' ? '' : K.dimName('region', fr);
+      const lines = [{ name: gName + (fr === '*' ? '' : ' (alle)'), color: 'var(--accent)', ys: yearly(function (i) { return gG(i) === fg; }) }];
+      if (fr !== '*') lines.push({ name: rName + ' · ' + gName, color: '#7B2433', ys: yearly(function (i) { return gG(i) === fg && gR(i) === fr; }) });
+      const pct = lines.map(function (l) { return { name: l.name, color: l.color, ys: l.ys.map(function (v, i) { const t = ytot(years[i]); return t ? v / t : null; }), tips: l.ys.map(function (v, i) { const t = ytot(years[i]); return t ? K.n0(100 * v / t) + ' % (' + v + ' af ' + t + ' fl.)' : ''; }) }; });
+      const last = lines[lines.length - 1].ys, lt = ytot(years[years.length - 1]);
+      const title = (fr === '*' ? '' : rName + ' · ') + gName;
+      const tools = '<label class="inl">Drue ' + U.select('fo_g', grapes.slice(0, 60).map(function (k) { return [k, K.dimName('grape', k)]; }), fg) + '</label>' +
+        '<label class="inl">Region ' + U.select('fo_r', [['*', 'Alle regioner']].concat(regs.map(function (k) { return [k, K.dimName('region', k)]; })), fr) + '</label>';
+      h += '<div class="section">' + panel('Følg en drue', '<div class="toolbar">' + tools + '</div>' +
+        '<div class="faint" style="margin:-4px 0 10px">' + e(title) + ': <b style="color:var(--ink)">' + K.n0(last[last.length - 1]) + ' fl.</b> i ' + years[years.length - 1] + (lt ? ' · ' + K.n0(100 * last[last.length - 1] / lt) + ' % af ' + label : '') + '</div>' +
+        '<div class="grid g2"><div><div class="eyebrow" style="margin-bottom:6px">Antal flasker</div>' + U.lines(xs, lines, { label: 'Antal ' + title }) + '</div>' +
+        '<div><div class="eyebrow" style="margin-bottom:6px">Andel</div>' + U.lines(xs, pct, { pct: true, label: 'Andel ' + title }) + '</div></div>',
+        { def: 'Følger valget foroven (' + { hold: 'beholdning ved årets udgang', buy: 'købt pr. år', have: 'nuværende flasker efter købsår' }[pv] + ') og de globale filtre. Vælger du en region, vises både druen i alt og druen i regionen.' }) + '</div>';
+    }
+  }
   // gennemsnitspris pr. købt flaske, år for år
-  const pe = db.hasPurchases ? purAll.filter(function (p) { return !isR(p) && p.price > 0; }).map(function (p) { return { y: p.date.getFullYear(), k: get(ev(p)), q: p.qty, pr: p.price }; })
-    : A.view.filter(function (i) { return i.pdate && i.price > 0; }).map(function (i) { return { y: i.pdate.getFullYear(), k: get(i), q: i.qty, pr: i.price }; });
+  const gc = K.DIMS.cls.get;
+  const pe = db.hasPurchases ? purAll.filter(function (p) { return !isR(p) && p.price > 0; }).map(function (p) { return { y: p.date.getFullYear(), k: gc(ev(p)), q: p.qty, pr: p.price }; })
+    : A.view.filter(function (i) { return i.pdate && i.price > 0; }).map(function (i) { return { y: i.pdate.getFullYear(), k: gc(i), q: i.qty, pr: i.price }; });
   if (pe.length) {
     const rate = K.settings().currency === 'DKK' ? K.settings().dkkRate : 1;
     const yv = pe.map(function (x) { return x.y; }); const pys = [];
@@ -627,18 +668,19 @@ P.udvMain = function () {
     const cnt = function (fn) { return pys.map(function (y) { let n = 0; pe.forEach(function (x) { if (x.y === y && fn(x)) n += x.q; }); return n; }); };
     const unit = rate === 1 ? ' €' : ' kr.';
     const mk = function (name, col, fn) { const a = avg(fn), c = cnt(fn); return { name: name, color: col, ys: a, tips: a.map(function (v, i) { return v === null ? '' : K.n0(v) + unit + ' i snit (' + c[i] + ' fl.)'; }) }; };
-    // valgte linjer huskes pr. inddeling; standard er »Alle« plus de fire største
-    const selKey = 'pr_sel_' + dim;
-    if (!A.ui[selKey]) A.ui[selKey] = ['*'].concat(shown.slice(0, 4));
-    const sel = A.ui[selKey];
+    // altid Alle + vintyper, uafhængigt af »Fordel på«; valget huskes
+    const ck = K.CLASS_ORDER.filter(function (k) { return pe.some(function (x) { return x.k === k; }); }).concat(Array.from(new Set(pe.map(function (x) { return x.k; }))).filter(function (k) { return K.CLASS_ORDER.indexOf(k) < 0; }));
+    const cc = function (k, i) { return U.color('cls', k, i); };
+    if (!A.ui.pr_sel_cls) A.ui.pr_sel_cls = ['*'];
+    const sel = A.ui.pr_sel_cls;
     const ser = (sel.indexOf('*') >= 0 ? [mk('Alle', 'var(--ink)', function () { return true; })] : [])
-      .concat(shown.map(function (k, i) { return sel.indexOf(k) >= 0 ? mk(nm(k), color(k, i), function (x) { return x.k === k; }) : null; }).filter(Boolean));
-    const tog = '<div class="toolbar" style="gap:6px">' + [['*', 'Alle', 'var(--ink)']].concat(shown.map(function (k, i) { return [k, nm(k), color(k, i)]; })).map(function (o) {
+      .concat(ck.map(function (k, i) { return sel.indexOf(k) >= 0 ? mk(K.dimName('cls', k), cc(k, i), function (x) { return x.k === k; }) : null; }).filter(Boolean));
+    const tog = '<div class="toolbar" style="gap:6px">' + [['*', 'Alle', 'var(--ink)']].concat(ck.map(function (k, i) { return [k, K.dimName('cls', k), cc(k, i)]; })).map(function (o) {
       const on = sel.indexOf(o[0]) >= 0;
-      return '<button type="button" class="fbtn' + (on ? ' loc' : '') + '" data-act="pr-tog" data-dim="' + e(dim) + '" data-k="' + e(o[0]) + '" aria-pressed="' + on + '"><span class="sw" style="background:' + o[2] + '"></span>' + e(o[1]) + '</button>';
+      return '<button type="button" class="fbtn' + (on ? ' loc' : '') + '" data-act="pr-tog" data-dim="cls" data-k="' + e(o[0]) + '" aria-pressed="' + on + '"><span class="sw" style="background:' + o[2] + '"></span>' + e(o[1]) + '</button>';
     }).join('') + '</div>';
     h += '<div class="section">' + panel('Gennemsnitspris pr. købt flaske', tog + (ser.length ? U.lines(pys.map(String), ser, { fmt: function (v) { return K.n0(v) + unit; }, label: 'Gennemsnitspris pr. år' }) : '<div class="empty">Vælg mindst én linje.</div>'),
-      { def: 'Vægtet med antal flasker; kun køb med registreret pris' + (db.hasPurchases ? ', uden »Restaurant«' : ' (kun nuværende flasker)') + '. Tryk på knapperne for at vise eller skjule linjer. »Alle« er alle køb samlet.' }) + '</div>';
+      { def: 'Vægtet med antal flasker; kun køb med registreret pris' + (db.hasPurchases ? ', uden »Restaurant«' : ' (kun nuværende flasker)') + '. Tryk på knapperne for at vise eller skjule linjer: »Alle« er alle køb samlet, de øvrige er vintyper.' }) + '</div>';
   }
   if (pv === 'hold') {
     const recon = ytot(nowY), actual = K.sum(A.view);
