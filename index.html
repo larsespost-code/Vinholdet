@@ -1247,7 +1247,7 @@ function applyPointer(roundId, pdata){
   if(unsubRound && unsubRound._id === roundId) return;
   if(unsubRound){ unsubRound(); unsubRound=null; }
   const u = DB.doc('rounds/'+roundId).onSnapshot(rsnap=>{
-    if(rsnap.exists) applyRoundSnapshot(rsnap.data()); else markLoaded();
+    if(rsnap.exists) applyRoundSnapshot(rsnap.data()); else if(!(rsnap.metadata && rsnap.metadata.fromCache)) markLoaded();
   }, ()=>{ if(unsubRound===u) unsubRound=null; markLoaded(); });
   u._id = roundId;
   unsubRound = u;
@@ -1268,8 +1268,14 @@ function subscribeConfig(){
   }, ()=>{ /* keep local config on error */ });
 }
 
+let LIVE_POINTER = false; // the server itself has told this phone which wine is in progress
 function subscribePointer(){
   unsubPointer = DB.doc('state/active').onSnapshot(snap=>{
+    // Waking up or reloading on a poor connection, Firestore may first answer from its
+    // local cache that there is no document. That is not "no wine in progress" — wait for the server.
+    const cached = !!(snap.metadata && snap.metadata.fromCache);
+    if(!snap.exists && cached) return;
+    if(!cached) LIVE_POINTER = true;
     const data = snap.exists ? snap.data() : null;
     applyPointer(data ? data.roundId : null, data);
   }, ()=>{});
@@ -1516,7 +1522,11 @@ function newRound(){
             return;
           }
         }
-      }catch(e){ /* can't check right now — go ahead */ }
+      }catch(e){
+        // No answer from the server: another phone may already have a wine going, and starting
+        // one here would take it over once the connection is back. Ask to try again instead.
+        if(BACKEND==='firebase' && ACTIVE && ACTIVE.id === mine){ PENDING_NEW_ROUND = null; pendingPatch = {}; ACTIVE = null; render(); showToast('Ingen forbindelse lige nu — prøv igen om et øjeblik'); return; }
+      }
     }
     if(!ACTIVE || ACTIVE.id !== mine) return; // cancelled meanwhile
     await pushActiveNow();
@@ -2244,7 +2254,7 @@ function renderIdle(){
       <a class="nav-tile" href="dashboard.html"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Se statistik</span></a>
       ${SHEET ? `<button type="button" class="nav-tile" onclick="copyShareLink()"><svg viewBox="0 0 24 24"><path d="M21 3 10 14"/><path d="M21 3l-7 18-4-7-7-4z"/></svg><span>Send link til holdet</span></button>` : ''}
     </div>
-    ${USE_DB ? '' : `<div class="sync-note">⚠ Kører kun lokalt på denne telefon — ingen delt forbindelse fundet.</div>`}
+    ${USE_DB ? (BACKEND==='firebase' && !LIVE_POINTER ? `<div class="sync-note">Forbinder stadig … Er der allerede en vin i gang, dukker den op her om et øjeblik.</div>` : '') : `<div class="sync-note">⚠ Kører kun lokalt på denne telefon — ingen delt forbindelse fundet.</div>`}
   </div>`;
 }
 
