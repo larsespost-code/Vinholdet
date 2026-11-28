@@ -944,7 +944,7 @@ P.mad = function () {
     return '<div class="msg">' + (m.note ? '<p>' + e(m.note) + '</p>' : '') + '<div class="grid" style="gap:10px">' + (m.picks || []).map(function (p) {
       const w = A.db.wines.get(p.id); if (!w) return '';
       return '<div class="pickc"><span class="role">' + e(p.role) + '</span><button class="link" style="text-align:left;font-weight:600" data-wine="' + e(w.id) + '">' + e(w.producerRaw + ' ' + w.label + ' ' + (w.nv ? 'NV' : w.vintage)) + '</button><span class="faint" style="font-size:.82rem">' + e(w.cls + ' · ' + w.master + ' · ' + w.regionDa) + ' · ' + p.qty + ' fl.' + (w.price ? ' · ' + K.money(w.price) : '') + '</span><span>' + e(p.why) + '</span>' + (p.caveat ? '<span class="muted" style="font-size:.86rem">Forbehold: ' + e(p.caveat) + '</span>' : '') + '</div>';
-    }).join('') + '</div>' + (m.usage ? '<div class="faint" style="font-size:.75rem;margin-top:6px">' + e(m.usage.provider || '') + ' · ' + m.candidates + ' kandidater sendt · ' + K.n0(m.usage.input) + ' input- og ' + K.n0(m.usage.output) + ' output-tokens' + (m.rejected && m.rejected.length ? ' · ' + m.rejected.length + ' ugyldige forslag frasorteret' : '') + '</div>' : '') + '</div>';
+    }).join('') + '</div>' + (m.usage ? fbNote(m.usage) + '<div class="faint" style="font-size:.75rem;margin-top:6px">' + e(m.usage.provider || '') + ' · ' + m.candidates + ' kandidater sendt · ' + K.n0(m.usage.input) + ' input- og ' + K.n0(m.usage.output) + ' output-tokens' + (m.rejected && m.rejected.length ? ' · ' + m.rejected.length + ' ugyldige forslag frasorteret' : '') + '</div>' : '') + '</div>';
   }).join('') + (A.chatBusy ? '<div class="muted">Sommelieren tænker …</div>' : '') + '</div>';
   h += '<div style="margin-top:18px;display:grid;gap:8px"><textarea id="mad-q" rows="3" placeholder="' + (chat.length ? 'Fx »Kun Jura«, »Hvad hvis jeg bruger rødvinssauce?«, »Kun vine jeg har mindst to af«' : 'Fx »Pighvar stegt på benet, beurre blanc med citron, grillede porrer og svampe. Gerne hvid fra Jura, ikke blandt de dyreste.«') + '"></textarea>' +
     '<div style="display:flex;gap:8px"><button class="btn pri" data-act="mad-send"' + (A.chatBusy ? ' disabled' : '') + '>' + (chat.length ? 'Send' : 'Find vin') + '</button>' + (chat.length ? '<button class="btn" data-act="mad-reset">Ny ret</button>' : '') + '</div></div>';
@@ -1152,7 +1152,8 @@ const aiGate = function () {
 };
 const isRest = function (p) { return /^restaurant$/i.test(p.store || ''); };
 const evItem = function (e) { return { w: e.w, qty: e.qty, price: e.price || 0, ml: 750, loc: '', store: e.store || '' }; };
-const usageLine = function (u) { return u ? '<div class="faint" style="font-size:.75rem;margin-top:8px">' + e((u.provider || '') + ' · ' + (u.model || '')) + ' · ' + K.n0(u.input) + ' input- og ' + K.n0(u.output) + ' output-tokens</div>' : ''; };
+const fbNote = function (u) { return u && u.fallback ? '<div class="note" style="margin-top:8px;font-size:.85rem">Svaret kommer fra reservemodellen (Flash-Lite), fordi dagens gratiskvote til Flash er brugt. Det er lidt mindre skarpt; Flash er tilbage i morgen.</div>' : ''; };
+const usageLine = function (u) { return u ? fbNote(u) + '<div class="faint" style="font-size:.75rem;margin-top:8px">' + e((u.provider || '') + ' · ' + (u.model || '')) + ' · ' + K.n0(u.input) + ' input- og ' + K.n0(u.output) + ' output-tokens</div>' : ''; };
 const r1 = function (v) { return Math.round(v * 10) / 10; };
 
 P.ai = function () {

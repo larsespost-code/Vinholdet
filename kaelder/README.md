@@ -86,6 +86,8 @@ Funktionerne kan køre på **Gemini (gratis)** eller **Claude (betalt)**. Dashbo
 
 Standardmodellen er `gemini-flash-latest`, som Google løbende peger på den nyeste Flash-model. Den kan ændres med scriptegenskaben `GEMINI_MODEL`.
 
+Gratiskvoten til Flash er lille (i efteråret 2026 omkring 20 forespørgsler om dagen; Google offentliggør ikke tallene og har ændret dem flere gange). Når den er brugt, skifter scriptet automatisk til reservemodellen `gemini-flash-lite-latest`, som har en langt større kvote (omkring 500 om dagen), og dashboardet viser en lille note om det. En brugt dagskvote huskes til Googles nulstilling (midnat i Californien, dvs. kl. 9 dansk tid), så der ikke spildes forsøg. Reservemodellen kan ændres med `GEMINI_FALLBACK_MODEL`, eller slås fra med værdien `none`. Dine aktuelle grænser kan ses i AI Studio under Rate limits.
+
 Vær opmærksom på:
 
 - Gratisudgaven har en daglig kvote, og Google har flere gange ændret den uden varsel. Er kvoten brugt, viser siden en besked, og den nulstilles dagligt. Til få forespørgsler om ugen er det rigeligt.

@@ -39,6 +39,7 @@ const MAX_LOG = 60;
 const MAX_SNAPSHOTS = 2000;
 const AI_MODEL = 'claude-opus-5-5';
 const GEMINI_DEFAULT = 'gemini-flash-latest';
+const GEMINI_FALLBACK = 'gemini-flash-lite-latest';
 
 /* ------------------------------------------------------------ opsætning */
 
@@ -428,10 +429,38 @@ function callClaude_(system, messages, schema) {
 }
 
 /** Gemini via Google AI Studio. Gratisudgaven har dagskvoter og kan ændres af Google uden varsel. */
+// Gemini: prøv hovedmodellen; er dens kvote brugt (429) eller er den overbelastet (503),
+// prøves reservemodellen (standard Flash-Lite, som har en langt større gratiskvote).
+// En brugt dagskvote huskes til Googles nulstilling ved midnat amerikansk vestkysttid, så den ikke spildes på nye forsøg.
 function callGemini_(system, messages, shape) {
   const p = PropertiesService.getScriptProperties();
-  const apiKey = p.getProperty('GEMINI_API_KEY');
-  const model = p.getProperty('GEMINI_MODEL') || GEMINI_DEFAULT;
+  const primary = p.getProperty('GEMINI_MODEL') || GEMINI_DEFAULT;
+  const fb = p.getProperty('GEMINI_FALLBACK_MODEL') || GEMINI_FALLBACK;
+  const models = [primary].concat(fb && fb !== 'none' && fb !== primary ? [fb] : []);
+  const cache = CacheService.getScriptCache();
+  let last = null;
+  for (let i = 0; i < models.length; i++) {
+    const m = models[i];
+    if (i < models.length - 1 && cache.get('gem_dayout_' + m)) continue;
+    const r = geminiOnce_(m, system, messages, shape);
+    if (r.ok) { if (i > 0) { r.usage.fallback = true; r.usage.primary = primary; } return r; }
+    last = r;
+    if (r.code === 429 && r.perDay) cache.put('gem_dayout_' + m, '1', secsToPacificMidnight_());
+    if (r.code !== 429 && r.code !== 503) break;
+  }
+  if (last && last.code === 429) return { ok: false, error: models.length > 1 ? 'Geminis gratiskvote er brugt op for i dag, også for reservemodellen. Den nulstilles i løbet af natten (dansk tid).' : 'Geminis gratiskvote er brugt op for nu. Prøv igen senere (kvoten nulstilles dagligt).' };
+  if (last && last.code === 503) return { ok: false, error: 'Gemini er overbelastet lige nu. Prøv igen om lidt.' };
+  return { ok: false, error: last.error };
+}
+
+function secsToPacificMidnight_() {
+  const now = new Date();
+  const h = +Utilities.formatDate(now, 'America/Los_Angeles', 'H'), mi = +Utilities.formatDate(now, 'America/Los_Angeles', 'm');
+  return Math.max(300, Math.min(21600, (24 * 60 - (h * 60 + mi)) * 60)); // CacheService gemmer højst 6 timer
+}
+
+function geminiOnce_(model, system, messages, shape) {
+  const apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
   const body = {
     systemInstruction: { parts: [{ text: system + ' Svar KUN med JSON på formen ' + (shape || '{"picks":[{"id":"…","role":"klassisk|alternativ|utraditionel|andet","why":"…","caveat":"…"}],"note":"…"}') + '.' }] },
     contents: messages.map(function (m) { return { role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }; }),
@@ -442,13 +471,15 @@ function callGemini_(system, messages, shape) {
     headers: { 'x-goog-api-key': apiKey }, payload: JSON.stringify(body)
   });
   const code = res.getResponseCode();
-  let data; try { data = JSON.parse(res.getContentText()); } catch (e) { data = {}; }
-  if (code === 429) return { ok: false, error: 'Geminis gratiskvote er brugt op for nu. Prøv igen senere (kvoten nulstilles dagligt).' };
-  if (code !== 200) return { ok: false, error: 'Gemini svarede med fejl ' + code + (data.error && data.error.message ? ': ' + data.error.message : '') + '. Tjek GEMINI_API_KEY og GEMINI_MODEL.' };
+  const text = res.getContentText();
+  let data; try { data = JSON.parse(text); } catch (e) { data = {}; }
+  if (code === 429) return { ok: false, code: 429, perDay: /PerDay/i.test(text) };
+  if (code === 503) return { ok: false, code: 503 };
+  if (code !== 200) return { ok: false, code: code, error: 'Gemini (' + model + ') svarede med fejl ' + code + (data.error && data.error.message ? ': ' + data.error.message : '') + '. Tjek GEMINI_API_KEY, GEMINI_MODEL og GEMINI_FALLBACK_MODEL.' };
   const cand = (data.candidates || [])[0];
-  if (!cand || !cand.content) return { ok: false, error: 'Gemini returnerede intet svar' + (data.promptFeedback && data.promptFeedback.blockReason ? ' (' + data.promptFeedback.blockReason + ')' : '') + '. Prøv igen.' };
+  if (!cand || !cand.content) return { ok: false, code: 0, error: 'Gemini returnerede intet svar' + (data.promptFeedback && data.promptFeedback.blockReason ? ' (' + data.promptFeedback.blockReason + ')' : '') + '. Prøv igen.' };
   const out = parseJson_((cand.content.parts || []).map(function (x) { return x.text || ''; }).join(''));
-  if (!out) return { ok: false, error: 'Gemini-svaret kunne ikke læses. Prøv igen.' };
+  if (!out) return { ok: false, code: 0, error: 'Gemini-svaret kunne ikke læses. Prøv igen.' };
   const u = data.usageMetadata || {};
   return { ok: true, out: out, usage: { input: u.promptTokenCount || 0, output: u.candidatesTokenCount || 0, model: data.modelVersion || model, provider: 'Gemini' } };
 }
