@@ -54,7 +54,7 @@ A.usePayload = function (p, live) {
   A.catalog = p.catalog || {};
   A.log = p.log || [];
   if (p.aliases) K.store.set('aliases', p.aliases);
-  if (p.settings && p.settings.weekendLocation !== undefined) K.saveSettings({ weekendLocation: p.settings.weekendLocation });
+  if (p.settings && Array.isArray(p.settings.weekendLocations)) K.saveSettings({ weekendLocations: p.settings.weekendLocations });
   A.setDb(K.build(p.tables || {}));
 };
 
@@ -134,10 +134,10 @@ A.renderFilters = function () {
     return '<button class="fbtn' + (d === 'location' ? ' loc' : '') + '" data-fpop="' + d + '">' + K.DIMS[d].label + (n ? ' <span class="n">' + n + '</span>' : '') + '</button>';
   };
   const st = K.stats(A.view), tot = K.sum(A.all);
-  const wk = K.settings().weekendLocation;
+  const wk = (K.settings().weekendLocations || []).filter(function (l) { return db.locations.indexOf(l) >= 0; });
   let h = '<div class="fbar-row">' + FILTER_MAIN.map(btn).join('') +
     '<button class="fbtn" data-fpop="#more">Flere filtre</button>' +
-    (db.hasLoc && wk ? '<button class="fbtn" data-weekend="1" title="Røde vine på ' + K.esc(wk) + '">Weekendvine</button>' : '') +
+    (db.hasLoc && wk.length ? '<button class="fbtn" data-weekend="1" title="Røde vine på ' + K.esc(wk.join(', ')) + '">Weekendvine</button>' : '') +
     '<span class="fsum num">' + (st.bottles === tot ? K.n0(tot) + ' fl.' : K.n0(st.bottles) + ' af ' + K.n0(tot) + ' fl.') + ' · ' + K.n0(st.wines) + ' vine · ' + K.money(st.value) + '</span></div>';
   // chips
   let chips = '';
@@ -372,7 +372,7 @@ document.addEventListener('click', function (e) {
   if (d.popclear) { A.clearFilter(d.popclear); return; }
   if (d.unf) { A.clearFilter(d.unf); return; }
   if (d.seg) { if (d.seg === 'popmode') { A.popMode = d.val; t.parentNode.querySelectorAll('button').forEach(function (b) { b.classList.toggle('on', b === t); }); return; } if (d.seg === 'cur') { K.saveSettings({ currency: d.val }); A.refresh(); return; } A.ui[d.seg] = d.val; A.render(); return; }
-  if (d.weekend) { const wk = K.settings().weekendLocation; K.filters.dims.location = { mode: 'in', vals: new Set([wk]) }; K.filters.dims.color = { mode: 'in', vals: new Set(['Rød']) }; A.refresh(); return; }
+  if (d.weekend) { const wk = K.settings().weekendLocations || []; K.filters.dims.location = { mode: 'in', vals: new Set(wk) }; K.filters.dims.color = { mode: 'in', vals: new Set(['Rød']) }; A.refresh(); return; }
   if (d.wlreg) { A.closeDrawer(); A.go('vinkort', { items: U._reg[+d.wlreg].items, title: U._reg[+d.wlreg].title }); return; }
   if (d.csvreg) { A.downloadCSV(U._reg[+d.csvreg].items); return; }
   if (d.wine) { A.showWine(d.wine); return; }

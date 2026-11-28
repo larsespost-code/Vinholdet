@@ -166,7 +166,11 @@ K.store = {
 };
 K.DEFAULT_ALIASES = { 'Jean-François Ganevat': 'Ganevat', 'Anne et Jean-François Ganevat': 'Ganevat' };
 K.settings = function () {
-  if (!K._settings) K._settings = Object.assign({ currency: 'EUR', dkkRate: 7.46, weekendLocation: '', syncUrl: '', syncKey: '' }, K.store.get('settings', {}));
+  if (!K._settings) {
+    K._settings = Object.assign({ currency: 'EUR', dkkRate: 7.46, weekendLocations: ['Køleskabet', 'Vinkøleskabet', 'Under sengen'], syncUrl: '', syncKey: '' }, K.store.get('settings', {}));
+    if (K._settings.weekendLocation && !K._settings.weekendLocations.length) K._settings.weekendLocations = [K._settings.weekendLocation];
+    delete K._settings.weekendLocation;
+  }
   return K._settings;
 };
 K.saveSettings = function (patch) { Object.assign(K.settings(), patch); K.store.set('settings', K.settings()); };

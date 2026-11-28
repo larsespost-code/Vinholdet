@@ -832,6 +832,15 @@ P.mad = function () {
   if (!A.src.ai) return h + '<div class="note">Synkroniseringen kører, men der er ingen API-nøgle. Tilføj scriptegenskaben <span class="mono">GEMINI_API_KEY</span> (gratis) eller <span class="mono">ANTHROPIC_API_KEY</span> i dit Apps Script-projekt, og genindlæs siden.</div>';
   const chat = A.chat = A.chat || [];
   const n = U.wineRows(A.view).length;
+  if (A.db.hasLoc) {
+    const cur = K.filters.dims.location && K.filters.dims.location.mode === 'in' ? K.filters.dims.location.vals : new Set();
+    const wkl = (K.settings().weekendLocations || []).filter(function (l) { return A.db.locations.indexOf(l) >= 0; });
+    const wkOn = wkl.length && cur.size === wkl.length && wkl.every(function (l) { return cur.has(l); });
+    h += '<div class="eyebrow" style="margin-bottom:6px">Hvor skal vinen komme fra?</div><div class="toolbar" style="gap:6px">' +
+      '<button type="button" class="fbtn' + (cur.size ? '' : ' loc') + '" data-act="mad-loc" data-loc="*">Alle lokationer</button>' +
+      (wkl.length ? '<button type="button" class="fbtn' + (wkOn ? ' loc' : '') + '" data-act="mad-loc" data-loc="#wk">Weekend</button>' : '') +
+      A.db.locations.filter(Boolean).map(function (l) { return '<button type="button" class="fbtn' + (cur.has(l) ? ' loc' : '') + '" data-act="mad-loc" data-loc="' + e(l) + '" aria-pressed="' + cur.has(l) + '">' + e(l) + '</button>'; }).join('') + '</div>';
+  }
   h += '<div class="note" style="margin-bottom:16px">Søger blandt <b>' + n + ' vinposter</b> (' + K.n0(K.sum(A.view)) + ' fl.) · ' + e(K.activeFilterCount() ? P.filterDesc() : 'hele samlingen') + (A.db.hasLoc ? '' : ' · lokation kendes ikke, så fysisk placering kan ikke garanteres') + '. Justér filtrene foroven for at afgrænse.</div>';
   h += '<div class="chat">' + chat.map(function (m) {
     if (m.role === 'user') return '<div class="msg u">' + e(m.text) + '</div>';
@@ -876,7 +885,7 @@ P.data = function () {
         '<label class="btn"><input type="file" id="file-in" accept=".csv,text/csv" multiple hidden> Vælg CSV-filer …</label><div id="drop" style="margin-top:10px;border:1px dashed var(--line-2);border-radius:var(--r);padding:18px;text-align:center;color:var(--ink-3)">… eller slip filerne her</div>')) + '</div>';
   // settings
   h += '<div class="grid g2 section">' + panel('Indstillinger', '<div style="display:grid;gap:12px">' +
-    '<label>Weekendlokation<br>' + (db.hasLoc ? U.select('cfg-weekend', [['', '(ikke valgt)']].concat(db.locations.filter(Boolean).map(function (l) { return [l, l]; })), s.weekendLocation, ' data-act="cfg-weekend"') : '<span class="faint">Kræver lokationsdata fra CellarTracker (Individual Bottles eller List med lokation).</span>') + '</label>' +
+    '<div>Weekendlokationer<br>' + (db.hasLoc ? '<div style="display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:4px">' + db.locations.filter(Boolean).map(function (l) { return '<label class="inl"><input type="checkbox" data-act="cfg-wk" value="' + e(l) + '"' + ((s.weekendLocations || []).indexOf(l) >= 0 ? ' checked' : '') + '> ' + e(l) + '</label>'; }).join('') + '</div><span class="faint" style="font-size:13px">Knappen »Weekendvine« i filterlinjen viser røde vine på de valgte lokationer.</span>' : '<span class="faint">Kræver lokationsdata fra CellarTracker (Individual Bottles).</span>') + '</div>' +
     '<label>Visningsvaluta<br>' + U.select('cfg-cur', [['EUR', 'EUR (kildens valuta)'], ['DKK', 'DKK']], s.currency, ' data-act="cfg-cur"') + (s.currency === 'DKK' ? ' kurs <input type="number" step="0.01" value="' + s.dkkRate + '" data-act="cfg-rate" style="width:90px"> kr. pr. € <span class="faint">(fast kurs du selv angiver)</span>' : '') + '</label>' +
     '</div>') +
     panel('Producentgrupper', P.aliasEditor(), { def: 'Rå navne fra CellarTracker samlet under ét gruppenavn i ranglister og analyser. Vinkortet bruger altid det oprindelige navn. Ingen automatiske sammenlægninger.' }) + '</div>';
@@ -962,7 +971,8 @@ P.act = function (act, t, ev) {
       A.load().then(function () { A.refresh(); }); break;
     }
     case 'cfg-clear': K.saveSettings({ syncUrl: '', syncKey: '' }); K.store.del('lastPayload'); A.load().then(function () { A.refresh(); }); break;
-    case 'cfg-weekend': K.saveSettings({ weekendLocation: t.value }); if (s.syncUrl) A.post({ action: 'settings', settings: { weekendLocation: t.value } }).catch(function () { }); A.refresh(); break;
+    case 'cfg-wk': { const v = []; document.querySelectorAll('[data-act="cfg-wk"]').forEach(function (b) { if (b.checked) v.push(b.value); }); K.saveSettings({ weekendLocations: v }); if (s.syncUrl) A.post({ action: 'settings', settings: { weekendLocations: v } }).catch(function () { }); A.renderFilters(); } break;
+    case 'mad-loc': { const l = t.dataset.loc; const cur = K.filters.dims.location; const vals = cur && cur.mode === 'in' ? new Set(cur.vals) : new Set(); if (l === '*') vals.clear(); else if (l === '#wk') { vals.clear(); (K.settings().weekendLocations || []).forEach(function (x) { if (A.db.locations.indexOf(x) >= 0) vals.add(x); }); } else if (vals.has(l)) vals.delete(l); else vals.add(l); A.setFilter('location', vals, 'in'); } break;
     case 'cfg-cur': K.saveSettings({ currency: t.value }); A.refresh(); break;
     case 'cfg-rate': K.saveSettings({ dkkRate: +t.value || 7.46 }); A.refresh(); break;
     case 'alias-add': case 'alias-del': {
