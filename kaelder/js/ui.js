@@ -8,7 +8,7 @@ const esc = K.esc;
 U._reg = []; U.reg = function (items, title) { U._reg.push({ items: items, title: title }); return U._reg.length - 1; };
 U.resetReg = function () { U._reg = []; };
 
-const PALETTE = ['--s1', '--s2', '--s3', '--s4', '--s5', '--s6', '--s7', '--s8'];
+const PALETTE = ['--s1', '--s2', '--s3', '--s4', '--s5', '--s6', '--s7', '--s8', '--s9', '--s10', '--s11', '--s12'];
 const FIXED = {
   color: { Hvid: '--c-hvid', Rød: '--c-rod', Orange: '--c-orange', Rosé: '--c-rose' },
   cls: { Mousserende: '--c-mouss', Hvid: '--c-hvid', 'Hvid, off-dry': '--c-offdry', Orange: '--c-orange', Rosé: '--c-rose', Rød: '--c-rod', Sød: '--c-sweet', Hedvin: '--c-fort', Øvrige: '--c-other' }
@@ -310,8 +310,8 @@ U.pie = function (parts, opts) {
     a0 = a1;
   });
   s += '<text x="100" y="98" text-anchor="middle" font-size="22" font-weight="800" style="fill:var(--ink);font-family:var(--f-display)">' + K.n0(tot) + '</text><text x="100" y="118" text-anchor="middle" font-size="11">' + esc(opts.unit || 'flasker') + '</text></svg>';
-  const leg = '<div style="display:flex;flex-direction:column;gap:6px;min-width:0;flex:1 1 200px">' + parts.filter(function (p) { return p.v; }).map(function (p) {
-    return '<div style="display:grid;grid-template-columns:12px minmax(0,1fr) auto auto;gap:8px;align-items:center;font-size:14px"><span class="sw" style="background:' + p.color + '"></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600">' + esc(p.name) + '</span><span class="num faint">' + K.n0(p.v) + '</span><span class="num" style="min-width:52px;text-align:right">' + K.pct(p.v / tot) + '</span></div>';
+  const leg = '<div style="display:flex;flex-direction:column;gap:8px;min-width:0;flex:' + (U.narrow() ? '1 1 100%' : '1 1 220px') + '">' + parts.filter(function (p) { return p.v; }).map(function (p) {
+    return '<div style="display:grid;grid-template-columns:12px minmax(0,1fr) auto auto;gap:8px;align-items:center;font-size:15px"><span class="sw" style="background:' + p.color + '"></span><span style="font-weight:600;line-height:1.25">' + esc(p.name) + '</span><span class="num faint">' + K.n0(p.v) + '</span><span class="num" style="min-width:52px;text-align:right">' + K.pct(p.v / tot) + '</span></div>';
   }).join('') + '</div>';
   return '<div style="display:flex;flex-wrap:wrap;gap:20px;align-items:center;justify-content:center">' + s + leg + '</div>';
 };

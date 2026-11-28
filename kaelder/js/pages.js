@@ -598,7 +598,7 @@ P.udvMain = function () {
   // værktøjslinje
   h += '<div class="toolbar">' + U.seg('ud_p', persp, pv) + '</div><div class="toolbar">' +
     '<label class="inl">Fordel på ' + U.select('ud_d', [['color', 'Farve'], ['cls', 'Vintype'], ['grape', 'Drue'], ['country', 'Land'], ['region', 'Region'], ['producer', 'Producent']].concat(db.hasStore ? [['store', 'Forhandler']] : []), dim) + '</label>' +
-    '<label class="inl">Vis ' + U.select('ud_n', [['4', 'top 4'], ['6', 'top 6'], ['8', 'top 8'], ['12', 'top 12']], String(n)) + '</label>' +
+    '<label class="inl">Vis ' + U.select('ud_n', [['4', 'top 4'], ['6', 'top 6'], ['8', 'top 8'], ['10', 'top 10'], ['12', 'top 12']], String(n)) + '</label>' +
     (pv === 'buy' && purAll.some(isR) ? '<label class="inl">' + U.select('ud_r', [['nej', 'Uden »Restaurant«'], ['ja', 'Med »Restaurant«']], inclR ? 'ja' : 'nej') + '</label>' : '') + '</div>';
   // 1: antal
   const series = shown.map(function (k, i) { return { name: nm(k), color: color(k, i), ys: years.map(function (y) { return val(y, k); }) }; });
@@ -627,9 +627,18 @@ P.udvMain = function () {
     const cnt = function (fn) { return pys.map(function (y) { let n = 0; pe.forEach(function (x) { if (x.y === y && fn(x)) n += x.q; }); return n; }); };
     const unit = rate === 1 ? ' €' : ' kr.';
     const mk = function (name, col, fn) { const a = avg(fn), c = cnt(fn); return { name: name, color: col, ys: a, tips: a.map(function (v, i) { return v === null ? '' : K.n0(v) + unit + ' i snit (' + c[i] + ' fl.)'; }) }; };
-    const ser = [mk('Alle', 'var(--ink)', function () { return true; })].concat(shown.slice(0, 4).map(function (k, i) { return mk(nm(k), color(k, i), function (x) { return x.k === k; }); }));
-    h += '<div class="section">' + panel('Gennemsnitspris pr. købt flaske', U.lines(pys.map(String), ser, { fmt: function (v) { return K.n0(v) + unit; }, label: 'Gennemsnitspris pr. år' }),
-      { def: 'Vægtet med antal flasker; kun køb med registreret pris' + (db.hasPurchases ? ', uden »Restaurant«' : ' (kun nuværende flasker)') + '. Sort linje er alle køb, de farvede er de største kategorier i ' + K.DIMS[dim].label.toLowerCase() + '.' }) + '</div>';
+    // valgte linjer huskes pr. inddeling; standard er »Alle« plus de fire største
+    const selKey = 'pr_sel_' + dim;
+    if (!A.ui[selKey]) A.ui[selKey] = ['*'].concat(shown.slice(0, 4));
+    const sel = A.ui[selKey];
+    const ser = (sel.indexOf('*') >= 0 ? [mk('Alle', 'var(--ink)', function () { return true; })] : [])
+      .concat(shown.map(function (k, i) { return sel.indexOf(k) >= 0 ? mk(nm(k), color(k, i), function (x) { return x.k === k; }) : null; }).filter(Boolean));
+    const tog = '<div class="toolbar" style="gap:6px">' + [['*', 'Alle', 'var(--ink)']].concat(shown.map(function (k, i) { return [k, nm(k), color(k, i)]; })).map(function (o) {
+      const on = sel.indexOf(o[0]) >= 0;
+      return '<button type="button" class="fbtn' + (on ? ' loc' : '') + '" data-act="pr-tog" data-dim="' + e(dim) + '" data-k="' + e(o[0]) + '" aria-pressed="' + on + '"><span class="sw" style="background:' + o[2] + '"></span>' + e(o[1]) + '</button>';
+    }).join('') + '</div>';
+    h += '<div class="section">' + panel('Gennemsnitspris pr. købt flaske', tog + (ser.length ? U.lines(pys.map(String), ser, { fmt: function (v) { return K.n0(v) + unit; }, label: 'Gennemsnitspris pr. år' }) : '<div class="empty">Vælg mindst én linje.</div>'),
+      { def: 'Vægtet med antal flasker; kun køb med registreret pris' + (db.hasPurchases ? ', uden »Restaurant«' : ' (kun nuværende flasker)') + '. Tryk på knapperne for at vise eller skjule linjer. »Alle« er alle køb samlet.' }) + '</div>';
   }
   if (pv === 'hold') {
     const recon = ytot(nowY), actual = K.sum(A.view);
@@ -1025,6 +1034,7 @@ P.act = function (act, t, ev) {
       const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(o)], { type: 'application/json' })); a.download = 'min-kaelder-backup-' + o.time.slice(0, 10) + '.json'; document.body.appendChild(a); a.click(); a.remove(); break;
     }
     case 'mad-send': P.madSend(); break;
+    case 'pr-tog': { const key = 'pr_sel_' + t.dataset.dim; const cur = (A.ui[key] || []).slice(); const k = t.dataset.k; const i = cur.indexOf(k); if (i >= 0) cur.splice(i, 1); else cur.push(k); A.ui[key] = cur; A.render(); } break;
     case 'mad-reset': A.chat = []; A.render(); break;
   }
 };
