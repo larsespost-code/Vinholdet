@@ -99,8 +99,12 @@ K.detectTable = function (header) {
   if (has('iWine') && has('Wine')) return 'Pending';
   return null;
 };
+const clean = function (v) {
+  return String(v).replace(/&#(\d+);/g, function (m, n) { return String.fromCharCode(+n); }).replace(/&amp;/g, '&').replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+};
+K.clean = clean;
 const pick = function (o, names) {
-  for (let i = 0; i < names.length; i++) if (o[names[i]] !== undefined && String(o[names[i]]).trim() !== '') return String(o[names[i]]).trim();
+  for (let i = 0; i < names.length; i++) if (o[names[i]] !== undefined && String(o[names[i]]).trim() !== '') return clean(o[names[i]]);
   return '';
 };
 K.pick = pick;
@@ -108,8 +112,10 @@ const parseDate = function (s) {
   s = String(s || '').trim(); if (!s) return null;
   let m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s);
   if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
-  m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(s); // CT bruger M/D/YYYY
-  if (m) return new Date(+m[3], +m[1] - 1, +m[2]);
+  m = /^(\d{1,2})-(\d{1,2})-(\d{4})/.exec(s); // CT med dansk opsætning: DD-MM-ÅÅÅÅ
+  if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
+  m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(s); // amerikansk M/D/ÅÅÅÅ
+  if (m) return +m[1] > 12 ? new Date(+m[3], +m[2] - 1, +m[1]) : new Date(+m[3], +m[1] - 1, +m[2]);
   m = /^(\d{1,2})\.(\d{1,2})\.(\d{4})/.exec(s);
   if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
   const d = new Date(s); return isNaN(d) ? null : d;
@@ -242,7 +248,7 @@ K.build = function (tables, extras) {
       const w = wineFrom(r); if (!w) return;
       const size = pick(r, ['Size']) || '750ml';
       const loc = pick(r, ['Location']) || '';
-      const store = pick(r, ['StoreName', 'Store']);
+      const store = known(pick(r, ['StoreName', 'Store']));
       const price = K.num(pick(r, ['Price', 'BottleCost', 'Cost'])) || w.price || 0;
       const q = K.num(pick(r, ['Quantity'])) || 1;
       const key = w.id + '|' + size + '|' + loc + '|' + store + '|' + price;
@@ -268,7 +274,7 @@ K.build = function (tables, extras) {
       const w = wineFrom(r); const d = parseDate(pick(r, ['PurchaseDate', 'Date', 'DeliveryDate']));
       if (!w || !d) return;
       db.purchases.push({ w: w, date: d, qty: K.num(pick(r, ['Quantity', 'BottlesPurchased', 'Bottles'])) || 1,
-        price: K.num(pick(r, ['Price', 'BottleCost'])), store: pick(r, ['StoreName', 'Store']) || '', delivered: pick(r, ['Delivered']) });
+        price: K.num(pick(r, ['Price', 'BottleCost'])), store: known(pick(r, ['StoreName', 'Store'])), delivered: pick(r, ['Delivered']) });
     });
   }
   // Forbrug / afgang
