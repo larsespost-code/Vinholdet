@@ -60,6 +60,10 @@ h3{font-size:20px;line-height:1.1;letter-spacing:-.02em}
 .nav a.on{background:#1F2A37;color:var(--on-dark)}
 .nav .sep{flex:none;width:1px;background:var(--line);margin:6px 4px}
 .side .foot{display:none}
+.gear{flex:none;width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:var(--r-btn);background:var(--paper);color:var(--ink)}
+.gear:hover{border-color:#1F2A37}
+.gear.on{background:#1F2A37;color:var(--on-dark)}
+.subnav{margin-bottom:18px}
 
 .main{min-width:0}
 .fbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:rgba(238,242,246,.96);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);padding:12px 16px 10px;margin:0 -16px 24px}
@@ -173,7 +177,8 @@ table.pt .sm{display:none;font-size:13px;color:var(--ink-3);font-weight:400}
 table.wt tbody.grp:not(:last-child) tr:last-child td{border-bottom:1px solid var(--line)}
 .chev{display:inline-block;width:8px;height:8px;border-right:2px solid #1F2A37;border-bottom:2px solid #1F2A37;transform:rotate(-45deg);margin:0 10px 1px 2px;transition:transform .15s}
 tbody.grp.open .chev{transform:rotate(45deg)}
-.hm td.c{text-align:right;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;cursor:pointer;min-width:46px}
+.hm th{white-space:normal;vertical-align:bottom;line-height:1.2;min-width:34px}
+.hm td.c{text-align:right;font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;cursor:pointer;min-width:34px;padding-left:5px;padding-right:5px}
 .hm td.c:hover{outline:2px solid #1F2A37;outline-offset:-2px}
 .hm td.z{color:var(--ink-3);cursor:default;font-weight:400}
 .hm td.rowh{position:sticky;left:0;background:var(--paper);white-space:nowrap;font-weight:600;z-index:1}
@@ -240,6 +245,15 @@ dl.kv dt{color:var(--ink-3);font-weight:600} dl.kv dd{margin:0}
 @media (max-width:560px){.wl-line{grid-template-columns:3.2em minmax(0,1fr) 3em;gap:0 10px;font-size:15px}.wl-line .g{grid-column:2;grid-row:2;font-size:13px}.wl-line .q{grid-column:3;grid-row:1}.wl-line.priv{grid-template-columns:3.2em minmax(0,1fr) 3em}.wl-line .pr{grid-column:3;grid-row:2}}
 .wl-foot{margin-top:46px;text-align:center;font-size:13px;color:var(--ink-3)}
 
+/* krydstabel på mobil */
+.hml{display:flex;flex-direction:column}
+.hml-r{padding:10px 0;border-bottom:1px solid var(--line)}
+.hml-r:last-child{border-bottom:0}
+.hml-h{display:flex;justify-content:space-between;gap:10px;align-items:baseline;margin-bottom:6px;font-weight:600}
+.hml-c{display:flex;flex-wrap:wrap;gap:5px}
+.hml-chip{border:0;border-radius:99px;padding:3px 10px;font-size:13px;font-family:var(--f-body);cursor:pointer;color:var(--ink);box-shadow:inset 0 0 0 1px rgba(31,42,55,.12)}
+.hml-chip b{font-weight:800;margin-left:2px}
+
 /* prisniveau */
 .pl{display:flex;flex-direction:column}
 .pl-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-items:baseline;padding:10px 4px;border:0;border-bottom:1px solid var(--line);background:none;text-align:left;cursor:pointer;width:100%;font-family:var(--f-body)}
@@ -285,7 +299,7 @@ dl.kv dt{color:var(--ink-3);font-weight:600} dl.kv dd{margin:0}
 <body>
 <div class="app">
   <header class="side noprint">
-    <div class="brand"><img src="logo.svg" alt=""><b>Vinholdet<span>KÆLDER</span></b><span class="upd" id="src-line">Indlæser …</span></div>
+    <div class="brand"><img src="logo.svg" alt=""><b>Vinholdet<span>KÆLDER</span></b><span class="upd" id="src-line">Indlæser …</span><a class="gear" href="#data" data-nav="data" title="Data & synkronisering" aria-label="Data og synkronisering"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></a></div>
     <nav class="nav" id="nav" aria-label="Sider"></nav>
     <div class="foot" id="foot"></div>
   </header>

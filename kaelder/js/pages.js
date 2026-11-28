@@ -177,6 +177,13 @@ P.verticalMatrix = function (it, all) {
   if (!rows.length) return '<div class="empty">Ingen vine findes i mindst to forskellige årgange i udsnittet.</div>';
   rows.sort(function (a, b) { return b.n - a.n || b.b - a.b || a.w.name.localeCompare(b.w.name, 'da'); });
   const yrs = Array.from(new Set([].concat.apply([], rows.map(function (r) { return Array.from(r.ys.keys()); })))).sort(function (a, b) { return a === 'NV' ? -1 : b === 'NV' ? 1 : a - b; });
+  if (U.narrow()) {
+    return '<div class="hml">' + rows.slice(0, 80).map(function (r) {
+      const ys = Array.from(r.ys.keys()).sort(function (a, b) { return a === 'NV' ? -1 : b === 'NV' ? 1 : a - b; });
+      return '<div class="hml-r"><div class="hml-h"><span>' + (all ? '' : '<span class="muted">' + e(r.w.producerRaw) + '</span> ') + e(r.w.label) + '</span><span class="faint num">' + r.n + ' årg. · ' + r.b + ' fl.</span></div><div class="hml-c">' +
+        ys.map(function (y) { const c = r.ys.get(y); const q = K.sum(c); return '<button type="button" class="hml-chip" data-reg="' + U.reg(c, r.w.name + ' ' + y) + '" style="background:color-mix(in srgb, var(--accent) ' + Math.min(70, 12 + q * 12) + '%, transparent);' + (q > 4 ? 'color:var(--paper)' : '') + '">' + y + ' <b>' + q + ' fl.</b></button>'; }).join('') + '</div></div>';
+    }).join('') + '</div>';
+  }
   let h = '<div class="tw hm"><table><thead><tr><th class="rowh">Vin</th>' + yrs.map(function (y) { return '<th class="r">' + (y === 'NV' ? 'NV' : "'" + String(y).slice(2)) + '</th>'; }).join('') + '<th class="r">Årg.</th><th class="r">Fl.</th></tr></thead><tbody>';
   rows.slice(0, 80).forEach(function (r) {
     h += '<tr><td class="rowh">' + (all ? '' : '<span class="muted">' + e(r.w.producerRaw) + '</span> ') + e(r.w.label) + '</td>' + yrs.map(function (y) {
@@ -520,7 +527,7 @@ P.priceChart = function (it) {
 
 /* ================================================================ UDVIKLING */
 
-P.udvikling = function () {
+P.udvMain = function () {
   const db = A.db;
   let h = head('Udvikling', 'Hvordan samlingen har ændret sig år for år. Vælg hvad der skal fordeles på, og om du vil se beholdningen eller årets køb.');
   const dim = ui('ud_d', 'color');
@@ -605,10 +612,25 @@ P.udvikling = function () {
   const parts = allKeys.map(function (k, i) { return { name: nm(k), v: val(yy, k), color: color(k, i) }; });
   h += '<div class="grid g2 section">' + panel('Fordeling ' + yy, U.pie(parts, { label: 'Fordeling ' + yy }), { tools: U.select('ud_y', years.slice().reverse().map(function (y) { return [String(y), String(y)]; }), String(yy)), def: K.n0(ytot(yy)) + ' ' + label + '.' });
   // tabel med andel pr. år
-  const tb = '<div class="tw"><table class="dv"><thead><tr><th></th>' + years.slice(-6).map(function (y) { return '<th class="r">' + y + '</th>'; }).join('') + '</tr></thead><tbody>' +
-    allKeys.map(function (k) { return '<tr><td>' + esc(nm(k)) + '</td>' + years.slice(-6).map(function (y) { const t = ytot(y); return '<td class="r num"' + U.tipAttr(nm(k) + ' ' + y + ': ' + val(y, k) + ' af ' + t + ' fl.') + '>' + (t ? K.n0(val(y, k) / t * 100) + ' %' : '–') + '</td>'; }).join('') + '</tr>'; }).join('') +
-    '<tr><td class="faint">I alt</td>' + years.slice(-6).map(function (y) { return '<td class="r num faint">' + K.n0(ytot(y)) + '</td>'; }).join('') + '</tr></tbody></table></div>';
+  const tb = '<div class="tw"><table class="dv"><thead><tr><th></th>' + years.slice(U.narrow() ? -3 : -6).map(function (y) { return '<th class="r">' + y + '</th>'; }).join('') + '</tr></thead><tbody>' +
+    allKeys.map(function (k) { return '<tr><td>' + esc(nm(k)) + '</td>' + years.slice(U.narrow() ? -3 : -6).map(function (y) { const t = ytot(y); return '<td class="r num"' + U.tipAttr(nm(k) + ' ' + y + ': ' + val(y, k) + ' af ' + t + ' fl.') + '>' + (t ? K.n0(val(y, k) / t * 100) + ' %' : '–') + '</td>'; }).join('') + '</tr>'; }).join('') +
+    '<tr><td class="faint">I alt</td>' + years.slice(U.narrow() ? -3 : -6).map(function (y) { return '<td class="r num faint">' + K.n0(ytot(y)) + '</td>'; }).join('') + '</tr></tbody></table></div>';
   h += panel('Andel de seneste år', tb, { def: 'Procent af årets ' + label + '. Holder du musen over et tal, ser du antallet.' }) + '</div>';
+  // gennemsnitspris pr. købt flaske, år for år
+  const pe = db.hasPurchases ? purAll.filter(function (p) { return !isR(p) && p.price > 0; }).map(function (p) { return { y: p.date.getFullYear(), k: get(ev(p)), q: p.qty, pr: p.price }; })
+    : A.view.filter(function (i) { return i.pdate && i.price > 0; }).map(function (i) { return { y: i.pdate.getFullYear(), k: get(i), q: i.qty, pr: i.price }; });
+  if (pe.length) {
+    const rate = K.settings().currency === 'DKK' ? K.settings().dkkRate : 1;
+    const yv = pe.map(function (x) { return x.y; }); const pys = [];
+    for (let y = Math.min.apply(null, yv); y <= Math.max.apply(null, yv); y++) pys.push(y);
+    const avg = function (fn) { return pys.map(function (y) { let s = 0, n = 0; pe.forEach(function (x) { if (x.y === y && fn(x)) { s += x.q * x.pr; n += x.q; } }); return n ? s / n * rate : null; }); };
+    const cnt = function (fn) { return pys.map(function (y) { let n = 0; pe.forEach(function (x) { if (x.y === y && fn(x)) n += x.q; }); return n; }); };
+    const unit = rate === 1 ? ' €' : ' kr.';
+    const mk = function (name, col, fn) { const a = avg(fn), c = cnt(fn); return { name: name, color: col, ys: a, tips: a.map(function (v, i) { return v === null ? '' : K.n0(v) + unit + ' i snit (' + c[i] + ' fl.)'; }) }; };
+    const ser = [mk('Alle', 'var(--ink)', function () { return true; })].concat(shown.slice(0, 4).map(function (k, i) { return mk(nm(k), color(k, i), function (x) { return x.k === k; }); }));
+    h += '<div class="section">' + panel('Gennemsnitspris pr. købt flaske', U.lines(pys.map(String), ser, { fmt: function (v) { return K.n0(v) + unit; }, label: 'Gennemsnitspris pr. år' }),
+      { def: 'Vægtet med antal flasker; kun køb med registreret pris' + (db.hasPurchases ? ', uden »Restaurant«' : ' (kun nuværende flasker)') + '. Sort linje er alle køb, de farvede er de største kategorier i ' + K.DIMS[dim].label.toLowerCase() + '.' }) + '</div>';
+  }
   if (pv === 'hold') {
     const recon = ytot(nowY), actual = K.sum(A.view);
     h += '<div class="note" style="margin-top:14px">Beholdningen er regnet ud som køb minus afgang år for år. ' + (Math.abs(recon - actual) > 2 ? 'Udregningen giver ' + K.n0(recon) + ' fl. i dag, mens kælderen faktisk har ' + K.n0(actual) + ' fl. Forskellen skyldes typisk flasker uden registreret køb eller afgang.' : 'Den stemmer med den faktiske beholdning i dag (' + K.n0(actual) + ' fl.).') + '</div>';
@@ -616,6 +638,19 @@ P.udvikling = function () {
     h += '<div class="note" style="margin-top:14px">Viser kun de flasker, du har nu, fordelt på det år de blev købt. Drukne flasker indgår ikke. Med CellarTrackers forbrugsdata (Consumed) kan dashboardet vise den faktiske beholdning år for år.</div>';
   }
   return h;
+};
+
+
+/* ================================================================ SAMLEDE FANER */
+
+const subnav = function (key, opts, dflt) { return '<div class="subnav noprint">' + U.seg(key, opts, ui(key, dflt)) + '</div>'; };
+P.udforsk = function () {
+  const v = ui('uf', 'geografi');
+  return subnav('uf', [['geografi', 'Geografi'], ['druer', 'Druer & vintyper'], ['producenter', 'Producenter']], 'geografi') + (P[v] || P.geografi)();
+};
+P.udvikling = function () {
+  const v = ui('udv', 'udvikling');
+  return subnav('udv', [['udvikling', 'Udvikling'], ['vaerdi', 'Værdi & priser']], 'udvikling') + (v === 'vaerdi' ? P.vaerdi() : P.udvMain());
 };
 
 /* ================================================================ CELLAR LAB */
@@ -653,7 +688,7 @@ P.builder = function (it) {
       return '<div style="display:grid;grid-template-columns:minmax(90px,30%) 1fr 50px;gap:10px;align-items:center;font-size:.86rem"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + e(row.name) + '</span><div class="stack" style="height:16px">' + parts + (rest.length ? '<button type="button" style="flex:' + K.sum(rest) + ';background:var(--line-2)" data-reg="' + U.reg(rest, row.name + ' · øvrige') + '"></button>' : '') + '</div><span class="num faint" style="text-align:right">' + tot + '</span></div>';
     }).join('') + '</div><div class="legend">' + cols.map(function (k, i) { return '<span><span class="sw" style="background:' + U.color(c, k, i) + '"></span> ' + e(K.dimName(c, k)) + '</span>'; }).join('') + '<span><span class="sw" style="background:var(--line-2)"></span> Øvrige</span></div><div class="faint" style="font-size:.78rem;margin-top:6px">Hver række summerer til 100 % af rækkens flasker.</div>';
   } else {
-    body += U.heat(it, r, c, { measure: m, mode: m === 'avgPrice' ? 'abs' : mode, topR: n, topC: Math.min(12, n) });
+    body += U.heat(it, r, c, { measure: m, mode: m === 'avgPrice' ? 'abs' : mode, topR: n, topC: Math.min(9, n) });
   }
   return '<div id="lab-builder">' + panel('Fri analysebygger', body, { def: 'Vælg to dimensioner og en måling. Eksempler: region × drue, producent × årgang, land × vintype i værdi, drue × region i gennemsnitspris.' }) + '</div>';
 };
@@ -722,8 +757,8 @@ P.diversityPanel = function (it) {
     const base = d === 'appellation' || d === 'vineyard' ? it.filter(function (i) { return d === 'appellation' ? i.w.appellation : i.w.vineyard; }) : it;
     return { d: d, x: K.diversity(base, d), base: K.sum(base) };
   });
-  const body = '<div class="tw"><table><thead><tr><th>Dimension</th><th class="r">Kategorier</th><th class="r">25 %</th><th class="r">50 %</th><th class="r">75 %</th><th class="r">90 %</th><th class="r">Top 1</th><th class="r">Top 3</th><th class="r">Top 10</th><th class="r">Shannon H</th><th class="r">Effektivt antal</th><th class="r">HHI</th></tr></thead><tbody>' +
-    rows.map(function (r) { const x = r.x; return '<tr><td>' + K.DIMS[r.d].label + (r.base !== K.sum(it) ? ' <span class="faint">(' + r.base + ' fl. med kendt værdi)</span>' : '') + '</td><td class="r num">' + x.n + '</td><td class="r num">' + x.c25 + '</td><td class="r num">' + x.c50 + '</td><td class="r num">' + x.c75 + '</td><td class="r num">' + x.c90 + '</td><td class="r num">' + K.pct(x.t1) + '</td><td class="r num">' + K.pct(x.t3) + '</td><td class="r num">' + K.pct(x.t10) + '</td><td class="r num">' + K.n2(x.H) + '</td><td class="r num">' + K.n1(x.eff) + '</td><td class="r num">' + K.n2(x.HHI * 100) + '</td></tr>'; }).join('') +
+  const body = '<div class="tw"><table class="dv"><thead><tr><th>Dimension</th><th class="r">Kategorier</th><th class="r xm">25 %</th><th class="r">50 %</th><th class="r xm">75 %</th><th class="r xm">90 %</th><th class="r">Top 1</th><th class="r xm">Top 3</th><th class="r xm">Top 10</th><th class="r xm">Shannon H</th><th class="r xm">Effektivt antal</th><th class="r xm">HHI</th></tr></thead><tbody>' +
+    rows.map(function (r) { const x = r.x; return '<tr><td>' + K.DIMS[r.d].label + (r.base !== K.sum(it) ? ' <span class="faint xm">(' + r.base + ' fl. med kendt værdi)</span>' : '') + '</td><td class="r num">' + x.n + '</td><td class="r num xm">' + x.c25 + '</td><td class="r num">' + x.c50 + '</td><td class="r num xm">' + x.c75 + '</td><td class="r num xm">' + x.c90 + '</td><td class="r num">' + K.pct(x.t1) + '</td><td class="r num xm">' + K.pct(x.t3) + '</td><td class="r num xm">' + K.pct(x.t10) + '</td><td class="r num xm">' + K.n2(x.H) + '</td><td class="r num xm">' + K.n1(x.eff) + '</td><td class="r num xm">' + K.n2(x.HHI * 100) + '</td></tr>'; }).join('') +
     '</tbody></table></div><div class="faint" style="font-size:.78rem;margin-top:6px">25–90 %: hvor mange af de største kategorier der tilsammen dækker andelen af flaskerne. H = −Σ pᵢ ln pᵢ over flaskefordelingen; effektivt antal = e^H; HHI = Σ pᵢ² (×100). Ukendt appellation/mark er udeladt. Beskrivende, ikke en karakter.</div>';
   const pd = ui('dv_d', 'region');
   const d = K.diversity(it, pd); let c = 0; const tot = K.sum(it) || 1;

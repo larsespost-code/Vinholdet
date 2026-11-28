@@ -5,9 +5,10 @@ const A = window.A = { db: null, all: [], view: [], route: { page: 'overblik' },
 const $ = function (id) { return document.getElementById(id); };
 
 const PAGES = [
-  ['overblik', 'Overblik'], ['samling', 'Min samling'], ['geografi', 'Geografi'], ['druer', 'Druer & vintyper'], ['producenter', 'Producenter'],
-  ['vaerdi', 'Værdi & priser'], ['udvikling', 'Udvikling'], ['lab', 'Cellar Lab'], '-', ['vinkort', 'Vinkort'], ['mad', 'Mad og vin'], '-', ['data', 'Data & synk']
+  ['overblik', 'Overblik'], ['samling', 'Samling'], ['udforsk', 'Udforsk'], ['udvikling', 'Udvikling & værdi'], ['lab', 'Cellar Lab'], '-', ['vinkort', 'Vinkort'], ['mad', 'Mad og vin']
 ];
+/* Undersider samlet under én fane: side → [fane, ui-nøgle] */
+const SUB = { geografi: ['udforsk', 'uf'], druer: ['udforsk', 'uf'], producenter: ['udforsk', 'uf'], vaerdi: ['udvikling', 'udv'] };
 
 /* ---------------------------------------------------------------- datakilder */
 
@@ -74,6 +75,7 @@ A.sourceText = function () {
 /* ---------------------------------------------------------------- navigation */
 
 A.go = function (page, extra, noPush) {
+  if (SUB[page]) { A.ui[SUB[page][1]] = page; page = SUB[page][0]; }
   if (!noPush) A.back.push(A.route);
   if (A.back.length > 40) A.back.shift();
   A.route = Object.assign({ page: page }, extra || {});
@@ -95,9 +97,11 @@ A.refresh = function () {
 A.renderNav = function () {
   $('nav').innerHTML = PAGES.map(function (p) {
     if (p === '-') return '<div class="sep"></div>';
-    const on = A.route.page === p[0] || (A.route.page === 'profil' && p[0] === A.profileSection());
+    const ps = A.route.page === 'profil' ? A.profileSection() : '';
+    const on = A.route.page === p[0] || (ps && (ps === p[0] || (SUB[ps] && SUB[ps][0] === p[0])));
     return '<a href="#' + p[0] + '" data-nav="' + p[0] + '" class="' + (on ? 'on' : '') + '">' + p[1] + '</a>';
   }).join('');
+  document.querySelector('.gear') && document.querySelector('.gear').classList.toggle('on', A.route.page === 'data');
   $('src-line').textContent = A.sourceText();
   const st = A.db ? K.stats(A.all) : null;
   $('foot').innerHTML = st && st.bottles ? K.n0(st.bottles) + ' flasker i alt<br>' + K.n0(st.wines) + ' vine · ' + K.money(st.value) + (A.src.mode === 'sync' ? '<br>Næste synk: ' + K.esc(A.src.next || 'dagligt') : '') : '';
@@ -388,10 +392,11 @@ document.addEventListener('change', function (e) {
 document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { A.closePop(); A.closeDrawer(); } });
 $('scrim').addEventListener('click', A.closeDrawer);
 $('drawer-x').addEventListener('click', A.closeDrawer);
+(function () { let n = U.narrow(), t; window.addEventListener('resize', function () { clearTimeout(t); t = setTimeout(function () { if (U.narrow() !== n) { n = U.narrow(); A.render(); } }, 200); }); })();
 window.addEventListener('hashchange', function () { const p = location.hash.slice(1); if (p && p !== A.route.page && P[p]) A.go(p); });
 
 (function start() {
   const p = location.hash.slice(1);
-  if (p && P[p] && p !== 'profil') A.route = { page: p };
+  if (p && P[p] && p !== 'profil') { if (SUB[p]) { A.ui[SUB[p][1]] = p; A.route = { page: SUB[p][0] }; } else A.route = { page: p }; }
   A.load().then(function () { if (A.src.mode === 'none') A.route = { page: 'data' }; A.refresh(); });
 })();

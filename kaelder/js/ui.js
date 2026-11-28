@@ -26,6 +26,7 @@ U.act = function (dim, key, items, title) {
 };
 U.PROFILE_DIMS = ['country', 'region', 'subregion', 'appellation', 'producer', 'grape', 'color', 'cls', 'vintage', 'location', 'store', 'varietal', 'producerRaw', 'vineyard'];
 
+U.narrow = function () { return window.innerWidth < 760; };
 U.tipAttr = function (s) { return ' data-tip="' + esc(s) + '"'; };
 
 U.kpis = function (list) {
@@ -122,10 +123,10 @@ U.niceMax = niceMax;
 /** Lodrette søjler, fx årgange. cols: [{label, v, act, tip, color}] */
 U.columns = function (cols, opts) {
   opts = opts || {};
-  const W = Math.max(320, cols.length * 34 + 50), H = opts.h || 200, L = 36, B = 26, T = 10;
+  const W = U.narrow() ? Math.max(280, window.innerWidth - 70) : Math.max(320, cols.length * 34 + 50), H = opts.h || 200, L = 36, B = 26, T = 10;
   const max = niceMax(Math.max.apply(null, cols.map(function (c) { return c.v; }).concat([1])));
   const bw = (W - L - 6) / cols.length;
-  let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" style="min-width:' + Math.min(W, 520) + 'px;max-height:' + (H * 1.6) + 'px" role="img" aria-label="' + esc(opts.label || 'Søjlediagram') + '">';
+  let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" style="min-width:' + (U.narrow() ? 0 : Math.min(W, 520)) + 'px;max-height:' + (H * 1.6) + 'px" role="img" aria-label="' + esc(opts.label || 'Søjlediagram') + '">';
   for (let g = 0; g <= 4; g++) {
     const y = T + (H - T - B) * (1 - g / 4);
     s += '<line class="gr" x1="' + L + '" x2="' + W + '" y1="' + y + '" y2="' + y + '"/><text x="' + (L - 6) + '" y="' + (y + 4) + '" text-anchor="end" font-size="10">' + (opts.fmt ? opts.fmt(max * g / 4) : K.n0(max * g / 4)) + '</text>';
@@ -134,8 +135,8 @@ U.columns = function (cols, opts) {
     const h = (H - T - B) * c.v / max; const x = L + 3 + i * bw;
     s += '<g ' + (c.act || '') + ' style="cursor:pointer"' + U.tipAttr(c.tip || (c.label + ': ' + c.v)) + '><rect x="' + x + '" y="' + T + '" width="' + (bw - 3) + '" height="' + (H - T - B) + '" fill="transparent"/>' +
       '<rect x="' + x + '" y="' + (H - B - h) + '" width="' + Math.max(1, bw - 3) + '" height="' + h + '" rx="1.5" fill="' + (c.color || 'var(--accent)') + '"/>' +
-      (c.v ? '<text x="' + (x + (bw - 3) / 2) + '" y="' + (H - B - h - 3) + '" text-anchor="middle" font-size="9.5">' + (opts.fmt ? '' : K.n0(c.v)) + '</text>' : '') +
-      '<text x="' + (x + (bw - 3) / 2) + '" y="' + (H - 9) + '" text-anchor="middle" font-size="10">' + esc(c.label) + '</text></g>';
+      (c.v && bw >= 16 ? '<text x="' + (x + (bw - 3) / 2) + '" y="' + (H - B - h - 3) + '" text-anchor="middle" font-size="9.5">' + (opts.fmt ? '' : K.n0(c.v)) + '</text>' : '') +
+      (i % Math.max(1, Math.ceil(26 / bw)) ? '' : '<text x="' + (x + (bw - 3) / 2) + '" y="' + (H - 9) + '" text-anchor="middle" font-size="10">' + esc(c.label) + '</text>') + '</g>';
   });
   return '<div class="chart">' + s + '</svg></div>';
 };
@@ -163,20 +164,21 @@ U.vintages = function (items, opts) {
  */
 U.lines = function (xs, series, opts) {
   opts = opts || {};
-  const W = Math.max(560, xs.length * 46 + 120), H = opts.h || 260, L = 50, R = 120, T = 12, B = 28;
+  const W = U.narrow() ? Math.max(280, window.innerWidth - 70) : Math.max(560, xs.length * 46 + 120), H = opts.h || 260, L = 44, R = U.narrow() ? 78 : 120, T = 12, B = 28;
   const all = [].concat.apply([], series.map(function (s) { return s.ys.filter(function (v) { return v !== null && v !== undefined; }); }));
   const max = opts.max || niceMax(Math.max.apply(null, all.concat([opts.pct ? 0.05 : 1])));
   const X = function (i) { return L + (xs.length === 1 ? (W - L - R) / 2 : i * (W - L - R) / (xs.length - 1)); };
   const Y = function (v) { return opts.invert ? T + (H - T - B) * (v - 1) / Math.max(1, max - 1) : T + (H - T - B) * (1 - v / max); };
   const fmt = opts.fmt || function (v) { return opts.pct ? K.n0(v * 100) + ' %' : K.n0(v); };
-  let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" style="min-width:' + Math.min(W, 560) + 'px;max-height:' + (H * 1.5) + 'px" role="img" aria-label="' + esc(opts.label || 'Linjediagram') + '">';
+  let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" style="min-width:0px;max-height:' + (H * 1.5) + 'px" role="img" aria-label="' + esc(opts.label || 'Linjediagram') + '">';
   const lead = max / Math.pow(10, Math.floor(Math.log10(max)));
   const N = opts.invert ? 4 : (Math.abs(lead - 2.5) < 1e-9 || Math.abs(lead - 5) < 1e-9 ? 5 : 4);
   for (let g = 0; g <= N; g++) {
     const v = opts.invert ? 1 + (max - 1) * g / N : max * g / N; const y = Y(v);
     s += '<line class="gr" x1="' + L + '" x2="' + (W - R) + '" y1="' + y + '" y2="' + y + '"/><text x="' + (L - 6) + '" y="' + (y + 4) + '" text-anchor="end" font-size="10">' + (opts.invert ? '#' + Math.round(v) : fmt(v)) + '</text>';
   }
-  xs.forEach(function (x, i) { s += '<text x="' + X(i) + '" y="' + (H - 9) + '" text-anchor="middle" font-size="10">' + esc(x) + '</text>'; });
+  const xstep = Math.max(1, Math.ceil(34 / ((W - L - R) / Math.max(1, xs.length - 1))));
+  xs.forEach(function (x, i) { if (i % xstep && i !== xs.length - 1) return; s += '<text x="' + X(i) + '" y="' + (H - 9) + '" text-anchor="middle" font-size="10">' + esc(x) + '</text>'; });
   const labels = [];
   series.forEach(function (se) {
     let d = '', pen = false;
@@ -201,9 +203,9 @@ U.lines = function (xs, series, opts) {
 /** 100 %-stablede søjler pr. periode. groups: [{x, parts:[{key,name,v,act}]}] */
 U.stackCols = function (groups, keys, opts) {
   opts = opts || {};
-  const W = Math.max(480, groups.length * 46 + 60), H = 230, L = 40, T = 10, B = 26;
+  const W = U.narrow() ? Math.max(280, window.innerWidth - 70) : Math.max(480, groups.length * 46 + 60), H = 230, L = 40, T = 10, B = 26;
   const bw = (W - L - 6) / Math.max(1, groups.length);
-  let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" style="min-width:' + Math.min(W, 480) + 'px;max-height:' + (H * 1.5) + 'px" role="img" aria-label="Andel pr. periode">';
+  let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" style="min-width:0px;max-height:' + (H * 1.5) + 'px" role="img" aria-label="Andel pr. periode">';
   [0, .25, .5, .75, 1].forEach(function (g) { const y = T + (H - T - B) * (1 - g); s += '<line class="gr" x1="' + L + '" x2="' + W + '" y1="' + y + '" y2="' + y + '"/><text x="' + (L - 6) + '" y="' + (y + 4) + '" text-anchor="end" font-size="10">' + (g * 100) + ' %</text>'; });
   groups.forEach(function (gr, i) {
     const tot = gr.parts.reduce(function (a, p) { return a + p.v; }, 0); const x = L + 3 + i * bw; let y = H - B;
@@ -212,7 +214,7 @@ U.stackCols = function (groups, keys, opts) {
       const h = (H - T - B) * p.v / tot; y -= h;
       s += '<rect x="' + x + '" y="' + y + '" width="' + (bw - 4) + '" height="' + h + '" fill="' + (opts.color ? opts.color(k, ki) : U.series(ki)) + '"' + U.tipAttr(gr.x + ' · ' + p.name + ': ' + K.n0(p.v) + ' (' + K.pct(p.v / tot) + ')') + (p.act || '') + ' style="cursor:pointer"/>';
     });
-    s += '<text x="' + (x + (bw - 4) / 2) + '" y="' + (H - 9) + '" text-anchor="middle" font-size="10">' + esc(gr.x) + '</text>';
+    if (!(i % Math.max(1, Math.ceil(30 / bw)))) s += '<text x="' + (x + (bw - 4) / 2) + '" y="' + (H - 9) + '" text-anchor="middle" font-size="10">' + esc(gr.x) + '</text>';
   });
   return '<div class="chart">' + s + '</svg></div>';
 };
@@ -248,6 +250,24 @@ U.heat = function (items, rdim, cdim, opts) {
   }); });
   const fmt = function (v) { return mode === 'abs' ? (measure === 'value' || measure === 'avgPrice' ? K.n0(v) : K.n0(v)) : K.n0(v * 100) + '%'; };
   const nm = function (dim, k) { return k === '…' ? 'Øvrige' : K.dimName(dim, k); };
+  // Smal skærm: hver række som en blok med felter, der brydes – ingen vandret scroll.
+  if (U.narrow()) {
+    let m = '<div class="hml">';
+    rkeys.forEach(function (r) {
+      const cs = ckeys.map(function (c) { return { c: c, it: cell[r + '\u0000' + c], v: vals[r + '\u0000' + c] }; })
+        .filter(function (x) { return x.it && x.it.length; }).sort(function (a, b) { return b.v - a.v; });
+      if (!cs.length) return;
+      m += '<div class="hml-r"><div class="hml-h">' + (r === '…' ? '<span>Øvrige</span>' : '<button class="link" type="button"' + U.act(rdim, r, rowT[r], K.DIMS[rdim].label + ': ' + nm(rdim, r)) + '>' + esc(nm(rdim, r)) + '</button>') +
+        '<span class="faint num">' + (mode === 'abs' ? fmt(M(rowT[r])) : K.n0(M(rowT[r]) / (M(grand) || 1) * 100) + '%') + '</span></div><div class="hml-c">' +
+        cs.map(function (x) {
+          const a = max ? Math.min(1, x.v / max) : 0; const title = nm(rdim, r) + ' × ' + nm(cdim, x.c);
+          return '<button type="button" class="hml-chip" data-reg="' + U.reg(x.it, title) + '" style="background:color-mix(in srgb, var(--accent) ' + Math.round(8 + a * 62) + '%, transparent);' + (a > .55 ? 'color:var(--paper)' : '') + '">' + esc(nm(cdim, x.c)) + ' <b>' + fmt(x.v) + '</b></button>';
+        }).join('') + '</div></div>';
+    });
+    m += '</div>';
+    const lblm = { abs: 'antal', row: 'andel af rækken', col: 'andel af kolonnen', total: 'andel af hele udsnittet' };
+    return m + '<div class="faint" style="font-size:.78rem;margin-top:6px">' + esc(K.DIMS[cdim].label) + ' pr. ' + esc(K.DIMS[rdim].label.toLowerCase()) + ', ' + lblm[mode] + '. Tryk et felt for at se vinene.</div>';
+  }
   let h = '<div class="tw hm"><table><thead><tr><th class="rowh">' + esc(K.DIMS[rdim].label) + ' \\ ' + esc(K.DIMS[cdim].label) + '</th>' +
     ckeys.map(function (c) { return '<th class="r">' + esc(nm(cdim, c)) + '</th>'; }).join('') + '<th class="r">I alt</th></tr></thead><tbody>';
   rkeys.forEach(function (r) {
@@ -290,10 +310,10 @@ U.pie = function (parts, opts) {
     a0 = a1;
   });
   s += '<text x="100" y="98" text-anchor="middle" font-size="22" font-weight="800" style="fill:var(--ink);font-family:var(--f-display)">' + K.n0(tot) + '</text><text x="100" y="118" text-anchor="middle" font-size="11">' + esc(opts.unit || 'flasker') + '</text></svg>';
-  const leg = '<div style="display:flex;flex-direction:column;gap:6px;min-width:0;flex:1">' + parts.filter(function (p) { return p.v; }).map(function (p) {
+  const leg = '<div style="display:flex;flex-direction:column;gap:6px;min-width:0;flex:1 1 200px">' + parts.filter(function (p) { return p.v; }).map(function (p) {
     return '<div style="display:grid;grid-template-columns:12px minmax(0,1fr) auto auto;gap:8px;align-items:center;font-size:14px"><span class="sw" style="background:' + p.color + '"></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600">' + esc(p.name) + '</span><span class="num faint">' + K.n0(p.v) + '</span><span class="num" style="min-width:52px;text-align:right">' + K.pct(p.v / tot) + '</span></div>';
   }).join('') + '</div>';
-  return '<div style="display:flex;flex-wrap:wrap;gap:20px;align-items:center">' + s + leg + '</div>';
+  return '<div style="display:flex;flex-wrap:wrap;gap:20px;align-items:center;justify-content:center">' + s + leg + '</div>';
 };
 
 /* ---------------------------------------------------------------- vinlister */
